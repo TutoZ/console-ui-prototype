@@ -8,7 +8,6 @@
 import React from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import type { IconSvgElement } from '@hugeicons/react';
-import { MatrixLoader } from '@/src/components/common/MatrixLoader';
 import {
   Search01Icon,
   Add01Icon,
@@ -43,6 +42,7 @@ import {
   Shield01Icon,
   LaptopIcon,
   PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
   Notification01Icon,
   ArrowUp01Icon,
   GiftIcon,
@@ -239,6 +239,7 @@ export const Users = wrap(UserGroupIcon);
 export const Shield = wrap(Shield01Icon);
 export const Laptop = wrap(LaptopIcon);
 export const PanelLeftClose = wrap(PanelLeftCloseIcon);
+export const PanelLeftOpen = wrap(PanelLeftOpenIcon);
 export const Bell = wrap(Notification01Icon);
 export const ChevronUp = wrap(ArrowUp01Icon);
 export const Gift = wrap(GiftIcon);
@@ -252,10 +253,8 @@ export const Contact = wrap(ContactBookIcon);
 export const Save = wrap(SaveIcon);
 export const ShieldCheck = wrap(SecurityCheckIcon);
 export const Circle = wrap(CircleIcon);
-/** 全站加载态：点阵动画（matrix-loader），兼容原 Loader2 调用方式 */
-export const Loader2: IconComponent = ({ size = 16, className = '', style }) => (
-  <MatrixLoader size={size} className={className} style={style} />
-);
+/** 常规加载态：旋转图标，请配合 `animate-spin` */
+export const Loader2 = wrap(Refresh01Icon);
 export const RefreshCw = wrap(Refresh01Icon);
 export const Split = wrap(SplitIcon);
 export const Pause = wrap(PauseIcon);
@@ -365,6 +364,10 @@ export const Building = wrap(Building03Icon);
 export const GraduationCap = wrap(GraduationCapIcon);
 export const Hierarchy = wrap(HierarchySquare01Icon);
 export const ClipboardCheck = wrap(ClipboardCheckIcon);
+
+/** BuildSkillModal / lucide 兼容别名 */
+export const GripVertical = MoreVertical;
+export const FlaskConical = Workflow;
 
 /** shadcn ui 别名 */
 export const XIcon = X;

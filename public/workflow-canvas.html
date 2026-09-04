@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow Canvas Prototype - Ultimate</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        body, html { margin: 0; padding: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .tooltip-arrow-down::after { content: ''; position: absolute; top: 100%; left: 50%; margin-left: -6px; border-width: 6px; border-style: solid; border-color: #374151 transparent transparent transparent; }
+        .tooltip-arrow-up::after { content: ''; position: absolute; bottom: 100%; left: 50%; margin-left: -6px; border-width: 6px; border-style: solid; border-color: transparent transparent #374151 transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes fadeInDown { from { opacity: 0; transform: translate(-50%, -20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .json-viewer::-webkit-scrollbar { height: 8px; width: 8px; }
+        .json-viewer::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        .json-viewer::-webkit-scrollbar-track { background: #1f2937; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect, useMemo } = React;
+
+        // --- 基础图标库 ---
+        const Icons = {
+            Back: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>,
+            User: () => <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>,
+            Edit: () => <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>,
+            CheckList: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>,
+            Clock: () => <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>,
+            Plus: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>,
+            Note: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h8"></path></svg>,
+            Undo: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>,
+            Redo: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"></path></svg>,
+            ZoomOut: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4"></path></svg>,
+            ZoomIn: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>,
+            Layout: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>,
+            Locate: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>,
+            Close: () => <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>,
+            More: () => <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" /></svg>,
+            SearchIcon: () => <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>,
+            CheckCircle: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>,
+            Eye: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>,
+            Refresh: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>,
+            Trash: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>,
+            Lightning: () => <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>,
+            Terminal: () => <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 9l3 3-3 3m5 0h3M4 6h16v12H4z"></path></svg>,
+            Image: () => <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>,
+            Send: () => <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg>,
+            Copy: () => <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>,
+            ChevronDown: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>,
+            Settings: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>,
+            Bulb: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>,
+            Minus: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4"></path></svg>,
+            InfoCircle: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        };
+
+        const TooltipButton = ({ children, text, disabled = false, onClick, onMouseDown, placement = 'top', className = '' }) => {
+            const isTop = placement === 'top';
+            return (
+                <div className="relative group flex items-center justify-center">
+                    <button onClick={onClick} onMouseDown={onMouseDown} disabled={disabled} className={`relative p-2 rounded-lg transition-colors ${disabled ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'} ${className}`}>
+                        {children}
+                    </button>
+                    <div className={`absolute ${isTop ? 'bottom-full mb-2' : 'top-full mt-2'} hidden group-hover:flex flex-col items-center z-50 whitespace-nowrap pointer-events-none`}>
+                        <div className={`bg-gray-700 text-white text-xs px-3 py-1.5 rounded-md shadow-lg ${isTop ? 'tooltip-arrow-down' : 'tooltip-arrow-up'}`}>{text}</div>
+                    </div>
+                </div>
+            );
+        };
+
+        const InfoTooltip = ({ text }) => (
+            <span className="relative group inline-flex items-center mx-1 align-middle">
+                <Icons.InfoCircle className="text-gray-400 hover:text-gray-500" />
+                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 w-max max-w-xs bg-gray-800 text-white text-[11px] px-2 py-1 rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[100] pointer-events-none">
+                    {text}
+                </span>
+            </span>
+        );
+
+        const NODE_TYPES = ['LLM', '知识检索', 'Agent', '意图识别', '条件分支', '变量聚合', '变量更新', '交互澄清', '插件工具'];
+        
+        const AGENT_DISPLAY_NAME = (() => {
+            try {
+                return new URLSearchParams(window.location.search).get('name') || '预设流程数字员工';
+            } catch {
+                return '预设流程数字员工';
+            }
+        })();
+        const AGENT_DISPLAY_ID = (() => {
+            try {
+                return new URLSearchParams(window.location.search).get('id') || `agent_${Date.now().toString(36)}`;
+            } catch {
+                return `agent_${Date.now().toString(36)}`;
+            }
+        })();
+
+        const requestBackToTeam = () => {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ type: 'workflow-canvas-back' }, '*');
+                return;
+            }
+            if (window.history.length > 1) window.history.back();
+        };
+        const NODE_DESCRIPTIONS = {
+            'LLM': '调用大语言模型，使用变量和提示词生成回复，处理复杂的自然语言理解和生成任务。',
+            '知识检索': '根据用户输入，从关联的知识库文档中检索并提取最相关的上下文片段作为参考。',
+            'Agent': '智能体节点，具备自主思考规划能力，可调用多种外部工具完成多步骤复杂指令。',
+            '意图识别': '问题分类节点可以对输入的内容进行分类，并通过不同流程分支实现不同问题的分流。',
+            '条件分支': '根据设定的变量条件规则，动态判断并控制工作流走向不同的下游执行分支。',
+            '变量聚合': '将多个前置分支或节点的输出变量进行整合、拼接与格式化，统一往下游输出。',
+            '变量更新': '在工作流程运行中，根据需要动态修改、更新或覆盖指定的全局/局部变量值。',
+            '交互澄清': '当检测到必要信息缺失或不明确时，主动暂停流程并向用户发起提问以收集信息。',
+            '插件工具': '调用外部预设的API、系统接口或三方插件服务，执行获取数据或状态控制等逻辑。'
+        };
+
+        const getNodeStyle = (type) => {
+            if (type === '开始') return { bg: 'bg-blue-500', icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> };
+            if (type === '结束') return { bg: 'bg-indigo-500', icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg> };
+            if (type === '知识检索') return { bg: 'bg-orange-500', icon: <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg> };
+            return { bg: 'bg-purple-500', icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> };
+        };
+
+        const getFormattedTime = () => {
+            const date = new Date();
+            const pad = (n) => n.toString().padStart(2, '0');
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+        };
+
+        // --- 独立的节点配置面板组件 ---
+        const NodeConfigPanel = ({ node, onClose, onUpdateNode, onCopy, onDelete }) => {
+            const [isEditingDesc, setIsEditingDesc] = useState(false);
+            const [descText, setDescText] = useState("");
+            
+            const [isEditingName, setIsEditingName] = useState(false);
+            const [nameText, setNameText] = useState("");
+            
+            const [isMenuOpen, setIsMenuOpen] = useState(false);
+            const [endNodeTab, setEndNodeTab] = useState('直接回答');
+
+            useEffect(() => {
+                let initialDesc = "请描述该节点的作用";
+                if (node.type === 'LLM') initialDesc = "调用大语言模型，使用变量和提示词生成回复";
+                if (node.type === '结束') initialDesc = "工作流的最终节点，用于返回工作流运行后的结果信息";
+                if (node.type === '开始') initialDesc = "定义工作流的全局输入变量";
+                setDescText(node.desc || initialDesc);
+                setIsEditingDesc(false);
+                
+                setNameText(node.name || node.type);
+                setIsEditingName(false);
+                setIsMenuOpen(false);
+            }, [node.id, node.type, node.desc, node.name]);
+
+            const handleDescBlur = () => {
+                setIsEditingDesc(false);
+                if (onUpdateNode && descText !== node.desc) {
+                    onUpdateNode(node.id, { desc: descText });
+                }
+            };
+            const handleDescKeyDown = (e) => { if (e.key === 'Enter') { e.preventDefault(); handleDescBlur(); } };
+
+            const handleNameBlur = () => {
+                setIsEditingName(false);
+                if (onUpdateNode && nameText !== (node.name || node.type)) {
+                    onUpdateNode(node.id, { name: nameText });
+                }
+            };
+            const handleNameKeyDown = (e) => { if (e.key === 'Enter') { e.preventDefault(); handleNameBlur(); } };
+
+            const style = getNodeStyle(node.type);
+            const isSpecialNode = node.type === '开始' || node.type === '结束';
+
+            const renderContent = () => {
+                if (node.type === '开始') {
+                    return (
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="font-bold text-gray-800 text-sm flex items-center">
+                                    输入 <InfoTooltip text="定义工作流的全局输入变量" />
+                                </span>
+                                <button className="text-blue-500 hover:bg-blue-50 p-1 rounded"><Icons.Plus /></button>
+                            </div>
+                            
+                            <div className="grid grid-cols-[3fr_3fr_1.5fr] gap-2 text-xs text-gray-500 mb-2 px-2">
+                                <div>变量名</div><div>变量类型</div><div>必填</div>
+                            </div>
+                            
+                            <div className="border border-gray-200 rounded-lg p-3 mb-2 shadow-sm bg-white">
+                                <div className="grid grid-cols-[3fr_3fr_1.5fr] gap-2 items-center mb-4">
+                                    <div className="text-sm text-gray-800 font-medium">user_input</div>
+                                    <div>
+                                        <select className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs outline-none text-gray-600"><option>str.String</option></select>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 pl-1">
+                                        <input type="checkbox" className="rounded text-blue-500 focus:ring-0 w-3.5 h-3.5 cursor-pointer" />
+                                        <svg className="w-3 h-3 text-gray-400 cursor-pointer hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                                    </div>
+                                </div>
+                                <div className="mb-3 flex flex-col gap-1">
+                                    <div className="text-xs text-gray-500">默认值</div>
+                                    <input type="text" placeholder="参数默认值，在没有传入该参数时，将使用默认值" className="w-full border border-gray-200 rounded p-1.5 text-xs outline-none focus:border-blue-400 text-gray-700" />
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <div className="text-xs text-gray-500">描述</div>
+                                    <input type="text" defaultValue="ç ¨æ ·è¾ å ¥" className="w-full border border-gray-200 rounded p-1.5 text-xs outline-none focus:border-blue-400 text-gray-700 font-mono" />
+                                </div>
+                            </div>
+
+                            {['session_id', 'user_pin', 'bot_id'].map(item => (
+                                <div className="grid grid-cols-[3fr_3fr_1.5fr] gap-2 items-center px-3 py-2 border-b border-gray-50 hover:bg-gray-50 transition-colors" key={item}>
+                                    <div className="text-sm text-gray-800">{item}</div>
+                                    <div>
+                                        <select className="w-full bg-gray-50 border border-gray-200 rounded px-2 py-1 text-xs outline-none text-gray-600">
+                                            <option>{item === 'bot_id' ? 'Long' : 'str.String'}</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 pl-1">
+                                        <input type="checkbox" defaultChecked className="rounded text-blue-600 focus:ring-0 w-3.5 h-3.5 cursor-pointer" />
+                                        <svg className="w-3 h-3 text-gray-400 cursor-pointer hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    );
+                }
+
+                if (node.type === 'LLM') {
+                    return (
+                        <div className="space-y-6">
+                            <div>
+                                <div className="flex items-center gap-1 mb-2 font-bold text-[13px] text-gray-800">
+                                    <Icons.ChevronDown /> 模型
+                                </div>
+                                <div className="flex items-center gap-2 pl-5">
+                                    <select className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-[13px] text-gray-700 bg-white outline-none focus:border-blue-500">
+                                        <option>JoyAl-1.3T(JoyAl)</option>
+                                    </select>
+                                    <button className="p-1.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50"><Icons.Settings /></button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div className="flex items-center gap-1 font-bold text-[13px] text-gray-800 cursor-pointer hover:text-blue-600">
+                                    <Icons.ChevronDown className="transform -rotate-90" /> 模型参数 <InfoTooltip text="调节生成文本的随机性、长度等超参数" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-1 font-bold text-[13px] text-gray-800">
+                                        <Icons.ChevronDown /> 输入 <InfoTooltip text="传递给大模型的变量参数" />
+                                    </div>
+                                    <button className="text-gray-400 hover:text-blue-500"><Icons.Plus /></button>
+                                </div>
+                                <div className="pl-5 flex gap-2 items-start">
+                                    <div className="w-[35%]">
+                                        <div className="text-xs text-gray-500 mb-1">参数名</div>
+                                        <input type="text" value="input" readOnly className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-xs bg-gray-50 text-gray-600 outline-none" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="text-xs text-gray-500 mb-1">参数值</div>
+                                        <div className="flex items-center border border-red-300 rounded-md bg-white overflow-hidden focus-within:border-red-500 transition-colors">
+                                            <input type="text" placeholder="输入或引用参数值" className="w-full px-2 py-1.5 text-xs outline-none bg-transparent" />
+                                            <div className="px-2 text-gray-400 border-l border-gray-100 cursor-pointer hover:bg-gray-50"><Icons.Settings /></div>
+                                        </div>
+                                        <div className="text-red-500 text-[11px] mt-1">参数值不可为空</div>
+                                    </div>
+                                    <div className="pt-6 text-gray-400 hover:text-red-500 cursor-pointer"><Icons.Minus /></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-1 font-bold text-[13px] text-gray-800">
+                                        <Icons.ChevronDown /> 提示词 <InfoTooltip text="引导模型生成方向的系统指令" />
+                                    </div>
+                                    <button className="text-yellow-500 hover:text-yellow-600"><Icons.Bulb /></button>
+                                </div>
+                                <div className="pl-5">
+                                    <textarea rows="3" className="w-full border border-red-300 rounded-lg p-3 text-[13px] outline-none resize-none focus:border-red-500 transition-colors" placeholder="可以使用{{变量名}}的方式引入输入参数中的变量"></textarea>
+                                    <div className="text-red-500 text-[11px] mt-1">提示词不可为空</div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                 <div className="flex items-center gap-1 mb-2 font-bold text-[13px] text-gray-800">
+                                    <Icons.ChevronDown /> 用户输入 <InfoTooltip text="当前轮次的会话消息" />
+                                </div>
+                                <div className="pl-5">
+                                    <textarea rows="2" className="w-full border border-gray-200 bg-gray-50/50 rounded-lg p-3 text-[13px] outline-none resize-none focus:border-blue-400 transition-colors" placeholder="请输入用户消息内容 (可选)"></textarea>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-1 font-bold text-[13px] text-gray-800 cursor-pointer hover:text-blue-600">
+                                        <Icons.ChevronDown className="transform -rotate-90" /> 输出 <InfoTooltip text="模型处理后的返回结果" />
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs">
+                                        <span className="text-gray-500">输出格式</span>
+                                        <select className="border border-gray-200 rounded px-1.5 py-0.5 outline-none text-gray-700 bg-white hover:border-blue-400 cursor-pointer"><option>文本</option></select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                 <div className="flex items-center gap-1 mb-2 font-bold text-[13px] text-gray-800">
+                                    <Icons.ChevronDown /> 异常处理 <InfoTooltip text="定义请求超时或失败时的动作" />
+                                </div>
+                                <div className="pl-5 grid grid-cols-3 gap-2">
+                                    <div>
+                                        <div className="text-[11px] text-gray-500 mb-1 flex items-center gap-1 whitespace-nowrap">超时时间(s)</div>
+                                        <div className="border border-gray-200 rounded-md flex overflow-hidden bg-white focus-within:border-blue-400">
+                                            <input type="text" value="300" readOnly className="w-full px-2 py-1.5 text-xs outline-none" />
+                                            <div className="flex flex-col border-l border-gray-200 bg-gray-50 w-5">
+                                                <button className="flex-1 hover:bg-gray-200 border-b border-gray-200 text-gray-400 flex items-center justify-center"><svg className="w-2 h-2" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" /></svg></button>
+                                                <button className="flex-1 hover:bg-gray-200 text-gray-400 flex items-center justify-center"><svg className="w-2 h-2" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-[11px] text-gray-500 mb-1">重试次数</div>
+                                        <select className="w-full border border-gray-200 rounded-md px-1.5 py-1.5 text-xs outline-none bg-white hover:border-blue-400 cursor-pointer"><option>不重试</option></select>
+                                    </div>
+                                    <div>
+                                        <div className="text-[11px] text-gray-500 mb-1">异常处理方式</div>
+                                        <select className="w-full border border-gray-200 rounded-md px-1.5 py-1.5 text-xs outline-none bg-white hover:border-blue-400 cursor-pointer"><option>中断流程</option></select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+
+                if (node.type === '结束') {
+                    return (
+                        <div className="space-y-6">
+                            <div className="bg-gray-100 p-1 rounded-lg flex items-center mb-2">
+                                <button onClick={() => setEndNodeTab('返回变量')} className={`flex-1 py-1.5 text-[13px] font-medium rounded-md transition-all ${endNodeTab === '返回变量' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>返回变量</button>
+                                <button onClick={() => setEndNodeTab('直接回答')} className={`flex-1 py-1.5 text-[13px] font-medium rounded-md transition-all ${endNodeTab === '直接回答' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>直接回答</button>
+                            </div>
+
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-1 font-bold text-[13px] text-gray-800">
+                                        <Icons.ChevronDown /> 输出变量
+                                    </div>
+                                    <button className="text-gray-400 hover:text-blue-500"><Icons.Plus /></button>
+                                </div>
+                                <div className="pl-5 flex gap-2 items-start">
+                                    <div className="w-[35%]">
+                                        <div className="text-xs text-gray-500 mb-1">参数名</div>
+                                        <input type="text" value="output" readOnly className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-xs bg-white text-gray-800 outline-none hover:border-blue-400 transition-colors" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="text-xs text-gray-500 mb-1">参数值</div>
+                                        <div className="flex items-center border border-red-300 rounded-md bg-white overflow-hidden focus-within:border-red-500 transition-colors">
+                                            <input type="text" placeholder="输入或引用参数值" className="w-full px-2 py-1.5 text-xs outline-none bg-transparent" />
+                                            <div className="px-2 text-gray-400 border-l border-gray-100 cursor-pointer hover:bg-gray-50"><Icons.Settings /></div>
+                                        </div>
+                                        <div className="text-red-500 text-[11px] mt-1">参数值不可为空</div>
+                                    </div>
+                                    <div className="pt-6 text-gray-400 hover:text-red-500 cursor-pointer"><Icons.Minus /></div>
+                                </div>
+                            </div>
+
+                            {endNodeTab === '直接回答' && (
+                                <div className="mt-6 animate-[fadeInDown_0.2s_ease-out]">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-1 font-bold text-[13px] text-gray-800">
+                                            <Icons.ChevronDown /> 回答内容 <InfoTooltip text="最终展示给用户的纯文本信息" />
+                                        </div>
+                                        <div className="flex items-center gap-2 text-[12px] text-gray-600">
+                                            流式输出 <InfoTooltip text="开启后以打字机效果逐步输出内容" /> 
+                                            <div className="w-7 h-4 bg-gray-200 rounded-full flex items-center px-0.5 cursor-pointer hover:bg-gray-300 transition-colors"><div className="w-3 h-3 bg-white rounded-full shadow-sm"></div></div>
+                                        </div>
+                                    </div>
+                                    <div className="pl-5 relative">
+                                        <textarea rows="4" className="w-full border border-gray-200 rounded-lg p-3 text-[13px] outline-none resize-none focus:border-blue-400 transition-colors" placeholder="可以使用{{变量名}}的方式引用输入参数中的变量"></textarea>
+                                        <span className="absolute bottom-3 right-3 text-[11px] text-gray-400">0/5000</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                }
+
+                return (
+                    <div className="flex h-full items-center justify-center text-gray-400 text-sm">
+                        配置信息页
+                    </div>
+                );
+            };
+
+            return (
+                <div className="absolute right-0 top-16 bottom-0 w-[420px] bg-white shadow-2xl border-l border-gray-200 z-[70] flex flex-col pointer-events-auto animate-[slideInRight_0.2s_ease-out]" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+                    <div className="p-4 pb-3 border-b border-gray-100 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm shrink-0 ${style.bg}`}>
+                                    {style.icon}
+                                </div>
+                                {!isSpecialNode ? (
+                                    isEditingName ? (
+                                        <input 
+                                            autoFocus 
+                                            className="border border-blue-400 rounded w-full outline-none text-gray-700 px-2 py-0.5 bg-blue-50/30 text-lg font-bold" 
+                                            value={nameText} 
+                                            onChange={e => setNameText(e.target.value)} 
+                                            onBlur={handleNameBlur} 
+                                            onKeyDown={handleNameKeyDown}
+                                        />
+                                    ) : (
+                                        <div className="flex items-center gap-1.5 cursor-pointer hover:text-blue-500 group transition-colors flex-1 min-w-0" onClick={() => setIsEditingName(true)}>
+                                            <span className="font-bold text-gray-800 text-lg truncate group-hover:underline decoration-blue-200 underline-offset-2">{node.name || node.type}</span>
+                                            <Icons.Edit className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                                        </div>
+                                    )
+                                ) : (
+                                    <span className="font-bold text-gray-800 text-lg truncate">{node.name || node.type}</span>
+                                )}
+                            </div>
+                            
+                            <div className="flex items-center gap-1 shrink-0 ml-2">
+                                {!isSpecialNode && (
+                                    <div className="relative" onMouseLeave={() => setIsMenuOpen(false)}>
+                                        <button className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+                                            <Icons.More />
+                                        </button>
+                                        {isMenuOpen && (
+                                            <div className="absolute right-0 top-full mt-1 bg-white border border-gray-100 shadow-lg rounded-md py-1 w-24 z-50">
+                                                <button className="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50" onClick={(e) => { setIsMenuOpen(false); if(onCopy) onCopy(e, node); }}>复制</button>
+                                                <button className="w-full text-left px-3 py-1.5 text-sm text-red-600 hover:bg-red-50" onClick={(e) => { setIsMenuOpen(false); if(onDelete) onDelete(e, node.id); }}>删除</button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                <button className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors" onClick={onClose}><Icons.Close /></button>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-start gap-2 text-[13px] text-gray-500 mt-1">
+                            {isEditingDesc ? (
+                                <textarea 
+                                    autoFocus 
+                                    className="border border-blue-400 rounded w-full outline-none text-gray-700 px-2 py-1.5 bg-blue-50/30 resize-none" 
+                                    rows="2"
+                                    value={descText} 
+                                    onChange={e => setDescText(e.target.value)} 
+                                    onBlur={handleDescBlur} 
+                                    onKeyDown={handleDescKeyDown}
+                                />
+                            ) : (
+                                <div className="flex items-start gap-1.5 cursor-pointer hover:text-blue-500 group transition-colors w-full" onClick={() => setIsEditingDesc(true)}>
+                                    <span className="group-hover:underline decoration-blue-200 underline-offset-2 flex-1 leading-relaxed">{descText}</span>
+                                    <Icons.Edit className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5 shrink-0" />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto p-5 no-scrollbar bg-white">
+                        {renderContent()}
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('入职培训');
+            const [nodes, setNodes] = useState([
+                { id: 'node_start', type: '开始', x: 200, y: 300, desc: '定义工作流的全局输入变量' },
+                { id: 'node_end', type: '结束', x: 700, y: 300, desc: '工作流的最终节点，用于返回工作流运行后的结果信息' }
+            ]);
+            const [edges, setEdges] = useState([]);
+            const [notes, setNotes] = useState([]); 
+            const [history, setHistory] = useState({ past: [], future: [] });
+
+            const [archives, setArchives] = useState([
+                { id: '1786515187882', status: 'ACTIVE', time: '2026-08-12 14:13:07', nodes: [], edges: [], notes: [] },
+                { id: '1786515175160', status: 'HISTORY', time: '2026-08-12 14:13:07', nodes: [], edges: [], notes: [] }
+            ]);
+            const [draftTime, setDraftTime] = useState('2026-08-12 11:59:25');
+
+            const [selectedNodeId, setSelectedNodeId] = useState(null);
+            const [pan, setPan] = useState({ x: 0, y: 0 });
+            const [zoom, setZoom] = useState(1);
+            
+            const [menuState, setMenuState] = useState({ visible: false, x: 0, y: 0, sourceNodeId: null, isToolbar: false });
+            const [activeNodeMenuId, setActiveNodeMenuId] = useState(null);
+            const [hoveredEdgeId, setHoveredEdgeId] = useState(null);
+            
+            const [isEditModalOpen, setEditModalOpen] = useState(false);
+            const [isChecklistOpen, setChecklistOpen] = useState(false);
+            const [isArchiveOpen, setArchiveOpen] = useState(false); 
+            const [isLocateOpen, setLocateOpen] = useState(false);
+            
+            const [isTestPanelOpen, setTestPanelOpen] = useState(false);
+            const [testPhase, setTestPhase] = useState('config'); 
+            const [testConfigInput, setTestConfigInput] = useState('');
+            const [chatMessages, setChatMessages] = useState([]);
+            const [chatInput, setChatInput] = useState('');
+            const [executionLog, setExecutionLog] = useState(null);
+            const [activeLogStepId, setActiveLogStepId] = useState('start');
+            
+            const [searchNodeText, setSearchNodeText] = useState("");
+            const [isMinimapVisible, setMinimapVisible] = useState(false);
+            const [toast, setToast] = useState({ visible: false, msg: '' });
+
+            const canvasRef = useRef(null);
+            const panningStateRef = useRef(false);
+            const lastPanMouse = useRef({ x: 0, y: 0 });
+            const draggingItemRef = useRef(null); 
+            const [drawingLine, setDrawingLine] = useState(null);
+
+            const showToast = (msg) => {
+                setToast({ visible: true, msg });
+                setTimeout(() => setToast({ visible: false, msg: '' }), 3000);
+            };
+
+            const updateCanvasState = (newNodes, newEdges, newNotes = notes) => {
+                setHistory(h => ({ past: [...h.past, { nodes, edges, notes }], future: [] }));
+                setNodes(newNodes);
+                setEdges(newEdges);
+                setNotes(newNotes);
+            };
+
+            const handleUndo = (e) => {
+                if(e) { e.stopPropagation(); e.preventDefault(); }
+                if (history.past.length === 0) return;
+                const previous = history.past[history.past.length - 1];
+                setHistory({ past: history.past.slice(0, -1), future: [{ nodes, edges, notes }, ...history.future] });
+                setNodes(previous.nodes); setEdges(previous.edges); setNotes(previous.notes);
+            };
+            
+            const handleRedo = (e) => {
+                if(e) { e.stopPropagation(); e.preventDefault(); }
+                if (history.future.length === 0) return;
+                const next = history.future[0];
+                setHistory({ past: [...history.past, { nodes, edges, notes }], future: history.future.slice(1) });
+                setNodes(next.nodes); setEdges(next.edges); setNotes(next.notes);
+            };
+
+            const validationErrors = useMemo(() => {
+                const errors = [];
+                nodes.forEach(node => {
+                    const hasIncoming = edges.some(e => e.target === node.id);
+                    const hasOutgoing = edges.some(e => e.source === node.id);
+                    if (node.type === '开始' && !hasOutgoing) errors.push({ id: node.id, type: node.type, msg: '节点未连接完整' });
+                    else if (node.type === '结束' && !hasIncoming) errors.push({ id: node.id, type: node.type, msg: '节点未连接完整' });
+                    else if (node.type !== '开始' && node.type !== '结束') {
+                        if (!hasIncoming || !hasOutgoing) errors.push({ id: node.id, type: node.type, msg: '节点未连接完整' });
+                    }
+                });
+                return errors;
+            }, [nodes, edges]);
+
+            const handleOpenTest = () => {
+                if (validationErrors.length > 0) {
+                    setChecklistOpen(true);
+                    setArchiveOpen(false);
+                    setTestPanelOpen(false);
+                    return;
+                }
+                setTestPanelOpen(true);
+                setTestPhase('config'); 
+                setChecklistOpen(false);
+                setArchiveOpen(false);
+            };
+
+            const handleStartTesting = () => {
+                if (!testConfigInput.trim()) return;
+                setTestPhase('testing');
+                setChatMessages([]);
+                setExecutionLog(null);
+                setChatInput(testConfigInput); 
+            };
+
+            const handleSendTestMessage = () => {
+                if (!chatInput.trim()) return;
+                const userMsg = chatInput;
+                setChatMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+                setChatInput('');
+                setExecutionLog(null);
+
+                setTimeout(() => {
+                    const replyMsg = "已收到您的输入信息。这是能力测试环境的沙盒返回结果，不影响线上正式业务。";
+                    setChatMessages(prev => [...prev, { role: 'bot', text: replyMsg }]);
+                    
+                    setExecutionLog({
+                        id: '44446416-f4d3-4581-ab22-a08921cee859',
+                        time: getFormattedTime().slice(11, 16),
+                        steps: [
+                            {
+                                id: 'start', name: '开始节点', time: '14ms', status: '运行成功',
+                                details: {
+                                    input: [
+                                        { key: "user_input", value: userMsg },
+                                        { key: "session_id", value: "10b58541-232e-4de0-974b-f2ee09112958" },
+                                        { key: "user_pin", value: "cdliujun1@jd.com" },
+                                        { key: "bot_id", value: 1 }
+                                    ],
+                                    output: [
+                                        { key: "user_input", value: userMsg },
+                                        { key: "meta_source", value: "sandbox_env" }
+                                    ]
+                                }
+                            },
+                            {
+                                id: 'llm', name: 'LLM (大模型)', time: '7765ms', status: '运行成功', subInfo: 'DeepSeek-V4-Flash (7569ms)',
+                                details: {
+                                    input: [
+                                        { key: "system_prompt", value: "你是一个严谨的数字员工，当前处于能力测试环节。" },
+                                        { key: "user_query", value: userMsg },
+                                        { key: "temperature", value: 0.7 }
+                                    ],
+                                    output: [
+                                        { key: "generated_text", value: replyMsg },
+                                        { key: "finish_reason", value: "stop" }
+                                    ]
+                                }
+                            },
+                            {
+                                id: 'end', name: '结束节点', time: '72ms', status: '运行成功',
+                                details: {
+                                    input: [
+                                        { key: "output_text", value: replyMsg }
+                                    ],
+                                    output: [
+                                        { key: "final_result", value: replyMsg },
+                                        { key: "delivery_channel", value: "sandbox_chat" }
+                                    ]
+                                }
+                            }
+                        ]
+                    });
+                    setActiveLogStepId('llm'); 
+                }, 1500);
+            };
+
+            const handleSaveConfig = () => {
+                const now = Date.now().toString();
+                const timeStr = getFormattedTime();
+                setArchives(prev => [{ id: now, status: 'HISTORY', time: timeStr, nodes, edges, notes }, ...prev]);
+                setDraftTime(timeStr);
+                showToast('已保存，员工已进入试岗阶段');
+            };
+
+            const handleCompleteConfig = () => {
+                if (validationErrors.length > 0) {
+                    setChecklistOpen(true);
+                    setArchiveOpen(false);
+                    return;
+                }
+                const now = Date.now().toString();
+                const timeStr = getFormattedTime();
+                setArchives(prev => {
+                    const newArchives = prev.map(a => a.status === 'ACTIVE' ? { ...a, status: 'HISTORY' } : a);
+                    return [{ id: now, status: 'ACTIVE', time: timeStr, nodes, edges, notes }, ...newArchives];
+                });
+                setDraftTime(timeStr);
+                setChecklistOpen(false);
+                setArchiveOpen(false);
+                showToast('培训完成，员工已上岗');
+            };
+
+            const centerOnNode = (nodeId) => {
+                const targetNode = nodes.find(n => n.id === nodeId);
+                if (!targetNode) return;
+                setSelectedNodeId(nodeId);
+                setChecklistOpen(false); 
+                setLocateOpen(false);
+                const canvasW = canvasRef.current.offsetWidth;
+                const canvasH = canvasRef.current.offsetHeight;
+                const targetZoom = 1.2;
+                setZoom(targetZoom);
+                setPan({ x: (canvasW / 2) - (targetNode.x + 120) * targetZoom, y: (canvasH / 2) - (targetNode.y + 50) * targetZoom });
+            };
+
+            const handleCanvasMouseDown = (e) => {
+                if (e.target.id === 'canvas-bg' || e.target.id === 'canvas-svg') {
+                    setSelectedNodeId(null);
+                    setMenuState({ visible: false, x: 0, y: 0, sourceNodeId: null, isToolbar: false });
+                    setActiveNodeMenuId(null);
+                    setChecklistOpen(false);
+                    setLocateOpen(false);
+                    setArchiveOpen(false);
+                    panningStateRef.current = true;
+                    lastPanMouse.current = { x: e.clientX, y: e.clientY };
+                }
+            };
+            
+            const handleItemMouseDown = (e, id, type = 'node') => {
+                if (e.button !== 0) return;
+                e.stopPropagation();
+                setSelectedNodeId(id);
+                setMenuState({ ...menuState, visible: false });
+                setActiveNodeMenuId(null);
+                setChecklistOpen(false);
+                setLocateOpen(false);
+                let item = type === 'node' ? nodes.find(n => n.id === id) : notes.find(n => n.id === id);
+                draggingItemRef.current = { id, type, startX: e.clientX, startY: e.clientY, initialX: item.x, initialY: item.y };
+            };
+
+            const handleDotMouseDown = (e, nodeId, isSource) => {
+                e.stopPropagation();
+                const node = nodes.find(n => n.id === nodeId);
+                const startX = isSource ? node.x + 240 : node.x;
+                const startY = node.y + 40;
+                const canvasRect = canvasRef.current.getBoundingClientRect();
+                const currentX = (e.clientX - canvasRect.left - pan.x) / zoom;
+                const currentY = (e.clientY - canvasRect.top - pan.y) / zoom;
+                setDrawingLine({ sourceNodeId: isSource ? nodeId : null, targetNodeId: !isSource ? nodeId : null, startX, startY, currentX, currentY });
+            };
+
+            const handleDotMouseUp = (e, nodeId) => {
+                e.stopPropagation();
+                if (drawingLine) {
+                    if (drawingLine.sourceNodeId && drawingLine.sourceNodeId !== nodeId) {
+                        const newEdges = [...edges, { id: `edge_${Date.now()}`, source: drawingLine.sourceNodeId, target: nodeId }];
+                        updateCanvasState(nodes, newEdges, notes);
+                    } else if (drawingLine.targetNodeId && drawingLine.targetNodeId !== nodeId) {
+                        const newEdges = [...edges, { id: `edge_${Date.now()}`, source: nodeId, target: drawingLine.targetNodeId }];
+                        updateCanvasState(nodes, newEdges, notes);
+                    }
+                }
+                setDrawingLine(null);
+            };
+
+            useEffect(() => {
+                const handleMouseMove = (e) => {
+                    if (panningStateRef.current) {
+                        const dx = e.clientX - lastPanMouse.current.x;
+                        const dy = e.clientY - lastPanMouse.current.y;
+                        setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+                        lastPanMouse.current = { x: e.clientX, y: e.clientY };
+                    }
+                    else if (draggingItemRef.current) {
+                        const { id, type, startX, startY, initialX, initialY } = draggingItemRef.current;
+                        const dx = (e.clientX - startX) / zoom;
+                        const dy = (e.clientY - startY) / zoom;
+                        if (type === 'node') setNodes(prev => prev.map(n => n.id === id ? { ...n, x: initialX + dx, y: initialY + dy } : n));
+                        else setNotes(prev => prev.map(n => n.id === id ? { ...n, x: initialX + dx, y: initialY + dy } : n));
+                    }
+                    else if (drawingLine) {
+                        const canvasRect = canvasRef.current.getBoundingClientRect();
+                        const currentX = (e.clientX - canvasRect.left - pan.x) / zoom;
+                        const currentY = (e.clientY - canvasRect.top - pan.y) / zoom;
+                        setDrawingLine(prev => ({ ...prev, currentX, currentY }));
+                    }
+                };
+                const handleMouseUp = () => { panningStateRef.current = false; draggingItemRef.current = null; if (drawingLine) setDrawingLine(null); };
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+                return () => { document.removeEventListener('mousemove', handleMouseMove); document.removeEventListener('mouseup', handleMouseUp); };
+            }, [zoom, pan, drawingLine, nodes, notes]);
+
+            const handleDeleteNode = (e, nodeId) => {
+                if(e) e.stopPropagation();
+                const newNodes = nodes.filter(n => n.id !== nodeId);
+                const newEdges = edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId);
+                updateCanvasState(newNodes, newEdges, notes);
+                setActiveNodeMenuId(null);
+                if (selectedNodeId === nodeId) setSelectedNodeId(null);
+            };
+            
+            const handleCopyNode = (e, node) => {
+                if(e) e.stopPropagation();
+                const newNodeId = `node_${Date.now()}`;
+                const newNodes = [...nodes, { ...node, id: newNodeId, x: node.x + 40, y: node.y + 40 }];
+                updateCanvasState(newNodes, edges, notes);
+                setActiveNodeMenuId(null);
+                setSelectedNodeId(newNodeId);
+            };
+
+            const openNodeMenu = (e, sourceNodeId = null, isToolbar = false) => {
+                e.stopPropagation();
+                const rect = canvasRef.current.getBoundingClientRect();
+                setMenuState({ visible: true, x: e.clientX - rect.left, y: e.clientY - rect.top, sourceNodeId, isToolbar });
+            };
+
+            const addNode = (type) => {
+                let newNodeX, newNodeY;
+                if (menuState.isToolbar) {
+                    const canvasW = canvasRef.current.offsetWidth;
+                    const canvasH = canvasRef.current.offsetHeight;
+                    newNodeX = ((canvasW / 2) - pan.x) / zoom - 120;
+                    newNodeY = ((canvasH / 2) - pan.y) / zoom - 50;
+                } else if (menuState.sourceNodeId) {
+                    newNodeX = menuState.x + 100;
+                    newNodeY = menuState.y - 50;
+                } else {
+                    newNodeX = menuState.x;
+                    newNodeY = menuState.y;
+                }
+                const newNodeId = `node_${Date.now()}`;
+                const newNodes = [...nodes, { id: newNodeId, type: type, x: newNodeX, y: newNodeY }];
+                let newEdges = edges;
+                if (menuState.sourceNodeId) {
+                    newEdges = [...edges, { id: `edge_${Date.now()}`, source: menuState.sourceNodeId, target: newNodeId }];
+                }
+                updateCanvasState(newNodes, newEdges, notes);
+                setSelectedNodeId(newNodeId); 
+                setMenuState({ visible: false, x: 0, y: 0, sourceNodeId: null, isToolbar: false });
+            };
+
+            const handleAddNote = (e) => {
+                if(e) { e.stopPropagation(); e.preventDefault(); }
+                const canvasW = canvasRef.current.offsetWidth;
+                const canvasH = canvasRef.current.offsetHeight;
+                const noteX = ((canvasW / 2) - pan.x) / zoom - 100;
+                const noteY = ((canvasH / 2) - pan.y) / zoom - 100;
+                const newNotes = [...notes, { id: `note_${Date.now()}`, text: '', x: noteX, y: noteY }];
+                updateCanvasState(nodes, edges, newNotes);
+            };
+
+            const handleOptimizeLayout = (e) => {
+                if(e) { e.stopPropagation(); e.preventDefault(); }
+                const adj = {}; const inDegree = {};
+                nodes.forEach(n => { adj[n.id] = []; inDegree[n.id] = 0; });
+                edges.forEach(e => {
+                    if (adj[e.source]) adj[e.source].push(e.target);
+                    if (inDegree[e.target] !== undefined) inDegree[e.target]++;
+                });
+                const cols = {}; nodes.forEach(n => { cols[n.id] = 0; });
+                let queue = nodes.filter(n => inDegree[n.id] === 0).map(n => n.id);
+                if (queue.length === 0 && nodes.length > 0) queue.push(nodes[0].id);
+                let iters = 0;
+                while(queue.length > 0 && iters < nodes.length * 3) {
+                    const u = queue.shift();
+                    iters++;
+                    (adj[u] || []).forEach(v => {
+                        if (cols[v] < cols[u] + 1) { cols[v] = cols[u] + 1; queue.push(v); }
+                    });
+                }
+                const colGroups = {};
+                nodes.forEach(n => {
+                    const c = cols[n.id] || 0;
+                    if (!colGroups[c]) colGroups[c] = [];
+                    colGroups[c].push(n);
+                });
+                const newNodes = nodes.map(n => {
+                    const c = cols[n.id] || 0;
+                    const group = colGroups[c];
+                    const r = group.findIndex(gn => gn.id === n.id);
+                    const x = 150 + c * 380;
+                    const y = 300 + (r - (group.length - 1) / 2) * 160;
+                    return { ...n, x, y };
+                });
+                updateCanvasState(newNodes, edges, notes);
+                if (newNodes.length > 0) {
+                    const minX = Math.min(...newNodes.map(n => n.x));
+                    const maxX = Math.max(...newNodes.map(n => n.x)) + 240;
+                    const minY = Math.min(...newNodes.map(n => n.y));
+                    const maxY = Math.max(...newNodes.map(n => n.y)) + 100;
+                    const canvasW = canvasRef.current ? canvasRef.current.offsetWidth : 1000;
+                    const canvasH = canvasRef.current ? canvasRef.current.offsetHeight : 800;
+                    setZoom(1);
+                    setPan({ x: canvasW / 2 - (minX + maxX) / 2, y: canvasH / 2 - (minY + maxY) / 2 });
+                }
+            };
+
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                    if ((e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete') && selectedNodeId) {
+                        if (selectedNodeId.startsWith('node_')) {
+                            const nodeToDelete = nodes.find(n => n.id === selectedNodeId);
+                            if (nodeToDelete && nodeToDelete.type !== '开始' && nodeToDelete.type !== '结束') {
+                                const newNodes = nodes.filter(n => n.id !== selectedNodeId);
+                                const newEdges = edges.filter(edge => edge.source !== selectedNodeId && edge.target !== selectedNodeId);
+                                updateCanvasState(newNodes, newEdges, notes);
+                                setSelectedNodeId(null);
+                            }
+                        } else if (selectedNodeId.startsWith('note_')) {
+                            const newNotes = notes.filter(n => n.id !== selectedNodeId);
+                            updateCanvasState(nodes, edges, newNotes);
+                            setSelectedNodeId(null);
+                        }
+                    }
+                };
+                document.addEventListener('keydown', handleKeyDown);
+                return () => document.removeEventListener('keydown', handleKeyDown);
+            }, [selectedNodeId, nodes, edges, notes]);
+
+            // --- 结构化 JSON 视图组件 ---
+            const StructuredJsonView = ({ dataArray }) => {
+                if (!dataArray || dataArray.length === 0) return <div className="text-gray-400 text-xs py-2">无数据</div>;
+                return (
+                    <div className="relative bg-[#fafafa] border border-gray-200 rounded-lg py-4 pl-4 pr-16 font-mono text-[13px] shadow-sm overflow-x-auto json-viewer">
+                        <button className="absolute top-2 right-2 px-2 py-1 bg-white border border-gray-200 rounded text-xs text-gray-600 hover:bg-gray-50 flex items-center gap-1 shadow-sm transition-colors">
+                            <Icons.Copy /> Copy
+                        </button>
+                        <div className="text-[#06b6d4]">[</div>
+                        {dataArray.map((item, i) => (
+                            <div key={i}>
+                                <div className="pl-4 text-[#06b6d4]">{"{"}</div>
+                                <div className="pl-8 flex whitespace-nowrap">
+                                    <span className="text-[#06b6d4]">"value"</span>
+                                    <span className="text-[#06b6d4] mr-2">:</span>
+                                    <span className={typeof item.value === 'number' ? 'text-[#ef4444]' : 'text-[#f97316]'}>
+                                        {typeof item.value === 'number' ? item.value : `"${item.value}"`}
+                                    </span>
+                                    <span className="text-[#06b6d4]">,</span>
+                                </div>
+                                <div className="pl-8 flex whitespace-nowrap">
+                                    <span className="text-[#06b6d4]">"key"</span>
+                                    <span className="text-[#06b6d4] mr-2">:</span>
+                                    <span className="text-[#f97316]">"{item.key}"</span>
+                                </div>
+                                <div className="pl-4 text-[#06b6d4]">{"}"}{i < dataArray.length - 1 ? ',' : ''}</div>
+                            </div>
+                        ))}
+                        <div className="text-[#06b6d4]">]</div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="flex flex-col h-screen w-screen overflow-hidden select-none relative">
+                    
+                    {/* --- Top Navbar --- */}
+                    <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 z-40 relative shadow-sm shrink-0">
+                        <div className="flex items-center gap-6">
+                            <button
+                                type="button"
+                                onClick={requestBackToTeam}
+                                className="flex items-center gap-2 text-gray-500 hover:text-gray-800 text-sm font-medium transition-colors"
+                            >
+                                <Icons.Back /> 返回我的团队
+                            </button>
+                            <div className="flex items-center gap-3 border-l border-gray-200 pl-6">
+                                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center border border-gray-200"><Icons.User /></div>
+                                <div className="flex flex-col">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-bold text-gray-900">{AGENT_DISPLAY_NAME}</span>
+                                        <button className="hover:bg-gray-100 p-1 rounded" onClick={() => setEditModalOpen(true)}><Icons.Edit /></button>
+                                    </div>
+                                    <span className="text-xs text-gray-400">{AGENT_DISPLAY_ID}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center bg-gray-50 p-1 rounded-lg border border-gray-100">
+                            {['入职培训', '员工知识', '员工技能'].map(tab => (
+                                <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>{tab}</button>
+                            ))}
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <div className="relative flex items-center justify-center">
+                                <TooltipButton text="检查清单" placement="bottom" onClick={() => { setChecklistOpen(!isChecklistOpen); setArchiveOpen(false); setTestPanelOpen(false); }} className={`border ${isChecklistOpen ? 'bg-gray-100 border-gray-200' : 'border-transparent hover:border-gray-200'}`}>
+                                    <Icons.CheckList className="text-gray-600" />
+                                    <div className={`absolute top-1 right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${validationErrors.length > 0 ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                                </TooltipButton>
+                                
+                                {isChecklistOpen && (
+                                    <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-100 z-50 flex flex-col overflow-hidden">
+                                        <div className="px-4 py-3 border-b border-gray-100 text-sm font-bold text-gray-800 bg-gray-50/50">检查({validationErrors.length})</div>
+                                        <div className="max-h-[300px] overflow-y-auto no-scrollbar">
+                                            {validationErrors.length === 0 ? (
+                                                <div className="p-6 text-center text-sm text-gray-500 font-medium">所有问题均已解决</div>
+                                            ) : (
+                                                <div className="flex flex-col">
+                                                    {validationErrors.map((err, idx) => {
+                                                        const style = getNodeStyle(err.type);
+                                                        return (
+                                                            <div key={idx} onClick={() => centerOnNode(err.id)} className="flex items-start gap-3 p-4 hover:bg-red-50/50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors">
+                                                                <div className={`mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0 shadow-sm ${style.bg}`}>{style.icon}</div>
+                                                                <div className="flex flex-col gap-1">
+                                                                    <span className="text-sm text-gray-800 font-medium">{err.type} {err.id.split('_')[1].slice(-2)}</span>
+                                                                    <span className="text-xs text-red-500">{err.msg}</span>
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <button onClick={handleSaveConfig} className="px-4 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors">保存</button>
+                            <button onClick={handleOpenTest} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${isTestPanelOpen ? 'bg-gray-100 text-gray-900 border border-gray-200' : 'text-gray-700 bg-white border border-gray-200 hover:bg-gray-50'}`}>能力测试</button>
+                            <button onClick={handleCompleteConfig} className="px-4 py-1.5 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-gray-800 transition-colors">完成配置</button>
+                            <div className="pl-2 border-l border-gray-200 ml-1">
+                                <TooltipButton text="培训存档" placement="bottom" onClick={() => { setArchiveOpen(!isArchiveOpen); setChecklistOpen(false); setTestPanelOpen(false); }} className={`border ${isArchiveOpen ? 'bg-gray-100 border-gray-200' : 'border-transparent hover:border-gray-200'}`}><Icons.Clock /></TooltipButton>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {toast.visible && (
+                        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-white border border-gray-100 shadow-xl rounded-full px-5 py-3 flex items-center gap-3 z-[200] animate-[fadeInDown_0.3s_ease-out]">
+                            <Icons.CheckCircle className="text-gray-800" />
+                            <span className="text-gray-800 font-medium text-[13px]">{toast.msg}</span>
+                        </div>
+                    )}
+
+                    {/* --- Main Canvas --- */}
+                    <div 
+                        id="canvas-bg"
+                        ref={canvasRef}
+                        className="flex-1 relative w-full h-full overflow-hidden"
+                        style={{ backgroundColor: '#f8f9fa', backgroundImage: 'radial-gradient(#d1d5db 1px, transparent 1px)', backgroundSize: `${20 * zoom}px ${20 * zoom}px`, backgroundPosition: `${pan.x}px ${pan.y}px`, cursor: panningStateRef.current ? 'grabbing' : 'grab' }}
+                        onMouseDown={handleCanvasMouseDown}
+                    >
+                        <div className="absolute top-0 left-0 w-full h-full" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: '0 0', pointerEvents: 'none' }}>
+                            <svg id="canvas-svg" className="absolute top-0 left-0 w-full h-full overflow-visible z-0" style={{ pointerEvents: 'none' }}>
+                                {edges.map(edge => {
+                                    const source = nodes.find(n => n.id === edge.source);
+                                    const target = nodes.find(n => n.id === edge.target);
+                                    if(!source || !target) return null;
+                                    
+                                    const x1 = source.x + 240, y1 = source.y + 40;
+                                    const x2 = target.x, y2 = target.y + 40;
+                                    const midX = (x1 + x2) / 2, midY = (y1 + y2) / 2;
+                                    const isHovered = hoveredEdgeId === edge.id;
+
+                                    return (
+                                        <g key={edge.id} onMouseEnter={() => setHoveredEdgeId(edge.id)} onMouseLeave={() => setHoveredEdgeId(null)} style={{ pointerEvents: 'auto', cursor: 'pointer' }}>
+                                            <path d={`M ${x1} ${y1} C ${x1 + 60} ${y1}, ${x2 - 60} ${y2}, ${x2} ${y2}`} fill="none" stroke="transparent" strokeWidth="20" />
+                                            <path d={`M ${x1} ${y1} C ${x1 + 60} ${y1}, ${x2 - 60} ${y2}, ${x2} ${y2}`} fill="none" stroke={isHovered ? "#0ea5e9" : "#6366f1"} strokeWidth={isHovered ? "3" : "2"} />
+                                            {isHovered && (
+                                                <foreignObject x={midX - 10} y={midY - 10} width="20" height="20">
+                                                    <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white cursor-pointer hover:bg-red-600 shadow-sm"
+                                                         onClick={(e) => { e.stopPropagation(); updateCanvasState(nodes, edges.filter(e => e.id !== edge.id), notes); setHoveredEdgeId(null); }}>
+                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                                    </div>
+                                                </foreignObject>
+                                            )}
+                                        </g>
+                                    );
+                                })}
+                                {drawingLine && <path d={`M ${drawingLine.startX} ${drawingLine.startY} C ${drawingLine.startX + 60} ${drawingLine.startY}, ${drawingLine.currentX - 60} ${drawingLine.currentY}, ${drawingLine.currentX} ${drawingLine.currentY}`} fill="none" stroke="#a5b4fc" strokeWidth="2" strokeDasharray="4" />}
+                            </svg>
+
+                            {nodes.map(node => {
+                                const style = getNodeStyle(node.type);
+                                return (
+                                    <div key={node.id} className={`absolute w-[240px] bg-white rounded-xl shadow-sm border ${selectedNodeId === node.id ? 'border-indigo-500 ring-2 ring-indigo-100 shadow-md' : 'border-gray-200 hover:border-gray-300'} z-10 transition-shadow`} style={{ left: node.x, top: node.y, pointerEvents: 'auto' }} onMouseDown={(e) => handleItemMouseDown(e, node.id, 'node')}>
+                                        <div className="p-3 pb-2 flex items-center justify-between border-b border-gray-50">
+                                            <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                                                <div className={`w-6 h-6 rounded flex items-center justify-center text-white shadow-sm shrink-0 ${style.bg}`}>{style.icon}</div>
+                                                <span className="font-bold text-sm text-gray-800 truncate">{node.name || node.type}</span>
+                                            </div>
+                                            {node.type !== '开始' && node.type !== '结束' && (
+                                                <div className="relative shrink-0">
+                                                    <button className="p-1 hover:bg-gray-100 rounded text-gray-400" onClick={(e) => { e.stopPropagation(); setActiveNodeMenuId(activeNodeMenuId === node.id ? null : node.id); }}><Icons.More /></button>
+                                                    {activeNodeMenuId === node.id && (
+                                                        <div className="absolute right-0 top-full mt-1 bg-white border border-gray-100 shadow-lg rounded-md py-1 w-24 z-50" onClick={e => e.stopPropagation()}>
+                                                            <button className="w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50" onClick={(e) => { e.stopPropagation(); handleCopyNode(e, node); }}>复制</button>
+                                                            <button className="w-full text-left px-3 py-1.5 text-sm text-red-600 hover:bg-red-50" onClick={(e) => handleDeleteNode(e, node.id)}>删除</button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="px-3 py-2 bg-gray-50/50 rounded-b-xl text-xs text-gray-500 flex flex-col gap-1">
+                                            <div className="flex justify-between"><span>输入</span> <span className="bg-orange-100 text-orange-600 px-1 rounded scale-90">input</span></div>
+                                            <div className="flex justify-between"><span>输出</span> <span className="text-gray-400">Str. <strong className="text-gray-700">output</strong></span></div>
+                                        </div>
+                                        {node.type !== '开始' && (
+                                            <div className="absolute top-1/2 -left-2.5 -translate-y-1/2 group/dot w-5 h-5 flex items-center justify-center cursor-crosshair z-20" onMouseDown={(e) => handleDotMouseDown(e, node.id, false)} onMouseUp={(e) => handleDotMouseUp(e, node.id)}>
+                                                <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full group-hover/dot:scale-150 transition-transform flex items-center justify-center"><Icons.Plus className="w-2 h-2 text-white opacity-0 group-hover/dot:opacity-100" /></div>
+                                            </div>
+                                        )}
+                                        {node.type !== '结束' && (
+                                            <div className="absolute top-1/2 -right-2.5 -translate-y-1/2 group/dot w-5 h-5 flex items-center justify-center cursor-crosshair z-20" onMouseDown={(e) => handleDotMouseDown(e, node.id, true)} onClick={(e) => {
+                                                     e.stopPropagation();
+                                                     setMenuState({ visible: true, x: (node.x + 240) * zoom + pan.x, y: (node.y + 40) * zoom + pan.y, sourceNodeId: node.id, isToolbar: false });
+                                                 }}>
+                                                <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full group-hover/dot:scale-150 transition-transform flex items-center justify-center"><Icons.Plus className="w-2 h-2 text-white opacity-0 group-hover/dot:opacity-100" /></div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+
+                            {notes.map(note => (
+                                <div key={note.id} className={`absolute w-56 bg-[#fef08a] shadow-md border ${selectedNodeId === note.id ? 'border-yellow-500 ring-2 ring-yellow-400/50' : 'border-yellow-300'} z-10 transition-shadow rounded-md overflow-hidden`} style={{ left: note.x, top: note.y, pointerEvents: 'auto' }} onMouseDown={(e) => handleItemMouseDown(e, note.id, 'note')}>
+                                    <div className="h-4 bg-[#fde047] cursor-move flex items-center justify-center border-b border-yellow-300/50"><div className="w-6 h-1 rounded-full bg-yellow-500/50"></div></div>
+                                    <textarea className="w-full p-3 bg-transparent resize-none outline-none text-sm text-yellow-900 placeholder-yellow-700/50" placeholder="在这里输入注释..." value={note.text} onChange={(e) => setNotes(notes.map(n => n.id === note.id ? { ...n, text: e.target.value } : n))} onMouseDown={(e) => e.stopPropagation()} style={{ minHeight: '100px' }} />
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* --- 添加节点弹出菜单 (含 Hover 介绍卡片) --- */}
+                        {menuState.visible && (
+                            <div className="absolute bg-white rounded-xl shadow-xl border border-gray-100 w-48 p-2 z-[80] flex flex-col gap-1 animate-[fadeIn_0.1s_ease-out]" style={menuState.isToolbar ? { left: '50%', bottom: '80px', marginLeft: '-150px' } : { left: menuState.x + 10, top: menuState.y - 10 }} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                                <div className="text-xs text-gray-400 font-medium px-2 py-1">选择节点类型</div>
+                                {NODE_TYPES.map(type => (
+                                    <div key={type} className="relative group">
+                                        <button onClick={(e) => { e.stopPropagation(); addNode(type); }} className="w-full text-left px-2 py-1.5 text-[13px] text-gray-700 group-hover:bg-indigo-50 group-hover:text-indigo-600 rounded-md transition-colors flex items-center gap-2 font-medium">
+                                            <div className="w-5 h-5 rounded bg-indigo-100 flex items-center justify-center text-indigo-500"><Icons.Plus className="w-3 h-3" /></div>{type}
+                                        </button>
+                                        <div className={`absolute top-0 ${!menuState.isToolbar && menuState.x > window.innerWidth - 350 ? 'right-[100%] mr-2' : 'left-[100%] ml-2'} w-[260px] bg-white rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.12)] border border-gray-100 p-4 z-[90] hidden group-hover:flex flex-col gap-1.5 pointer-events-none`}>
+                                            <h4 className="font-bold text-gray-800 text-[15px]">{type}</h4>
+                                            <p className="text-[12px] text-gray-500 leading-relaxed text-justify">{NODE_DESCRIPTIONS[type]}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {isMinimapVisible && (
+                            <div className="absolute bottom-6 left-6 w-52 h-36 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-20 flex flex-col pointer-events-auto" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+                                <div className="text-[11px] font-bold text-gray-500 px-3 py-2 border-b border-gray-100 bg-gray-50 flex justify-between items-center shrink-0">
+                                    <span>导航视图</span>
+                                    <button onClick={() => setMinimapVisible(false)} className="hover:text-gray-800"><Icons.Close className="w-3 h-3" /></button>
+                                </div>
+                                <div className="relative flex-1 bg-gray-50/80" style={{ backgroundImage: 'radial-gradient(#d1d5db 1px, transparent 1px)', backgroundSize: '10px 10px' }}>
+                                    <div className="absolute top-1/2 left-1/4 w-8 h-4 bg-blue-400 rounded-sm border border-blue-500 opacity-80 transform -translate-y-1/2"></div>
+                                    <div className="absolute top-1/2 left-1/2 w-8 h-4 bg-purple-400 rounded-sm border border-purple-500 opacity-80 transform -translate-x-1/2 -translate-y-1/2"></div>
+                                    <div className="absolute top-1/2 right-1/4 w-8 h-4 bg-indigo-400 rounded-sm border border-indigo-500 opacity-80 transform -translate-y-1/2"></div>
+                                    <div className="absolute top-1/2 left-1/2 w-24 h-16 border-[1.5px] border-red-500 transform -translate-x-1/2 -translate-y-1/2 bg-red-500/10 rounded"></div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex items-center bg-white rounded-full shadow-lg border border-gray-100 p-1.5 gap-1 z-30 pointer-events-auto" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                            <button onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); openNodeMenu(e, null, true); }} className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2 rounded-full text-sm font-medium hover:bg-gray-800 transition-colors mr-2">
+                                <Icons.Plus /> 添加节点
+                            </button>
+                            <TooltipButton text="添加注释" onMouseDown={handleAddNote}><Icons.Note /></TooltipButton>
+                            <div className="w-px h-5 bg-gray-200 mx-1"></div>
+                            <TooltipButton text="撤销" disabled={history.past.length === 0} onMouseDown={handleUndo}><Icons.Undo /></TooltipButton>
+                            <TooltipButton text="重做" disabled={history.future.length === 0} onMouseDown={handleRedo}><Icons.Redo /></TooltipButton>
+                            <div className="w-px h-5 bg-gray-200 mx-1"></div>
+                            <div className="flex items-center px-2 gap-3 text-gray-600">
+                                <button className="hover:text-gray-900" onMouseDown={(e) => { e.stopPropagation(); setZoom(z => Math.max(0.2, z - 0.1)); }}><Icons.ZoomOut /></button>
+                                <span className="text-sm font-medium select-none w-10 text-center">{Math.round(zoom * 100)}%</span>
+                                <button className="hover:text-gray-900" onMouseDown={(e) => { e.stopPropagation(); setZoom(z => Math.min(2.0, z + 0.1)); }}><Icons.ZoomIn /></button>
+                            </div>
+                            <div className="w-px h-5 bg-gray-200 mx-1"></div>
+                            <TooltipButton text="优化布局" onMouseDown={handleOptimizeLayout}><Icons.Layout /></TooltipButton>
+                            <div className="relative flex items-center justify-center">
+                                <TooltipButton text="快速定位" onMouseDown={(e) => { e.stopPropagation(); setLocateOpen(!isLocateOpen); }} className={isLocateOpen ? "bg-gray-100" : ""}><Icons.Locate /></TooltipButton>
+                                {isLocateOpen && (
+                                    <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+                                        <div className="p-2 border-b border-gray-100 bg-gray-50 flex items-center px-3">
+                                            <Icons.SearchIcon />
+                                            <input type="text" placeholder="搜索节点..." className="w-full bg-transparent text-sm ml-2 outline-none" value={searchNodeText} onChange={e => setSearchNodeText(e.target.value)} />
+                                        </div>
+                                        <div className="max-h-48 overflow-y-auto no-scrollbar">
+                                            {nodes.filter(n => (n.name || n.type).includes(searchNodeText) || n.id.includes(searchNodeText)).map(node => (
+                                                <div key={node.id} onMouseDown={(e) => { e.stopPropagation(); centerOnNode(node.id); }} className="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-sm text-gray-700 flex items-center justify-between border-b border-gray-50 last:border-0">
+                                                    <span className="truncate">{node.name || node.type}</span>
+                                                    <span className="text-xs text-gray-400 shrink-0 ml-2">{(node.id.split('_')[1] || '').slice(-4)}</span>
+                                                </div>
+                                            ))}
+                                            {nodes.length === 0 && <div className="p-4 text-center text-xs text-gray-400">无匹配节点</div>}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <TooltipButton text="缩略图" onMouseDown={(e) => { e.stopPropagation(); setMinimapVisible(!isMinimapVisible); }} className={isMinimapVisible ? "text-indigo-600 bg-indigo-50" : ""}><div className="w-4 h-4 border-2 border-current rounded-sm"></div></TooltipButton>
+                        </div>
+                    </div>
+
+                    {/* --- 能力测试面板 --- */}
+                    {isTestPanelOpen && (
+                        <div className="absolute right-0 top-16 bottom-0 w-[850px] bg-white shadow-[0_0_40px_rgba(0,0,0,0.1)] border-l border-gray-200 z-[60] flex flex-col animate-[slideInRight_0.2s_ease-out]" onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                                <div className="flex items-center gap-4">
+                                    <span className="font-bold text-gray-800">能力测试</span>
+                                    {testPhase === 'testing' && <span className="text-sm text-gray-500">会话ID: <span className="font-mono text-gray-600">10b58541-232e-4de0...</span></span>}
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    {testPhase === 'testing' && (
+                                        <button className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800" onClick={() => { setChatMessages([]); setExecutionLog(null); setTestPhase('config'); }}>
+                                            <Icons.Refresh /> 重新配置
+                                        </button>
+                                    )}
+                                    <div className="w-px h-4 bg-gray-200"></div>
+                                    <button className="p-1 hover:bg-gray-200 rounded text-gray-500" onClick={() => setTestPanelOpen(false)}><Icons.Close /></button>
+                                </div>
+                            </div>
+
+                            {testPhase === 'config' ? (
+                                <div className="flex-1 overflow-y-auto p-8 flex justify-center bg-gray-50/50">
+                                    <div className="bg-white border border-gray-200 rounded-xl p-6 w-[500px] shadow-sm flex flex-col gap-6 h-fit mt-10">
+                                        <div className="flex items-center gap-2 border-b border-gray-100 pb-3">
+                                            <div className="w-6 h-6 rounded bg-blue-500 text-white flex items-center justify-center"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path></svg></div>
+                                            <h3 className="font-bold text-gray-800 text-[15px]">开始节点配置</h3>
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                            <label className="text-[13px] font-bold text-gray-800">user_input <span className="text-red-500">*</span></label>
+                                            <textarea 
+                                                className="w-full border border-gray-200 rounded-lg p-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none h-24 resize-none transition-shadow" 
+                                                placeholder="请输入能力测试的初始输入文本..." 
+                                                value={testConfigInput} 
+                                                onChange={e => setTestConfigInput(e.target.value)}
+                                            ></textarea>
+                                            <span className="text-[11px] text-gray-400">作为工作流的初始输入参数参与验证。</span>
+                                        </div>
+                                        <button 
+                                            className={`w-full py-2.5 rounded-lg text-sm font-medium transition-colors mt-2 ${testConfigInput.trim() ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`} 
+                                            onClick={handleStartTesting}
+                                        >
+                                            开始测试
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex overflow-hidden">
+                                    <div className="w-[45%] flex flex-col border-r border-gray-100 bg-white">
+                                        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
+                                            {chatMessages.length === 0 ? (
+                                                <div className="m-auto flex flex-col items-center justify-center text-gray-400 gap-2">
+                                                    <span className="text-base text-gray-500">暂无消息</span>
+                                                    <span className="text-xs">发送第一条消息开始聊天</span>
+                                                </div>
+                                            ) : (
+                                                chatMessages.map((msg, i) => (
+                                                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                        <div className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed ${msg.role === 'user' ? 'bg-indigo-500 text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'}`}>
+                                                            {msg.text}
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                        
+                                        <div className="p-4 border-t border-gray-50 bg-white shrink-0">
+                                            <div className="relative border border-gray-200 rounded-xl bg-gray-50/50 focus-within:border-indigo-500 focus-within:bg-white focus-within:shadow-sm transition-all overflow-hidden flex flex-col">
+                                                <textarea 
+                                                    className="w-full h-20 p-3 bg-transparent resize-none outline-none text-sm text-gray-800 placeholder-gray-400"
+                                                    placeholder="跟员工练几轮，看看上岗准备得怎么样..."
+                                                    value={chatInput}
+                                                    onChange={e => setChatInput(e.target.value)}
+                                                    onKeyDown={e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); handleSendTestMessage(); } }}
+                                                />
+                                                <div className="flex items-center justify-between p-2 bg-transparent">
+                                                    <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"><Icons.Image /></button>
+                                                    <button onClick={handleSendTestMessage} className={`p-1.5 rounded-lg flex items-center justify-center transition-colors ${chatInput.trim() ? 'bg-indigo-500 text-white hover:bg-indigo-600' : 'bg-gray-200 text-gray-400'}`}><Icons.Send /></button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="w-[55%] flex flex-col bg-[#fbfbfb]">
+                                        <div className="px-4 py-3 text-[13px] font-bold text-gray-700 flex items-center gap-2 border-b border-gray-100 shrink-0 bg-white">
+                                            <Icons.Terminal /> 工作日志
+                                        </div>
+                                        
+                                        <div className="flex-1 overflow-y-auto p-6 relative no-scrollbar">
+                                            {!executionLog ? (
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-3">
+                                                    <Icons.Lightning />
+                                                    <span className="text-base text-gray-500 font-medium">暂无执行记录</span>
+                                                    <span className="text-xs">发送消息后开始执行</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col animate-[fadeInDown_0.3s_ease-out]">
+                                                    <div className="flex flex-col gap-2 relative pb-6 border-b border-gray-200 mb-6">
+                                                        <div className="absolute left-[20px] top-6 bottom-4 w-px bg-gray-200"></div>
+
+                                                        {executionLog.steps.map((step, idx) => (
+                                                            <div 
+                                                                key={step.id} 
+                                                                onClick={() => setActiveLogStepId(step.id)}
+                                                                className={`flex items-center gap-3 relative z-10 p-2 pl-${idx === 0 ? '2' : (idx===1 ? '8' : '4')} rounded-lg cursor-pointer transition-all ${activeLogStepId === step.id ? 'bg-indigo-50 ring-1 ring-indigo-200' : 'hover:bg-gray-100'}`}
+                                                            >
+                                                                {idx === 1 && <div className="w-4 h-px bg-gray-200 absolute left-3 top-1/2"></div>}
+                                                                <div className={`w-6 h-6 rounded-md text-white flex items-center justify-center shrink-0 ${step.id==='start'?'bg-blue-500':(step.id==='end'?'bg-indigo-500':'bg-purple-500')}`}>
+                                                                    {step.id==='start' ? <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path></svg> : (step.id==='end' ? <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg> : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>)}
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={`text-[13px] font-medium ${activeLogStepId === step.id ? 'text-indigo-800' : 'text-gray-800'}`}>{step.name}</span>
+                                                                    {step.subInfo && <span className="text-[11px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">{step.subInfo}</span>}
+                                                                    <span className="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 flex items-center gap-1">
+                                                                        <Icons.Clock /> {step.time}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    {(() => {
+                                                        const activeStep = executionLog.steps.find(s => s.id === activeLogStepId);
+                                                        if(!activeStep) return null;
+                                                        return (
+                                                            <div className="flex flex-col gap-4 animate-[fadeInDown_0.2s_ease-out]">
+                                                                <div className="flex items-center gap-4 mb-2">
+                                                                    <span className="text-[15px] font-bold text-gray-900">节点详情: {activeStep.name}</span>
+                                                                    <span className="text-[11px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 flex items-center gap-1">
+                                                                        <Icons.CheckCircle /> {activeStep.status}
+                                                                    </span>
+                                                                </div>
+
+                                                                <div className="grid grid-cols-[80px_1fr] gap-y-3 text-[13px]">
+                                                                    <div className="text-gray-400">消息ID：</div><div className="text-gray-800 font-mono">{executionLog.id}</div>
+                                                                    <div className="text-gray-400">耗时：</div><div className="text-gray-800">{activeStep.time}</div>
+                                                                    {activeStep.id === 'llm' && <><div className="text-gray-400">消耗：</div><div className="text-gray-800"><span className="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded text-[11px]">Token</span></div></>}
+                                                                    <div className="text-gray-400">时间：</div><div className="text-gray-800">2026-08-12 {executionLog.time}</div>
+                                                                </div>
+
+                                                                <div className="mt-2 flex flex-col gap-4">
+                                                                    <div className="flex flex-col gap-2">
+                                                                        <span className="font-bold text-[14px] text-gray-900">输入:</span>
+                                                                        <StructuredJsonView dataArray={activeStep.details.input} />
+                                                                    </div>
+                                                                    <div className="flex flex-col gap-2">
+                                                                        <span className="font-bold text-[14px] text-gray-900">输出:</span>
+                                                                        <StructuredJsonView dataArray={activeStep.details.output} />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* --- 历史存档侧边栏 --- */}
+                    {isArchiveOpen && (
+                        <div className="absolute right-0 top-16 bottom-0 w-[420px] bg-white shadow-2xl border-l border-gray-200 z-50 flex flex-col animate-[slideInRight_0.2s_ease-out]" onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+                            <div className="p-4 flex items-center justify-between border-b border-gray-100">
+                                <span className="font-bold text-gray-800 text-lg">培训存档</span>
+                                <button className="p-1.5 hover:bg-gray-100 rounded text-gray-500" onClick={() => setArchiveOpen(false)}><Icons.Close /></button>
+                            </div>
+                            <div className="p-4 text-xs text-gray-500 leading-relaxed border-b border-gray-100">
+                                保存后将生成培训存档。可「查看」历史存档，「应用」切换为当前接待版本。
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/50 no-scrollbar">
+                                <div className="bg-white border border-gray-200 rounded-lg p-4 flex justify-between items-start hover:shadow-sm transition-shadow">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="font-bold text-[13px] text-gray-900">DRAFT_{Date.now().toString().slice(0, 13)}</span>
+                                        <span className="text-xs text-gray-400">{draftTime}</span>
+                                    </div>
+                                    <div className="px-2 py-0.5 bg-orange-50 text-orange-500 border border-orange-100 text-[11px] rounded-full mt-0.5">培训中</div>
+                                </div>
+                                {archives.map(arc => {
+                                    const isActive = arc.status === 'ACTIVE';
+                                    return (
+                                        <div key={arc.id} className={`bg-white border ${isActive ? 'border-green-400' : 'border-gray-200'} rounded-lg p-4 flex justify-between items-start hover:shadow-sm transition-shadow`}>
+                                            <div className="flex flex-col gap-1">
+                                                <span className="font-bold text-[13px] text-gray-900">V_{arc.id}</span>
+                                                <span className="text-xs text-gray-400">{arc.time}</span>
+                                            </div>
+                                            <div className="flex flex-col items-end gap-2">
+                                                <div className="flex items-center gap-2">
+                                                    <button className="text-blue-500 hover:text-blue-600 flex items-center gap-1 text-[11px] font-medium"><Icons.Eye />查看</button>
+                                                    {!isActive && (
+                                                        <>
+                                                            <button onClick={() => {
+                                                                const recoveredNodes = arc.nodes.length > 0 ? arc.nodes : [{ id: 'node_start', type: '开始', x: 200, y: 300 }, { id: 'node_end', type: '结束', x: 700, y: 300 }];
+                                                                updateCanvasState(recoveredNodes, arc.edges, arc.notes);
+                                                                setArchiveOpen(false);
+                                                                showToast(`已成功恢复至历史版本 V_${arc.id}`);
+                                                            }} className="text-teal-500 hover:text-teal-600 flex items-center gap-1 text-[11px] font-medium"><Icons.Refresh />应用</button>
+                                                            <button onClick={() => setArchives(prev => prev.filter(a => a.id !== arc.id))} className="text-red-500 hover:text-red-600 flex items-center gap-1 text-[11px] font-medium"><Icons.Trash />删除</button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                                {isActive ? <div className="px-2 py-0.5 bg-green-50 text-green-500 border border-green-100 text-[11px] rounded-full">接待中</div> : <div className="px-2 py-0.5 bg-gray-100 text-gray-500 border border-gray-200 text-[11px] rounded-full">历史存档</div>}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- 右侧配置面板 --- */}
+                    {selectedNodeId && selectedNodeId.startsWith('node_') && nodes.find(n => n.id === selectedNodeId) && !isTestPanelOpen && (
+                        <NodeConfigPanel 
+                            node={nodes.find(n => n.id === selectedNodeId)} 
+                            onClose={() => setSelectedNodeId(null)} 
+                            onUpdateNode={(id, data) => setNodes(prev => prev.map(n => n.id === id ? { ...n, ...data } : n))} 
+                            onCopy={handleCopyNode}
+                            onDelete={handleDeleteNode}
+                        />
+                    )}
+
+                    {isEditModalOpen && (
+                        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] animate-[fadeIn_0.2s_ease-out]">
+                            <div className="bg-white rounded-xl shadow-2xl w-[500px] flex flex-col" onMouseDown={e => e.stopPropagation()}>
+                                <div className="flex justify-between items-center p-5 border-b border-gray-100">
+                                    <h3 className="font-bold text-[17px] text-gray-800">员工基本信息</h3>
+                                    <button className="text-gray-400 hover:text-gray-600 transition-colors" onClick={() => setEditModalOpen(false)}>
+                                        <Icons.Close className="w-5 h-5"/>
+                                    </button>
+                                </div>
+                                <div className="p-6 space-y-5">
+                                    <div>
+                                        <label className="block text-[13px] font-bold text-gray-800 mb-1.5">员工名称 <span className="text-red-500">*</span></label>
+                                        <input type="text" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-shadow" defaultValue="AI创建SKILL数字员工【勿删】" placeholder="请输入员工名称" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[13px] font-bold text-gray-800 mb-1.5">员工描述 <span className="text-red-500">*</span></label>
+                                        <div className="relative">
+                                            <textarea className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 h-32 resize-none focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-shadow" placeholder="请描述员工职责和服务场景"></textarea>
+                                            <span className="absolute bottom-3 right-3 text-xs text-gray-400">0/2000</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="p-5 flex justify-end gap-3 rounded-b-xl border-t border-gray-50">
+                                    <button className="px-5 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors" onClick={() => setEditModalOpen(false)}>取消</button>
+                                    <button className="px-5 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors" onClick={() => setEditModalOpen(false)}>保存</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

@@ -9,7 +9,7 @@
 }
 
 .tabs {
-  padding: 16px 16px 12px;
+  padding: 20px 20px 12px;
   position: sticky;
   top: 0;
   background-color: rgb(255, 255, 255);
@@ -21,7 +21,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0 16px 20px;
+  padding: 20px 20px 20px;
 }
 
 .bannerArea {
@@ -57,12 +57,73 @@
   padding-right: 26px;
 }
 
+.bannerSlide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 26px;
+  padding-right: 26px;
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+
+.bannerSlideActive {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  z-index: 1;
+}
+
 .bannerTextWrap {
   margin-left: 20px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
+  max-width: min(480px, 56%);
+}
+
+.bannerTextWrapRich {
+  max-width: min(520px, 60%);
+}
+
+.bannerDescRich {
+  font-size: 12.5px;
+  line-height: 20px;
+  opacity: 0.72;
+  margin-bottom: 18px;
+  max-width: 100%;
+}
+
+.bannerDots {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.bannerDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  border: none;
+  padding: 0;
+  background: rgba(38, 38, 38, 0.22);
+  cursor: pointer;
+  transition: width 0.25s ease, background-color 0.25s ease;
+}
+
+.bannerDotActive {
+  width: 16px;
+  background: rgb(38, 38, 38);
 }
 
 .bannerTitle {
@@ -130,31 +191,37 @@
 }
 
 .employeeSection {
-  padding: 16px 0 0;
+  padding: 0;
+}
+
+.bannerArea + .employeeSection {
+  padding-top: 20px;
 }
 
 .sectionHeader {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 20px;
   min-height: 32px;
 }
 
 .sectionTitleMain {
   flex-shrink: 0;
-  font-size: 19.97px;
+  font-size: 18px;
   color: rgb(23, 23, 23);
   font-weight: 600;
+  letter-spacing: -0.025em;
   line-height: 32px;
 }
 
 .headerFilters {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-left: auto;
+  justify-content: flex-end;
+  gap: 12px;
   min-width: 0;
+  margin-left: auto;
 }
 
 .createFromScratchBtn {
@@ -239,6 +306,169 @@
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 12px;
   width: 100%;
+  align-items: start;
+}
+
+/** 我的数字员工列表外层（仅包 ContentBusy，内部用 categoryCardGrid 排卡） */
+.cardListWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+}
+
+/** 分类筛选：对齐系统分段/标签 token（muted + foreground，无裸 Hex） */
+.categoryBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.categoryTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  box-shadow: none;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.categoryTag:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.categoryTagActive {
+  background: var(--muted);
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.categoryTagActive:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.categoryTagLabel {
+  display: inline-block;
+}
+
+.categoryGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.categoryBlock {
+  width: 100%;
+}
+
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(229, 229, 229, 0.7);
+}
+
+.categoryTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(23, 23, 23);
+  line-height: 22px;
+}
+
+.categorySubtitle {
+  font-size: 11px;
+  color: rgb(115, 115, 115);
+  font-weight: 400;
+}
+
+.categoryCountBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgb(245, 245, 245);
+  color: rgb(82, 82, 82);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.categoryCardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  width: 100%;
+  align-items: start;
+}
+
+.categoryEmpty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 140px;
+  padding: 24px 16px;
+  border: 1px dashed rgba(229, 229, 229, 0.9);
+  border-radius: 13px;
+  background: rgba(250, 250, 250, 0.6);
+  text-align: center;
+}
+
+.categoryEmptyTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(64, 64, 64);
+}
+
+.categoryEmptyDesc {
+  font-size: 11px;
+  color: rgb(115, 115, 115);
+  line-height: 1.5;
+  max-width: 280px;
+}
+
+.categoryEmptyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 7px;
+  border: none;
+  background: rgb(38, 38, 38);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.categoryEmptyBtn:hover {
+  opacity: 0.9;
 }
 
 .emptyState {
@@ -285,10 +515,18 @@
   .cardList {
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   }
+
+  .categoryCardGrid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
 }
 
 @media (min-width: 1600px) {
   .cardList {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+
+  .categoryCardGrid {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   }
 }

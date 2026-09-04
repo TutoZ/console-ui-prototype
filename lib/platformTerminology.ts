@@ -23,6 +23,7 @@ export const LIFECYCLE_TERMS = {
   dismissConfirm: '确认辞退',
   archive: '培训存档',
   examVersion: '培训存档',
+  switchVersion: '版本切换',
   trialRun: '试岗运行',
   completeTraining: '完成培训',
 } as const;
@@ -65,20 +66,20 @@ export const DISMISS_EMPLOYEE_COPY = {
     '这位同事还有接待任务，辞退会影响客户体验，确定继续吗？',
 } as const;
 
-/** 导航与模块 */
+/** 导航与模块（对齐 docs/nav-ia.md） */
 export const NAV_TERMS = {
   hireWizard: '雇佣员工向导',
   employeeTraining: '员工培训',
   companyKb: '员工知识',
-  skillCenter: '员工技能',
+  skillCenter: '数字员工技能',
   employeeAbTest: '员工比拼',
   dataDashboard: '办公室',
   employeePerformance: '员工业绩',
   receptionRecords: '接待记录',
   dispatchChannels: '派出渠道',
   taskCenter: '任务中心',
-  adminPermissions: '组织管理',
-  staffAssignment: '员工分配',
+  adminPermissions: '通用配置',
+  staffAssignment: '账号管理',
   rolePermissions: '角色权限',
   onDutyMonitor: '在岗监控',
   customerPreview: '客户体验预览',
@@ -86,6 +87,8 @@ export const NAV_TERMS = {
   qcWorkspace: '质检工作台',
   myEmployees: '我的数字员工',
   employeeMarket: '数字员工市场',
+  phoneLines: '电话线路',
+  smsResources: '短信资源',
 } as const;
 
 /** 顶栏 / 个人状态 */
@@ -150,6 +153,8 @@ export const EMPLOYEE_RESOURCE_TERMS = {
   employeeDescription: '员工描述',
   modelLabel: '模型',
   masterTemplateLabel: '母版',
+  replyPolish: '润色',
+  replyPolishHint: '结合会话上下文优化答复表述，使回复更自然连贯',
   search: '检索',
   workLog: '工作日志',
 } as const;
@@ -170,6 +175,15 @@ export const EMPLOYEE_PAGE_COPY = {
   approveConfirm:
     '确认让这位同事正式上岗吗？上岗后即可接待真实客户。',
   noMatch: '没找到匹配的同事',
+} as const;
+
+/** 我的数字员工页 · 企业认证 Banner */
+export const ENTERPRISE_CERT_BANNER_COPY = {
+  title: '完成企业认证，解锁正式用工能力',
+  desc:
+    '上传执照并完成对公验证，即可雇佣上岗、派发任务并开通线路资源，在线审核即刻生效。',
+  cta: '立即去认证',
+  toast: '企业认证：提交营业执照与对公账户信息（演示）。',
 } as const;
 
 /** 任务中心 */
@@ -197,11 +211,21 @@ export const SKILL_PAGE_COPY = {
   createSkill: '新建技能',
   emptyList: '团队还没有技能，新建或去市场订阅',
   emptyHint: '点右上角新建技能，用自然语言描述能力即可',
+  emptyMarket: '暂无匹配的市场技能',
   marketDesc:
     '各行业客服场景沉淀的技能，一键订阅就能给同事配备',
+  subscribe: '订阅',
+  subscribed: '已订阅',
+  unsubscribe: '取消订阅',
+  subscribeSuccess: '已订阅，可在「我的技能」中查看',
+  unsubscribeSuccess: '已取消订阅',
+  deleteMine: '删除',
+  editSkill: '编辑',
   boundBlockTitle: '已配备此技能的同事',
   emptyBound: '暂无同事配备此技能',
   createSuccess: '技能已发布并加入团队',
+  updateSuccess: '技能已更新',
+  forkSuccess: '已另存为自建技能',
   deleteBlocked: '已有同事配备此技能，无法删除',
 } as const;
 
@@ -247,7 +271,7 @@ export const MONITOR_COPY = {
   abnormal: '异常离岗',
 } as const;
 
-/** 组织管理 / 员工分配 */
+/** 通用配置 / 账号管理 */
 export const ORG_COPY = {
   staffPageTitle: NAV_TERMS.staffAssignment,
   rolePageTitle: NAV_TERMS.rolePermissions,
@@ -260,6 +284,7 @@ export const ORG_COPY = {
     '选择一个已上岗的数字员工，勾选要协同的值班同事，系统会追加到各同事的配备列表（不会覆盖已有配备）。',
   bulkBindSuccess: (agentName: string, count: number) =>
     `已将「${agentName}」批量配备给 ${count} 位值班同事。`,
+  approvalFlowManage: '审批流程管理',
   bindStaffSuccess: (name: string) =>
     `已成功配备值班同事 [${name}]。超出双线保障时系统会自动转接给该接管人！`,
   transferChannelDesc: '会话转入客服工作台，由已配备的值班同事接力接待',

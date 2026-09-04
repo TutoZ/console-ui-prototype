@@ -15,17 +15,20 @@ import {
   RolePermission, 
   ChatSession,
   ChatMessage,
-  ThoughtStep
+  ThoughtStep,
+  type JobFamily,
 } from '../types';
 import { generateTodosForUnresolved, mergeTodos } from '../lib/sessionTodos';
 import { buildAgentReplyPlan, planToThoughtSteps } from '../lib/agentReplyPlan';
 import { SESSION_COPY } from '@/lib/platformTerminology';
+import { AGENT_AVATAR_PRESETS, isAvatarImageUrl } from '@/lib/agentAvatarDisplay';
 import { createBaselineSnapshot } from '../lib/agentVersions';
 import {
   DEFAULT_ONBOARDING_WORKSPACE_TAB,
+  normalizeOnboardingWorkspaceTab,
   type OnboardingWorkspaceTabId,
 } from '@/lib/onboardingWorkspaceTabs';
-import { createDefaultQcProfile } from '@/lib/jobFamily';
+import { createDefaultQcProfile, jobFamilyToNavDomain, supportsDutyToggle, type PendingOpsAction } from '@/lib/jobFamily';
 import type { ToastType } from '@/lib/ui';
 import { showAppToast } from '@/lib/appToast';
 import { pickMockLatencyMs } from '@/lib/mockLatency';
@@ -48,6 +51,10 @@ import {
   defaultFallbackScriptForAgent,
   defaultOpeningLineForAgent,
 } from '@/lib/agentDefaultCopy';
+import type { NavDomain, QcAppMainTab, QcRailTab, DomainOpsMainTab } from '@/lib/navDomain';
+import { navDomainFromTab, QC_APP_MAIN_TABS } from '@/lib/navDomain';
+
+export type { PendingOpsAction } from '@/lib/jobFamily';
 
 function migrateFoodSafetyTheme(agents: HiredAgent[]): HiredAgent[] {
   return agents.map(a => {
@@ -111,18 +118,42 @@ function safeReadJSON<T>(key: string, fallback: T): T {
 }
 
 function normalizeAgentDefaults(agents: HiredAgent[]): HiredAgent[] {
-  return agents.map((a) => ({
-    ...a,
-    openingLine: a.openingLine?.trim() || defaultOpeningLineForAgent(a.name),
-    fallbackScript: a.fallbackScript?.trim() || defaultFallbackScriptForAgent(),
-  }));
+  return agents.map((a, index) => {
+    const openingLine = a.openingLine?.trim() || defaultOpeningLineForAgent(a.name);
+    const fallbackScript = a.fallbackScript?.trim() || defaultFallbackScriptForAgent();
+    // 旧版 emoji 头像 → 官方形象预设（localStorage 残留）
+    if (a.avatar && !isAvatarImageUrl(a.avatar)) {
+      return {
+        ...a,
+        openingLine,
+        fallbackScript,
+        avatar: AGENT_AVATAR_PRESETS[index % AGENT_AVATAR_PRESETS.length],
+        avatarCustomized: true,
+      };
+    }
+    return { ...a, openingLine, fallbackScript };
+  });
+}
+
+/** 本地已存在旧雇佣数据时，补齐后续新增的演示员工（自建 / 预设流程） */
+function mergeSeedHiredAgents(parsed: HiredAgent[]): HiredAgent[] {
+  const existingIds = new Set(parsed.map((a) => a.id));
+  const missingSeed = INITIAL_HIRED_AGENTS.filter(
+    (seed) =>
+      !existingIds.has(seed.id) &&
+      (seed.jobFamily === 'other' ||
+        seed.marketId === 'm_custom_gen' ||
+        seed.buildMode === 'preset' ||
+        seed.id === 'h_workflow_preset'),
+  );
+  return missingSeed.length > 0 ? [...parsed, ...missingSeed] : parsed;
 }
 
 function loadHiredAgents(): HiredAgent[] {
   const list = safeReadJSON<HiredAgent[]>('js_hired_agents', INITIAL_HIRED_AGENTS);
   const normalized = Array.isArray(list) ? list : INITIAL_HIRED_AGENTS;
   return normalizeAgentDefaults(
-    migrateTemplateUpgradeDemo(migrateFoodSafetyTheme(normalized)),
+    migrateTemplateUpgradeDemo(migrateFoodSafetyTheme(mergeSeedHiredAgents(normalized))),
   );
 }
 
@@ -159,6 +190,18 @@ function loadSkills(): Skill[] {
 interface AppContextType {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  navDomain: NavDomain;
+  setNavDomain: (domain: NavDomain) => void;
+  qcRailTab: QcRailTab;
+  setQcRailTab: (tab: QcRailTab) => void;
+  qcMainTab: QcAppMainTab;
+  setQcMainTab: (tab: QcAppMainTab) => void;
+  domainOpsTab: DomainOpsMainTab;
+  setDomainOpsTab: (tab: DomainOpsMainTab) => void;
+  pendingOpsAction: PendingOpsAction;
+  setPendingOpsAction: (action: PendingOpsAction) => void;
+  pendingOpsAgentId: string | null;
+  setPendingOpsAgentId: (id: string | null) => void;
   // Dynamic data states
   marketAgents: AgentMarketInfo[];
   hiredAgents: HiredAgent[];
@@ -177,8 +220,8 @@ interface AppContextType {
   setActiveRoleId: (id: string) => void;
   
   // Tutorial walkthrough state
-  demoStep: 'A1' | 'A2' | 'A3' | 'A4' | 'B1' | 'B2' | 'B3' | 'C1' | 'C2' | 'C3' | null;
-  setDemoStep: (step: 'A1' | 'A2' | 'A3' | 'A4' | 'B1' | 'B2' | 'B3' | 'C1' | 'C2' | 'C3' | null) => void;
+  demoStep: 'A1' | 'A2' | 'A3' | 'A4' | 'A5' | 'B1' | 'B2' | 'B3' | 'C1' | 'C2' | 'C3' | null;
+  setDemoStep: (step: 'A1' | 'A2' | 'A3' | 'A4' | 'A5' | 'B1' | 'B2' | 'B3' | 'C1' | 'C2' | 'C3' | null) => void;
 
   showDemoGuide: boolean;
   setShowDemoGuide: (show: boolean) => void;
@@ -208,13 +251,65 @@ interface AppContextType {
 
   // Actions
   hireAgent: (marketId: string) => void;
+  /** 自建空白数字员工；默认进入员工培训工作台（在线客服） */
+  createBlankHiredAgent: (opts: {
+    name: string;
+    description: string;
+    jobFamily?: JobFamily;
+    buildMode?: 'autonomous' | 'preset';
+    /** 默认 true：进入培训；false 仅创建 */
+    enterTraining?: boolean;
+  }) => HiredAgent;
   updateHiredAgent: (id: string, updates: Partial<HiredAgent>) => void;
   deleteHiredAgent: (id: string) => void;
   createKnowledgeBase: (name: string) => KnowledgeBase;
   updateKnowledgeBase: (id: string, updates: Partial<KnowledgeBase>) => void;
   deleteKnowledgeBase: (id: string) => void;
-  createSkill: (name: string, description: string, type: 'subscribed' | 'mine' | 'market') => Skill;
+  createSkill: (
+    name: string,
+    description: string,
+    type: 'subscribed' | 'mine' | 'market',
+    pkg?: Pick<
+      Skill,
+      | 'skillCode'
+      | 'files'
+      | 'source'
+      | 'version'
+      | 'status'
+      | 'kind'
+      | 'hasScripts'
+      | 'hasKBs'
+      | 'draftData'
+      | 'enId'
+      | 'cnName'
+    >,
+  ) => Skill;
+  updateSkill: (
+    id: string,
+    updates: Partial<
+      Pick<
+        Skill,
+        | 'name'
+        | 'description'
+        | 'skillCode'
+        | 'files'
+        | 'source'
+        | 'version'
+        | 'status'
+        | 'kind'
+        | 'hasScripts'
+        | 'hasKBs'
+        | 'draftData'
+        | 'enId'
+        | 'cnName'
+      >
+    >,
+  ) => void;
   deleteSkill: (id: string) => void;
+  /** 从技能市场订阅到「已订阅」 */
+  subscribeSkill: (id: string) => void;
+  /** 取消订阅（市场技能回到市场；自建技能请用 deleteSkill） */
+  unsubscribeSkill: (id: string) => void;
   createABTest: (name: string, agentAId: string, agentBId: string, ratioA: number) => void;
   updateABTest: (id: string, updates: Partial<ABTest>) => void;
   deleteABTest: (id: string) => void;
@@ -245,14 +340,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeTab, setActiveTabState] = useState<string>(() => {
     return localStorage.getItem('js_active_tab') || 'employees';
   });
+  const [navDomain, setNavDomainState] = useState<NavDomain>(() => {
+    const tab = localStorage.getItem('js_active_tab') || 'employees';
+    return navDomainFromTab(tab) ?? 'home';
+  });
+  const [qcRailTab, setQcRailTabState] = useState<QcRailTab>(() => {
+    const saved = localStorage.getItem('js_qc_rail_tab');
+    if (saved === 'overview' || saved === 'workspace' || saved === 'templates') return saved;
+    return 'workspace';
+  });
+  const [qcMainTab, setQcMainTabState] = useState<QcAppMainTab>(() => {
+    const saved = localStorage.getItem('js_qc_main_tab');
+    if (QC_APP_MAIN_TABS.some((t) => t.id === saved)) return saved as QcAppMainTab;
+    return 'plans';
+  });
+
+  const setNavDomain = (domain: NavDomain) => {
+    setNavDomainState(domain);
+  };
+
+  const setQcRailTab = (tab: QcRailTab) => {
+    setQcRailTabState(tab);
+    localStorage.setItem('js_qc_rail_tab', tab);
+  };
+
+  const setQcMainTab = (tab: QcAppMainTab) => {
+    setQcMainTabState(tab);
+    localStorage.setItem('js_qc_main_tab', tab);
+  };
+
+  const [domainOpsTab, setDomainOpsTab] = useState<DomainOpsMainTab>('dispatch');
+  const [pendingOpsAction, setPendingOpsAction] = useState<PendingOpsAction>(null);
+  const [pendingOpsAgentId, setPendingOpsAgentId] = useState<string | null>(null);
 
   const setActiveTab = (tab: string) => {
     setActiveTabState(tab);
     localStorage.setItem('js_active_tab', tab);
+    const domain = navDomainFromTab(tab);
+    if (domain) setNavDomainState(domain);
+    if (tab === 'hotlineApp') setDomainOpsTab('agents');
+    else if (tab === 'collectionApp') setDomainOpsTab('monitor');
+    else if (tab === 'outboundApp') setDomainOpsTab('tasks');
+    else if (tab === 'telesalesApp' || tab === 'followupApp') setDomainOpsTab('dispatch');
   };
 
   // Demo state
-  const [demoStep, setDemoStep] = useState<'A1' | 'A2' | 'A3' | 'A4' | 'B1' | 'B2' | 'B3' | 'C1' | 'C2' | 'C3' | null>(null);
+  const [demoStep, setDemoStep] = useState<'A1' | 'A2' | 'A3' | 'A4' | 'A5' | 'B1' | 'B2' | 'B3' | 'C1' | 'C2' | 'C3' | null>(null);
   const [showDemoGuide, setShowDemoGuide] = useState<boolean>(false); // FALSE by default so it stays clean and simple!
   const [showTaskCenter, setShowTaskCenter] = useState<boolean>(false);
 
@@ -271,7 +404,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
 
   const setOnboardingWorkspaceTab = (tab: OnboardingWorkspaceTabId) => {
-    setOnboardingWorkspaceTabState(tab);
+    setOnboardingWorkspaceTabState(normalizeOnboardingWorkspaceTab(tab));
   };
 
   const setSidebarCollapsed = (collapsed: boolean) => {
@@ -391,6 +524,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const jobFamily = base.jobFamily ?? 'customer_service';
     const isQc = jobFamily === 'quality_inspection';
+    const domain = jobFamilyToNavDomain(jobFamily);
 
     const newAgent: HiredAgent = {
       id: `h_${marketId}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
@@ -401,7 +535,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description: base.description,
       skills: [],
       knowledgeBases: [],
-      status: 'draft',
+      status: supportsDutyToggle({ jobFamily }) ? 'draft' : 'online',
       hiredAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
       jobFamily,
       openingLine: isQc
@@ -434,14 +568,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setHiredAgents(prev => [agentWithBaseline, ...prev]);
-    setOnboardingWorkspaceTabState(DEFAULT_ONBOARDING_WORKSPACE_TAB);
-    setActiveOnboardingAgentId(agentWithBaseline.id);
-    setActiveTab('employees');
 
-    // Demo advancement
-    if (demoStep === 'A1') {
-      setDemoStep('A2'); // Next: Configure or view in Employed section
+    if (demoStep === 'A1' || domain) {
+      // 向导第 2 步要在「我的数字员工」点培训；业务域员工同样不进培训工作台
+      setActiveOnboardingAgentId(null);
+      setNavDomain('home');
+      setActiveTab('employees');
+    } else {
+      // 在线客服等：进入入职培训
+      setOnboardingWorkspaceTabState(DEFAULT_ONBOARDING_WORKSPACE_TAB);
+      setActiveOnboardingAgentId(agentWithBaseline.id);
+      setActiveTab('employees');
     }
+
+    if (demoStep === 'A1') {
+      setDemoStep('A2');
+    }
+  };
+
+  const createBlankHiredAgent = (opts: {
+    name: string;
+    description: string;
+    jobFamily?: JobFamily;
+    buildMode?: 'autonomous' | 'preset';
+    enterTraining?: boolean;
+  }): HiredAgent => {
+    const jobFamily = opts.jobFamily ?? 'customer_service';
+    const name = opts.name.trim().slice(0, 8) || '新员工';
+    const buildMode = opts.buildMode ?? 'autonomous';
+    const enterTraining = opts.enterTraining !== false && jobFamily === 'customer_service';
+
+    const newAgent: HiredAgent = {
+      id: `h_custom_${Date.now()}`,
+      name,
+      marketId: jobFamily === 'other' ? 'm_custom_gen' : `m_custom_${jobFamily}`,
+      agentId: `AGENT_${Math.floor(200 + Math.random() * 700)}`,
+      avatar:
+        buildMode === 'autonomous'
+          ? AGENT_AVATAR_PRESETS[10]
+          : AGENT_AVATAR_PRESETS[12],
+      avatarCustomized: true,
+      buildMode,
+      description: opts.description.trim(),
+      skills: [],
+      knowledgeBases: [],
+      status: supportsDutyToggle({ jobFamily }) ? 'draft' : 'online',
+      jobFamily,
+      hiredAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+      openingLine: defaultOpeningLineForAgent(name),
+      fallbackScript: defaultFallbackScriptForAgent(),
+    };
+
+    const agentWithBaseline: HiredAgent = {
+      ...newAgent,
+      configSnapshots: [createBaselineSnapshot(newAgent)],
+    };
+
+    setHiredAgents((prev) => [agentWithBaseline, ...prev]);
+
+    if (enterTraining) {
+      setOnboardingWorkspaceTabState(DEFAULT_ONBOARDING_WORKSPACE_TAB);
+      setActiveOnboardingAgentId(agentWithBaseline.id);
+      setActiveTab('training');
+    }
+
+    return agentWithBaseline;
   };
 
   const updateHiredAgent = (id: string, updates: Partial<HiredAgent>) => {
@@ -454,7 +645,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const createKnowledgeBase = (name: string): KnowledgeBase => {
     const item: KnowledgeBase = {
-      id: `kb_${Date.now()}`,
+      id: `kb_${Date.now()}_${Math.floor(Math.random() * 1e6)}`,
       name,
       firstChar: name.charAt(0) || '知',
       docCount: 1,
@@ -486,18 +677,80 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
-  const createSkill = (name: string, description: string, type: 'subscribed' | 'mine' | 'market'): Skill => {
+  const createSkill = (
+    name: string,
+    description: string,
+    type: 'subscribed' | 'mine' | 'market',
+    pkg?: Pick<
+      Skill,
+      | 'skillCode'
+      | 'files'
+      | 'source'
+      | 'version'
+      | 'status'
+      | 'kind'
+      | 'hasScripts'
+      | 'hasKBs'
+      | 'draftData'
+      | 'enId'
+      | 'cnName'
+    >,
+  ): Skill => {
     const item: Skill = {
-      id: `s_${Date.now()}`,
+      id: `s_${Date.now()}_${Math.floor(Math.random() * 1e6)}`,
       name,
       author: '开发者自主',
       updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
       usedByAgents: [],
       type,
-      description
+      description,
+      skillCode: pkg?.skillCode,
+      version: pkg?.version ?? '1.0.0',
+      files: pkg?.files,
+      source: pkg?.source ?? 'nl',
+      status: pkg?.status ?? 'published',
+      kind: pkg?.kind,
+      hasScripts: pkg?.hasScripts,
+      hasKBs: pkg?.hasKBs,
+      draftData: pkg?.draftData,
+      enId: pkg?.enId,
+      cnName: pkg?.cnName,
     };
     setSkills(prev => [item, ...prev]);
     return item;
+  };
+
+  const updateSkill = (
+    id: string,
+    updates: Partial<
+      Pick<
+        Skill,
+        | 'name'
+        | 'description'
+        | 'skillCode'
+        | 'files'
+        | 'source'
+        | 'version'
+        | 'status'
+        | 'kind'
+        | 'hasScripts'
+        | 'hasKBs'
+        | 'draftData'
+        | 'enId'
+        | 'cnName'
+      >
+    >,
+  ) => {
+    setSkills((prev) =>
+      prev.map((s) => {
+        if (s.id !== id) return s;
+        return {
+          ...s,
+          ...updates,
+          updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+        };
+      }),
+    );
   };
 
   const deleteSkill = (id: string) => {
@@ -507,6 +760,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...a,
       skills: a.skills.filter(sId => sId !== id)
     })));
+  };
+
+  const subscribeSkill = (id: string) => {
+    setSkills((prev) =>
+      prev.map((s) =>
+        s.id === id && s.type === 'market'
+          ? {
+              ...s,
+              type: 'subscribed' as const,
+              updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+            }
+          : s,
+      ),
+    );
+  };
+
+  const unsubscribeSkill = (id: string) => {
+    setSkills((prev) =>
+      prev.map((s) =>
+        s.id === id && s.type === 'subscribed'
+          ? {
+              ...s,
+              type: 'market' as const,
+              usedByAgents: [],
+              updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+            }
+          : s,
+      ),
+    );
+    setHiredAgents((prev) =>
+      prev.map((a) => ({
+        ...a,
+        skills: a.skills.filter((sId) => sId !== id),
+      })),
+    );
   };
 
   const createABTest = (name: string, agentAId: string, agentBId: string, ratioA: number) => {
@@ -984,6 +1272,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider value={{
       activeTab,
       setActiveTab,
+      navDomain,
+      setNavDomain,
+      qcRailTab,
+      setQcRailTab,
+      qcMainTab,
+      setQcMainTab,
+      domainOpsTab,
+      setDomainOpsTab,
+      pendingOpsAction,
+      setPendingOpsAction,
+      pendingOpsAgentId,
+      setPendingOpsAgentId,
       marketAgents,
       hiredAgents,
       knowledgeBases,
@@ -1030,13 +1330,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast,
 
       hireAgent,
+      createBlankHiredAgent,
       updateHiredAgent,
       deleteHiredAgent,
       createKnowledgeBase,
       updateKnowledgeBase,
       deleteKnowledgeBase,
       createSkill,
+      updateSkill,
       deleteSkill,
+      subscribeSkill,
+      unsubscribeSkill,
       createABTest,
       updateABTest,
       deleteABTest,

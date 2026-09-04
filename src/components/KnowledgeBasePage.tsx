@@ -6,22 +6,33 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Search, Plus, Trash2, Upload, FileUp, Sparkles, HelpCircle, Check, Circle, Pencil } from '@/lib/icons';
-import { SegmentedTabs } from './common/SegmentedTabs';
-import { PageHeader } from './common/PageHeader';
 import { Modal } from './common/Modal';
 import { CardIcon } from './common/CardIcon';
 import { ListPagination, LIST_PAGE_SIZE, paginateItems } from './common/ListPagination';
-import { PAGE, CARD, CARD_HOVER, PANEL, BTN_INK, BTN_SOFT, FIELD, LABEL, SEARCH_FIELD } from '@/lib/ui';
+import { BTN_INK, BTN_SOFT, FIELD, LABEL, SEARCH_FIELD } from '@/lib/ui';
+import {
+  OnlinePageHeader,
+  OnlineSectionHeader,
+  OnlineEmptyRow,
+  onlineTableClass,
+} from './common/OnlinePageLayout';
 import { cn } from '@/lib/utils';
 import { pickMockLatencyMs } from '@/lib/mockLatency';
 import { ContentBusy } from './common/ContentBusy';
+import { CompanionAssistOpenButton, CompanionAssistPanel } from './common/CompanionAssistPanel';
 import { useMockLatency } from '@/lib/useMockLatency';
 
-const TRAINING_TABS = [
-  { tab: 'kb', label: '员工知识' },
-  { tab: 'skills', label: '员工技能' },
-  { tab: 'abTest', label: '员工比拼' },
-];
+const COMPANION_OPEN_KEY = 'js_companion_assist_open';
+
+function readCompanionOpen(): boolean {
+  try {
+    const v = localStorage.getItem(COMPANION_OPEN_KEY);
+    if (v === null) return true;
+    return v === '1';
+  } catch {
+    return true;
+  }
+}
 
 export const KnowledgeBasePage: React.FC = () => {
   const { knowledgeBases, createKnowledgeBase, updateKnowledgeBase, deleteKnowledgeBase, focusKnowledgeBaseId, setFocusKnowledgeBaseId, showToast } = useApp();
@@ -36,6 +47,16 @@ export const KnowledgeBasePage: React.FC = () => {
   const [renamingKbId, setRenamingKbId] = useState<string | null>(null);
   const [renameName, setRenameName] = useState('');
   const [page, setPage] = useState(1);
+  const [companionOpen, setCompanionOpen] = useState(readCompanionOpen);
+
+  const handleCompanionOpenChange = (next: boolean) => {
+    setCompanionOpen(next);
+    try {
+      localStorage.setItem(COMPANION_OPEN_KEY, next ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  };
 
   // Drag and drop states for file uploading inside selected KB
   const [activeKBId, setActiveKBId] = useState<string | null>(null);
@@ -150,145 +171,144 @@ export const KnowledgeBasePage: React.FC = () => {
   };
 
   return (
-    <div className={PAGE}>
-      <SegmentedTabs items={TRAINING_TABS} />
-
-      <PageHeader
-        title="员工知识"
-      >
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+    <div className="flex flex-1 min-h-0 min-w-0 h-full overflow-hidden bg-white">
+      <div className="flex flex-1 min-h-0 flex-col overflow-hidden bg-white text-neutral-800 font-sans text-xs antialiased min-w-0">
+      <div className="shrink-0 px-5 pt-5">
+      <OnlinePageHeader title="员工知识">
+        <div className="relative w-full sm:w-64 shrink-0">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
           <input
             type="text"
             placeholder="搜索知识库名..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
-            className={cn(SEARCH_FIELD, 'pl-9 pr-4')}
+            onChange={(e) => setSearch(e.target.value)}
+            className={cn(SEARCH_FIELD, 'w-full pl-9 pr-4')}
           />
         </div>
 
-        <button onClick={() => setIsCreating(true)} className={BTN_INK}>
+        <button type="button" onClick={() => setIsCreating(true)} className={BTN_INK}>
           <Plus size={14} />
-          <span>创建新知识库</span>
+          <span>新建知识库</span>
         </button>
-      </PageHeader>
-
-      {/* Grid List of Knowledge Bases */}
-      <ContentBusy busy={listBusy} size="panel" minHeight={240}>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {pagedFiltered.map(kb => (
-          <div
-            key={kb.id}
-            className={`${CARD} ${CARD_HOVER} p-4 flex flex-col justify-between group ${
-              activeKBId === kb.id ? 'border-neutral-900/30 shadow-[0_2px_10px_rgba(31,35,41,0.06)]' : ''
-            }`}
-          >
-            <div>
-              {/* Brand icon and name */}
-              <div className="flex items-center justify-between mb-4">
-                <CardIcon seed={kb.id} size="md">{kb.firstChar}</CardIcon>
-
-                <div className="flex items-center gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => openRenameModal(kb.id, kb.name)}
-                    className="p-1 text-neutral-400 hover:text-neutral-800 rounded-lg hover:bg-neutral-100 transition cursor-pointer"
-                    title="重命名"
-                  >
-                    <Pencil size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (confirm("删除知识库将导致所有绑定它的数字员工丧失对应的检索能力，确定吗？")) {
-                        deleteKnowledgeBase(kb.id);
-                        if (activeKBId === kb.id) setActiveKBId(null);
-                      }
-                    }}
-                    className="p-1 text-neutral-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition cursor-pointer"
-                    title="删除知识库"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
-
-              <h3 className="font-extrabold text-neutral-900 text-sm tracking-tight line-clamp-2 min-h-[40px] leading-relaxed">
-                {kb.name}
-              </h3>
-
-              {/* Counts */}
-              <div className="mt-4 flex items-center justify-between text-xs text-neutral-400 border-t border-neutral-100 pt-3">
-                <span>包含文档数:</span>
-                <span className="font-bold text-neutral-700 bg-neutral-100 px-2 py-0.5 rounded-full border border-neutral-200 scale-95">
-                  {kb.docCount} 个文件
-                </span>
-              </div>
-
-              <div className="mt-2 flex items-center justify-between text-xs text-neutral-400">
-                <span>总字符数:</span>
-                <span className="font-mono font-medium text-neutral-600 text-[11px]">
-                  {kb.wordCount.toLocaleString()} 词
-                </span>
-              </div>
-            </div>
-
-            {/* Actions: Direct drop / file loading */}
-            <div className="mt-4 pt-3 border-t border-neutral-100 flex gap-2">
-              <button
-                onClick={() => {
-                  setActiveKBId(kb.id);
-                  setUploadedMsgs(null);
-                }}
-                className="flex-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border border-neutral-200 text-[11px] font-bold py-1.5 rounded-[7px] flex items-center justify-center gap-1 cursor-pointer transition active:scale-[0.98]"
-              >
-                <Upload size={12} />
-                <span>上传新文档</span>
-              </button>
-            </div>
-          </div>
-        ))}
+        {!companionOpen ? (
+          <CompanionAssistOpenButton onClick={() => handleCompanionOpenChange(true)} />
+        ) : null}
+      </OnlinePageHeader>
       </div>
 
-      <ListPagination
-        total={filtered.length}
-        page={page}
-        onPageChange={setPage}
-        className="mt-4 pt-3 border-t border-neutral-200"
-      />
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5">
+      <ContentBusy busy={listBusy} size="panel" minHeight={240}>
+        <div className={onlineTableClass.wrap}>
+          <table className={onlineTableClass.table}>
+            <thead>
+              <tr className={onlineTableClass.headRow}>
+                <th className={onlineTableClass.thFirst}>知识库</th>
+                <th className={onlineTableClass.th}>文档数</th>
+                <th className={onlineTableClass.th}>字符数</th>
+                <th className={onlineTableClass.th}>更新时间</th>
+                <th className={onlineTableClass.thLast}>操作</th>
+              </tr>
+            </thead>
+            <tbody className={onlineTableClass.body}>
+              {pagedFiltered.length === 0 ? (
+                <OnlineEmptyRow colSpan={5}>暂无知识库，请先创建</OnlineEmptyRow>
+              ) : (
+                pagedFiltered.map((kb) => (
+                  <tr
+                    key={kb.id}
+                    className={cn(
+                      onlineTableClass.row,
+                      activeKBId === kb.id && 'bg-neutral-50/60',
+                    )}
+                  >
+                    <td className={onlineTableClass.tdFirst}>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <CardIcon seed={kb.id} size="sm" variant="soft">
+                          {kb.firstChar}
+                        </CardIcon>
+                        <span className="font-semibold text-neutral-900 truncate">{kb.name}</span>
+                      </div>
+                    </td>
+                    <td className={onlineTableClass.td}>{kb.docCount} 个</td>
+                    <td className={cn(onlineTableClass.td, 'font-mono tabular-nums')}>
+                      {kb.wordCount.toLocaleString()}
+                    </td>
+                    <td className={cn(onlineTableClass.td, 'text-neutral-500')}>{kb.updatedAt}</td>
+                    <td className={onlineTableClass.tdLast}>
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveKBId(kb.id);
+                            setUploadedMsgs(null);
+                          }}
+                          className="text-[11px] font-semibold text-live hover:underline cursor-pointer"
+                        >
+                          上传
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openRenameModal(kb.id, kb.name)}
+                          className="p-1 text-neutral-400 hover:text-neutral-800 rounded-lg hover:bg-neutral-100 transition cursor-pointer"
+                          title="重命名"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (
+                              confirm(
+                                '删除知识库将导致所有绑定它的数字员工丧失对应的检索能力，确定吗？',
+                              )
+                            ) {
+                              deleteKnowledgeBase(kb.id);
+                              if (activeKBId === kb.id) setActiveKBId(null);
+                            }
+                          }}
+                          className="p-1 text-neutral-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition cursor-pointer"
+                          title="删除知识库"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </ContentBusy>
 
-      {/* DRAG AND DROP FILE UPLOAD AREA (If a KB card upload triggers) */}
       {activeKBId && (
-        <div className={`${PANEL} mt-8 p-6`}>
-          <div className="flex items-center justify-between mb-4 border-b border-neutral-100 pb-3">
-            <div>
-              <h3 className="font-extrabold text-neutral-900 text-sm flex items-center gap-1.5">
-                <Sparkles size={16} className="text-neutral-800" />
-                <span>上传文件到：{knowledgeBases.find(k => k.id === activeKBId)?.name}</span>
-              </h3>
-            </div>
+        <section className="mt-8 pt-6 border-t border-neutral-200">
+          <OnlineSectionHeader
+            title={`上传文件到：${knowledgeBases.find((k) => k.id === activeKBId)?.name ?? ''}`}
+            icon={<Sparkles size={14} className="text-neutral-500" />}
+            actions={
+              <button
+                type="button"
+                onClick={() => setActiveKBId(null)}
+                className="text-[11px] text-neutral-500 hover:text-neutral-800 font-medium cursor-pointer"
+              >
+                关闭
+              </button>
+            }
+          />
 
-            <button
-              onClick={() => setActiveKBId(null)}
-              className="text-neutral-400 hover:text-neutral-700 text-xs font-bold"
-            >
-              关闭
-            </button>
-          </div>
-
-          {/* DRAG BOX AREA (Adhering to Drag-and-upload Guidelines) */}
           <div
             onDragEnter={handleDrag}
             onDragOver={handleDrag}
             onDragLeave={handleDrag}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`cursor-pointer border-2 border-dashed rounded-[13px] p-8 text-center flex flex-col items-center justify-center transition-all ${
+            className={cn(
+              'cursor-pointer border border-dashed rounded-lg p-8 text-center flex flex-col items-center justify-center transition-all',
               dragActive
-                ? 'border-neutral-900 bg-neutral-100/60'
-                : 'border-neutral-300 bg-white hover:bg-neutral-100/50 hover:border-neutral-400'
-            }`}
+                ? 'border-neutral-400 bg-neutral-50'
+                : 'border-neutral-200 bg-white hover:bg-neutral-50/80',
+            )}
           >
             <input
               type="file"
@@ -308,12 +328,19 @@ export const KnowledgeBasePage: React.FC = () => {
 
           {/* Feedback logs */}
           {uploadedMsgs && (
-            <div className="mt-4 p-3 bg-ink font-mono text-[11px] text-emerald-400 rounded-[13px] whitespace-pre-line border border-neutral-800 leading-relaxed">
+            <div className="mt-4 p-3 bg-neutral-900 font-mono text-[11px] text-emerald-400 rounded-lg whitespace-pre-line leading-relaxed">
               {uploadedMsgs}
             </div>
           )}
-        </div>
+        </section>
       )}
+      </div>
+
+      {filtered.length > LIST_PAGE_SIZE ? (
+        <div className="shrink-0 px-5 pb-5 pt-3 border-t border-neutral-200">
+          <ListPagination total={filtered.length} page={page} onPageChange={setPage} />
+        </div>
+      ) : null}
 
       {/* CREATE KB MODAL */}
       <Modal
@@ -467,6 +494,57 @@ export const KnowledgeBasePage: React.FC = () => {
           </div>
         </div>
       </Modal>
+      </div>
+
+      <CompanionAssistPanel
+        open={companionOpen}
+        onOpenChange={handleCompanionOpenChange}
+        highlightValue={knowledgeBases.length}
+        tools={[
+          {
+            id: 'create',
+            label: '智能建库',
+            icon: <Plus size={16} strokeWidth={1.75} />,
+            onClick: () => setIsCreating(true),
+          },
+          {
+            id: 'upload',
+            label: '文档入库',
+            icon: <Upload size={16} strokeWidth={1.75} />,
+            onClick: () => {
+              if (filtered[0]) {
+                setActiveKBId(filtered[0].id);
+                setUploadedMsgs(null);
+              } else {
+                showToast('请先新建知识库', 'warning');
+              }
+            },
+          },
+          {
+            id: 'search',
+            label: '知识检索',
+            icon: <Search size={16} strokeWidth={1.75} />,
+          },
+          {
+            id: 'gap',
+            label: '缺口分析',
+            icon: <Sparkles size={16} strokeWidth={1.75} />,
+          },
+          {
+            id: 'qa',
+            label: '问答试跑',
+            icon: <HelpCircle size={16} strokeWidth={1.75} />,
+          },
+          {
+            id: 'batch',
+            label: '批量整理',
+            icon: <FileUp size={16} strokeWidth={1.75} />,
+          },
+        ]}
+        onSend={(text) => {
+          showToast(`搭子已收到：${text.slice(0, 40)}${text.length > 40 ? '…' : ''}`);
+        }}
+      />
     </div>
   );
 };

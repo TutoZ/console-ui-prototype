@@ -854,7 +854,6 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                                       type="button"
                                       onClick={() => {
                                         setOpenMenuDocId(null);
-                                        showToast(`已开始下载「${doc.name}」`);
                                       }}
                                       className="w-full px-3 py-1.5 text-[11px] flex items-center gap-2 hover:bg-neutral-100 cursor-pointer"
                                     >

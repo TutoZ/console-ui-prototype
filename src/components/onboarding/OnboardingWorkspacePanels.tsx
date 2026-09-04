@@ -851,7 +851,6 @@ export const OnboardingChannelsPanel: React.FC<{
               </div>
               <button
                 type="button"
-                onClick={() => showToast(`「${ch.title}」配置向导即将开放（演示）`)}
                 className={BTN_OUTLINE}
               >
                 配置

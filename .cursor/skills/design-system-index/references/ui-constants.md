@@ -12,7 +12,7 @@
 3. 与 shadcn 组件并存时，业务 CRUD 页以本文件常量为准。
 
 ```tsx
-import { PAGE, CARD, BTN_INK, FIELD, LABEL, badgeClass } from '@/lib/ui';
+import { PAGE, CARD, BTN_INK, FIELD, LABEL, badgeClass, confirmStatusBadgeClass } from '@/lib/ui';
 ```
 
 ---
@@ -189,12 +189,28 @@ inline-flex … text-[10px] font-medium px-2 py-0.5 rounded-full border
 
 ---
 
-## 八、校验清单
+## 八、confirmStatusBadgeClass(tone)
+
+确认流专用（`SkillRoundConfirmCard` / `SkillChatConfirmDock`），**不用** `badgeClass`：
+
+| tone | 背景 Hex | 字 Hex | 尺寸 |
+|------|----------|--------|------|
+| `confirmed` | `#D1FAE5` | `#065F46` | h-18 · 11px · rounded |
+| `confirmedSoft` | `#ECFDF5` | `#047857` | 10px · rounded-md |
+| `pending` | `#FFFBEB` | `#B45309` | 10px · rounded-md |
+
+```tsx
+import { confirmStatusBadgeClass } from '@/lib/ui';
+```
+
+---
+
+## 九、校验清单
 
 - [ ] 页面用 `PAGE`，非手写 `p-5 bg-white`
 - [ ] 主/次/取消用 `BTN_INK` / `BTN_SOFT` / `BTN_OUTLINE`
 - [ ] 表单用 `FIELD` + `LABEL`
 - [ ] 卡片/面板用 `CARD` / `PANEL`
 - [ ] 弹窗用 `MODAL_*` 或 common `<Modal>`
-- [ ] 徽章用 `badgeClass(tone)`
+- [ ] 徽章用 `badgeClass(tone)` 或确认流用 `confirmStatusBadgeClass(tone)`
 - [ ] 无复制常量字符串到页面

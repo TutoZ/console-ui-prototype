@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JoySupport 组件库已迁移</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: #262626;
+      background: #fafafa;
+    }
+    .card {
+      max-width: 440px;
+      padding: 28px 24px;
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      border-radius: 13px;
+      box-shadow: 0 2px 10px rgba(31, 35, 41, 0.02);
+    }
+    h1 { margin: 0 0 8px; font-size: 18px; font-weight: 700; }
+    p { margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: #737373; }
+    a {
+      display: inline-flex;
+      align-items: center;
+      height: 32px;
+      padding: 0 12px;
+      background: #262626;
+      color: #fff;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 7px;
+    }
+    a:hover { opacity: 0.9; }
+    code { font-size: 12px; color: #404040; }
+    ul { margin: 0 0 16px; padding-left: 18px; font-size: 12px; color: #737373; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>组件库已迁到应用内展台</h1>
+    <p>
+      静态 HTML 不再维护。请先启动开发服务 <code>npm run dev</code>，再打开下列任一地址：
+    </p>
+    <ul>
+      <li><code>http://127.0.0.1:5190/?ds=1</code>（推荐）</li>
+      <li><code>http://127.0.0.1:5190/design-system</code></li>
+      <li><code>http://127.0.0.1:5190/component-library</code></li>
+    </ul>
+    <p>
+      <a id="link" href="http://127.0.0.1:5190/?ds=1">打开 JoySupport 组件库</a>
+    </p>
+    <p style="margin:0;font-size:11px;color:#a3a3a3">旧端口 5192 已停用 · 默认 Vite 端口 5190</p>
+  </div>
+  <script>
+    (async () => {
+      const ports = [5190, 5173, 3023];
+      const paths = ['/?ds=1', '/design-system', '/component-library'];
+      const a = document.getElementById('link');
+      for (const p of ports) {
+        for (const path of paths) {
+          try {
+            const ctrl = new AbortController();
+            const t = setTimeout(() => ctrl.abort(), 500);
+            await fetch('http://127.0.0.1:' + p + path, {
+              mode: 'no-cors',
+              signal: ctrl.signal,
+            });
+            clearTimeout(t);
+            const href = 'http://127.0.0.1:' + p + '/?ds=1';
+            a.href = href;
+            a.textContent = '打开 JoySupport 组件库 (:' + p + ')';
+            return;
+          } catch (_) {}
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

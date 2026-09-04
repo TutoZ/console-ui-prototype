@@ -70,6 +70,7 @@ export function captureAgentConfig(agent: HiredAgent): AgentConfigFields {
     languageStyle: agent.languageStyle,
     constraints: agent.constraints,
     openingLine: agent.openingLine,
+    replyPolishEnabled: agent.replyPolishEnabled,
     backgroundKnowledge: agent.backgroundKnowledge,
     workflowNotes: agent.workflowNotes,
     responseTimeoutSeconds: agent.responseTimeoutSeconds,

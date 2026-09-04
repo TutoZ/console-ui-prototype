@@ -1,0 +1,2 @@
+Input,Expect Oracle,Context Up,Context Down
+用户问：“已签收 20 天的数码产品可以申请无理由退货吗？”,超期拦截，提示超过 7 天无理由退货期限,（选填，上文语境）,（选填，下文语境）

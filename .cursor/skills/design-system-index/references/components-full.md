@@ -101,6 +101,15 @@
 
 `h-5 rounded-4xl px-2 text-xs` — variant 色同 Button 表。
 
+**确认流状态角标**（对话确认卡，非 shadcn Badge）：
+
+| 组件 | tone | class 来源 |
+|------|------|-----------|
+| `SkillRoundConfirmCard` 标题 | `confirmed` | `confirmStatusBadgeClass('confirmed')` |
+| `SkillChatConfirmDock` | `confirmedSoft` / `pending` | `confirmStatusBadgeClass(...)` |
+
+色值见 `color-tokens.md` §2.1.1。
+
 ### 2.6 Select
 
 - Trigger：`h-7 rounded-md border-input #E8E8E8`

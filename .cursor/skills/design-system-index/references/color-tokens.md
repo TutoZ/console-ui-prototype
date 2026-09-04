@@ -119,6 +119,22 @@
 
 徽章基础壳：`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border`
 
+### 2.1.1 确认流状态角标 `confirmStatusBadgeClass`（非 badgeClass）
+
+与列表/首页 `badgeClass` 不同，专用于对话确认卡「已确认 / 待确认」：
+
+| tone | 用途 | 底 Hex | 字 Hex | Tailwind |
+|------|------|--------|--------|----------|
+| `confirmed` | 确认卡标题旁 | `#D1FAE5` | `#065F46` | `bg-emerald-100 text-emerald-800` · `h-[18px] text-[11px] rounded` |
+| `confirmedSoft` | 草案卡内联 | `#ECFDF5` | `#047857` | `bg-emerald-50 text-emerald-700` · `text-[10px] rounded-md` |
+| `pending` | 待确认配对 | `#FFFBEB` | `#B45309` | `bg-amber-50 text-amber-700` · 同 confirmedSoft 尺寸 |
+
+```tsx
+confirmStatusBadgeClass('confirmed')      // SkillRoundConfirmCard 标题
+confirmStatusBadgeClass('confirmedSoft')   // SkillChatConfirmDock 已确认
+confirmStatusBadgeClass('pending')         // 待确认
+```
+
 ### 2.2 页面级语义色常用三件套
 
 | 语义 | 背景 Hex | 文字 Hex | 边框 Hex | Tailwind 三件套 |

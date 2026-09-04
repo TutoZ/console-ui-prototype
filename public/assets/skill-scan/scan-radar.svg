@@ -1,0 +1,31 @@
+<svg width="635" height="635" viewBox="0 0 635 635" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="635" height="635" fill="white" fill-opacity="0.2"/>
+<g clip-path="url(#clip0_skill_scan)">
+<g filter="url(#filter0_f_skill_scan)">
+<ellipse cx="509.5" cy="318" rx="70.5" ry="298" fill="url(#paint0_linear_skill_scan)" fill-opacity="0.4"/>
+</g>
+<path d="M510 0H512V635H510V0Z" fill="url(#paint1_linear_skill_scan)"/>
+</g>
+<defs>
+<filter id="filter0_f_skill_scan" x="319" y="-100" width="381" height="836" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="60" result="effect1_foregroundBlur"/>
+</filter>
+<linearGradient id="paint0_linear_skill_scan" x1="514.877" y1="499.721" x2="514.877" y2="112.254" gradientUnits="userSpaceOnUse">
+<stop offset="0.0263423" stop-color="#1565BF" stop-opacity="0.15"/>
+<stop offset="0.322917" stop-color="#1565BF" stop-opacity="0.55"/>
+<stop offset="0.709503" stop-color="#1565BF" stop-opacity="0.75"/>
+<stop offset="1" stop-color="#000000" stop-opacity="0.12"/>
+</linearGradient>
+<linearGradient id="paint1_linear_skill_scan" x1="511.076" y1="511.112" x2="511.059" y2="98.2908" gradientUnits="userSpaceOnUse">
+<stop offset="0.0263423" stop-color="#1565BF" stop-opacity="0"/>
+<stop offset="0.322917" stop-color="#1565BF" stop-opacity="0.65"/>
+<stop offset="0.709503" stop-color="#1565BF" stop-opacity="0.85"/>
+<stop offset="1" stop-color="#000000" stop-opacity="0"/>
+</linearGradient>
+<clipPath id="clip0_skill_scan">
+<rect width="208" height="635" fill="white" transform="translate(304)"/>
+</clipPath>
+</defs>
+</svg>

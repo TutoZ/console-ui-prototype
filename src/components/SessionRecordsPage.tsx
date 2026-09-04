@@ -7,7 +7,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { ChevronRight, ChevronDown, Search, Sliders, X } from '@/lib/icons';
+import { ChevronRight, ChevronDown, Search, X } from '@/lib/icons';
 import { ChatSession } from '../types';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,10 +17,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PAGE, PANEL, MODAL_OVERLAY, MODAL_PANEL, badgeClass, FIELD, FIELD_CTRL, BTN_INK, BTN_OUTLINE } from '@/lib/ui';
+import { PAGE, MODAL_OVERLAY, MODAL_PANEL, badgeClass, FIELD, FIELD_CTRL, BTN_INK, BTN_OUTLINE, BTN_SOFT, SELECT_TRIGGER } from '@/lib/ui';
+import {
+  ONLINE_PAGE,
+  OnlinePageHeader,
+  OnlineSectionHeader,
+  OnlineEmptyRow,
+  onlineTableClass,
+} from './common/OnlinePageLayout';
 import { cn } from '@/lib/utils';
 import { sessionAvatarUrl, sessionAvatarFallbackClass } from '@/src/lib/workspaceUi';
-import { SegmentedTabs } from './common/SegmentedTabs';
 import { ContentBusy } from './common/ContentBusy';
 import { useMockLatency } from '@/lib/useMockLatency';
 
@@ -169,7 +175,7 @@ function FilterField({
 
 const inputClass = cn(FIELD, FIELD_CTRL, 'text-[12px] px-2.5 placeholder:text-neutral-500');
 
-const selectTriggerClass = 'h-8 w-full bg-white border-neutral-200 text-[12px]';
+const filterSelectClass = cn(SELECT_TRIGGER, 'w-full min-w-0 text-[12px]');
 
 const SESSION_CHAT_BUBBLE =
   'px-3 py-2 rounded-lg bg-white border border-neutral-200 text-xs leading-relaxed text-neutral-800 whitespace-pre-wrap break-words';
@@ -259,7 +265,6 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
       scenarioFilter,
       caseLibraryFilter,
     });
-    showToast('已按当前筛选条件刷新接待记录。');
   };
 
   const filteredLogs = useMemo(() => {
@@ -406,18 +411,9 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
       className={cn(
         embedded
           ? 'flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 bg-white text-neutral-800 font-sans text-xs antialiased'
-          : cn(PAGE, 'overflow-y-auto custom-scrollbar'),
+          : ONLINE_PAGE,
       )}
     >
-      {!embedded && (
-        <SegmentedTabs
-          items={[
-            { tab: 'dashboard', label: '员工业绩' },
-            { tab: 'sessions', label: '接待记录' },
-          ]}
-        />
-      )}
-
       {!embedded && demoStep === 'C1' && (
         <div className="mb-3 bg-neutral-800 text-white px-3 py-2 rounded-[13px] flex items-center justify-between text-[11px]">
           <span className="truncate">向下查看接待明细，点开单条会话复盘数字员工表现。</span>
@@ -431,31 +427,33 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
         </div>
       )}
 
-      {/* 筛选条件 — 对齐 joyteam：标题行 + 标签在上两行网格 */}
-      <section className={cn(PANEL, 'px-4 py-3 mb-3')}>
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <h2 className="text-[13px] font-bold text-neutral-800 flex items-center gap-1.5">
-            <Sliders size={14} className="text-neutral-500" />
-            筛选条件
-          </h2>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleReset}
-              className="h-8 px-2 text-[12px] text-neutral-500 hover:text-neutral-800 cursor-pointer"
-            >
-              重置
-            </button>
-            <Button
-              type="button"
-              onClick={handleQuery}
-              className={BTN_INK}
-            >
-              查询
-            </Button>
-          </div>
-        </div>
+      {embedded ? (
+        <OnlineSectionHeader
+          title="筛选条件"
+          actions={
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={handleReset} className={BTN_SOFT}>
+                重置
+              </button>
+              <button type="button" onClick={handleQuery} className={BTN_INK}>
+                查询
+              </button>
+            </div>
+          }
+        />
+      ) : (
+        <OnlinePageHeader title="接待记录">
+          <button type="button" onClick={handleReset} className={BTN_SOFT}>
+            重置
+          </button>
+          <button type="button" onClick={handleQuery} className={BTN_INK}>
+            查询
+          </button>
+        </OnlinePageHeader>
+      )}
 
+      {/* 筛选条件 */}
+      <section className="mb-5">
         <div className="flex flex-col gap-3">
           {/* 第一行：时间范围 | 会话ID | 是否转人工（桌面默认同行） */}
           <div className="grid grid-cols-[minmax(0,1.55fr)_minmax(168px,0.85fr)_minmax(132px,0.65fr)] max-md:grid-cols-1 gap-x-4 gap-y-3">
@@ -523,7 +521,7 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
 
             <FilterField label="是否转人工">
               <Select value={transFilter} onValueChange={(v) => v && setTransFilter(v as TriFilter)}>
-                <SelectTrigger className={selectTriggerClass}>
+                <SelectTrigger className={filterSelectClass}>
                   <SelectValue>
                     {transFilter === 'all' ? '全部' : transFilter === 'true' ? '是' : '否'}
                   </SelectValue>
@@ -544,7 +542,7 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
                 value={transSuccessFilter}
                 onValueChange={(v) => v && setTransSuccessFilter(v as TriFilter)}
               >
-                <SelectTrigger className={selectTriggerClass}>
+                <SelectTrigger className={filterSelectClass}>
                   <SelectValue>
                     {transSuccessFilter === 'all'
                       ? '全部'
@@ -563,7 +561,7 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
 
             <FilterField label="满意度评分">
               <Select value={satFilter} onValueChange={(v) => v && setSatFilter(v as SatFilter)}>
-                <SelectTrigger className={selectTriggerClass}>
+                <SelectTrigger className={filterSelectClass}>
                   <SelectValue>
                     {satFilter === 'all'
                       ? '全部'
@@ -588,7 +586,7 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
 
             <FilterField label="数字员工">
               <Select value={employeeId} onValueChange={(v) => v && setEmployeeId(v)}>
-                <SelectTrigger className={selectTriggerClass}>
+                <SelectTrigger className={filterSelectClass}>
                   <SelectValue>
                     {employeeId === 'all'
                       ? '全部'
@@ -608,7 +606,7 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
 
             <FilterField label="业务场景">
               <Select value={scenarioFilter} onValueChange={(v) => v && setScenarioFilter(v)}>
-                <SelectTrigger className={selectTriggerClass}>
+                <SelectTrigger className={filterSelectClass}>
                   <SelectValue>{scenarioFilter === 'all' ? '全部' : scenarioFilter}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -627,7 +625,7 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
                 value={caseLibraryFilter}
                 onValueChange={(v) => v && setCaseLibraryFilter(v as TriFilter)}
               >
-                <SelectTrigger className={selectTriggerClass}>
+                <SelectTrigger className={filterSelectClass}>
                   <SelectValue>
                     {caseLibraryFilter === 'all'
                       ? '全部'
@@ -647,58 +645,61 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
         </div>
       </section>
 
-      {/* 会话列表 */}
-      <section className={cn(PANEL, 'p-4')}>
-        <div className="flex items-center justify-between mb-3 gap-3">
-          <h2 className="text-[14px] font-bold text-neutral-800">
-            会话列表{' '}
-            <span className="text-neutral-500 font-medium text-[12px]">
-              共 {filteredLogs.length} 条记录
-            </span>
-          </h2>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => showToast('已导出当前筛选范围内的接待明细。')}
-            className="h-8 px-3 text-[12px] cursor-pointer gap-1"
-          >
-            导出
-            <ChevronDown size={12} />
-          </Button>
-        </div>
+      <section>
+        <OnlineSectionHeader
+          title="会话列表"
+          description={`共 ${filteredLogs.length} 条记录`}
+          actions={
+            <Button
+              type="button"
+              variant="outline"
+              className="h-8 px-3 text-[12px] cursor-pointer gap-1"
+            >
+              导出
+              <ChevronDown size={12} />
+            </Button>
+          }
+        />
 
         {listBusy ? (
           <ContentBusy busy size="panel" minHeight={240} />
-        ) : filteredLogs.length === 0 ? (
-          <div className="flex items-center justify-center py-16">
-            <span className="text-xs text-neutral-500">暂无数据</span>
-          </div>
         ) : (
-          <div className="overflow-x-auto border border-neutral-200 rounded-lg">
-            <table className="w-full text-left border-collapse text-[12px] text-neutral-800 min-w-[1180px]">
+          <div className={onlineTableClass.wrap}>
+            <table className={cn(onlineTableClass.table, 'min-w-[1180px]')}>
               <thead>
-                <tr className="bg-neutral-100/40 border-b border-neutral-200 text-[11px] text-neutral-500 font-medium">
-                  <th className="px-3 py-2.5 whitespace-nowrap">会话ID</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap">会话开始时间</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap">用户PIN</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap">数字员工</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap">渠道</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap">在线状态</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap">是否转人工</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap">转人工是否成功</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap">满意度</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap">业务场景</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap">案例库</th>
-                  <th className="px-3 py-2.5 whitespace-nowrap text-right">操作</th>
+                <tr className={onlineTableClass.headRow}>
+                  <th className={onlineTableClass.thFirst}>数字员工</th>
+                  <th className={onlineTableClass.th}>会话ID</th>
+                  <th className={onlineTableClass.th}>会话开始时间</th>
+                  <th className={onlineTableClass.th}>用户PIN</th>
+                  <th className={onlineTableClass.th}>渠道</th>
+                  <th className={onlineTableClass.th}>在线状态</th>
+                  <th className={onlineTableClass.th}>是否转人工</th>
+                  <th className={onlineTableClass.th}>转人工是否成功</th>
+                  <th className={onlineTableClass.th}>满意度</th>
+                  <th className={onlineTableClass.th}>业务场景</th>
+                  <th className={onlineTableClass.th}>案例库</th>
+                  <th className={onlineTableClass.thLast}>操作</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-neutral-200">
-                {filteredLogs.map((s) => {
+              <tbody className={onlineTableClass.body}>
+                {filteredLogs.length === 0 ? (
+                  <OnlineEmptyRow colSpan={12}>暂无数据</OnlineEmptyRow>
+                ) : (
+                  filteredLogs.map((s) => {
                   const agent = hiredAgents.find((a) => a.id === s.assignedAgentId);
                   const success = transferSuccess(s);
                   return (
-                    <tr key={s.id} className="hover:bg-neutral-100/25 transition">
-                      <td className="px-3 py-3 align-top">
+                    <tr key={s.id} className={onlineTableClass.row}>
+                      <td className={onlineTableClass.tdFirst}>
+                        <div className="font-semibold text-neutral-800 leading-tight">
+                          {agent?.name ?? '未分配'}
+                        </div>
+                        <div className="font-mono text-[10px] text-neutral-500 mt-0.5">
+                          {s.assignedAgentId || '—'}
+                        </div>
+                      </td>
+                      <td className={onlineTableClass.td}>
                         <div className="flex items-start gap-1.5 max-w-[180px]">
                           <span className="font-mono text-[11px] text-neutral-800 break-all leading-snug">
                             {s.id}
@@ -721,27 +722,19 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
                           </button>
                         </div>
                       </td>
-                      <td className="px-3 py-3 whitespace-nowrap font-mono text-[11px] text-neutral-500 align-top">
+                      <td className={cn(onlineTableClass.td, 'whitespace-nowrap font-mono text-[11px] text-neutral-500')}>
                         {s.createdAt.length <= 16 ? `${s.createdAt}:00` : s.createdAt}
                       </td>
-                      <td className="px-3 py-3 whitespace-nowrap font-mono text-[11px] align-top">
+                      <td className={cn(onlineTableClass.td, 'whitespace-nowrap font-mono text-[11px]')}>
                         {userPin(s)}
                       </td>
-                      <td className="px-3 py-3 align-top">
-                        <div className="font-semibold text-neutral-800 leading-tight">
-                          {agent?.name ?? '未分配'}
-                        </div>
-                        <div className="font-mono text-[10px] text-neutral-500 mt-0.5">
-                          {s.assignedAgentId || '—'}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 whitespace-nowrap align-top">{channelLabel(s.channel)}</td>
-                      <td className="px-3 py-3 align-top whitespace-nowrap">
+                      <td className={cn(onlineTableClass.td, 'whitespace-nowrap')}>{channelLabel(s.channel)}</td>
+                      <td className={cn(onlineTableClass.td, 'whitespace-nowrap')}>
                         <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500 border border-neutral-200 whitespace-nowrap leading-none h-5">
                           {statusLabel(s.status)}
                         </span>
                       </td>
-                      <td className="px-3 py-3 align-top">
+                      <td className={onlineTableClass.td}>
                         <span
                           className={cn(
                             'inline-flex items-center text-[11px] px-2 py-0.5 rounded-full border font-medium whitespace-nowrap leading-none h-5',
@@ -753,7 +746,7 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
                           {s.isTransferred ? '是' : '否'}
                         </span>
                       </td>
-                      <td className="px-3 py-3 align-top text-neutral-500 whitespace-nowrap">
+                      <td className={cn(onlineTableClass.td, 'text-neutral-500 whitespace-nowrap')}>
                         {success === null ? (
                           '—'
                         ) : (
@@ -769,13 +762,13 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-3 align-top text-neutral-500 whitespace-nowrap">
+                      <td className={cn(onlineTableClass.td, 'text-neutral-500 whitespace-nowrap')}>
                         {satisfactionLabel(s)}
                       </td>
-                      <td className="px-3 py-3 align-top text-neutral-500 max-w-[140px] truncate">
+                      <td className={cn(onlineTableClass.td, 'text-neutral-500 max-w-[140px] truncate')}>
                         {s.scenario || '—'}
                       </td>
-                      <td className="px-3 py-3 align-top whitespace-nowrap">
+                      <td className={cn(onlineTableClass.td, 'whitespace-nowrap')}>
                         {s.inCaseLibrary ? (
                           <span className={badgeClass('success')}>已加入</span>
                         ) : (
@@ -784,7 +777,7 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-3 text-right align-top whitespace-nowrap">
+                      <td className={onlineTableClass.tdLast}>
                         <button
                           type="button"
                           onClick={() => openInspect(s.id)}
@@ -796,7 +789,8 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
                       </td>
                     </tr>
                   );
-                })}
+                  })
+                )}
               </tbody>
             </table>
           </div>

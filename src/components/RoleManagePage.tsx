@@ -5,19 +5,13 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { ShieldCheck, Check, Save, Plus, UserCheck } from '@/lib/icons';
-import { SegmentedTabs } from './common/SegmentedTabs';
-import { PageHeader } from './common/PageHeader';
+import { Check, Save, Plus, UserCheck, ShieldCheck } from '@/lib/icons';
+import { OnlinePageHeader } from './common/OnlinePageLayout';
 import { Modal } from './common/Modal';
 import { PAGE, PANEL, BTN_INK, BTN_SOFT, FIELD, LABEL } from '@/lib/ui';
 import { cn } from '@/lib/utils';
 import { ContentBusy } from './common/ContentBusy';
 import { useMockLatency } from '@/lib/useMockLatency';
-
-const MGMT_TABS = [
-  { tab: 'staff', label: '员工分配' },
-  { tab: 'roles', label: '角色权限' },
-];
 
 export const RoleManagePage: React.FC = () => {
   const { roles, updateRolePermissions, createRole, activeRoleId, setActiveRoleId, showToast } = useApp();
@@ -34,7 +28,7 @@ export const RoleManagePage: React.FC = () => {
     { key: 'kb', label: '员工培训 · 员工知识', desc: '创建、删除知识库并上传资料。' },
     { key: 'skills', label: '员工培训 · 员工技能', desc: '新增或下架数字员工可调用的技能。' },
     { key: 'abTest', label: '员工培训 · 员工比拼', desc: '对比两名数字员工的表现并跑测试。' },
-    { key: 'staff', label: '组织管理 · 员工分配', desc: '管理值班同事与接待上限。' },
+    { key: 'staff', label: '通用配置 · 账号管理', desc: '管理账号与接待上限。' },
     { key: 'roles', label: '组织管理 · 角色权限', desc: '编辑角色能用哪些功能。' },
     { key: 'dashboard', label: '办公室 · 员工业绩', desc: '查看运营核心指标与人机协同数据。' },
     { key: 'sessions', label: '办公室 · 接待记录', desc: '查看会话明细并复盘接待过程。' },
@@ -68,25 +62,19 @@ export const RoleManagePage: React.FC = () => {
 
   return (
     <div className={PAGE}>
-      <SegmentedTabs items={MGMT_TABS} />
-
-      <PageHeader icon={<ShieldCheck size={22} />} title="角色权限" />
+      <OnlinePageHeader title="角色权限">
+        <button type="button" onClick={() => setIsCreatingRole(true)} className={BTN_INK}>
+          <Plus size={14} strokeWidth={2.5} />
+          新增角色
+        </button>
+      </OnlinePageHeader>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 min-h-[480px]">
         {/* Left Column: Role Selection */}
         <div className={`${PANEL} md:col-span-4 p-4 flex flex-col min-h-0`}>
-          <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="mb-3">
             <span className="text-[10px] uppercase font-bold text-neutral-400 tracking-wider">角色</span>
-            <button
-              type="button"
-              onClick={() => setIsCreatingRole(true)}
-              className={cn(BTN_INK, 'text-[10px] px-2 shrink-0')}
-            >
-              <Plus size={12} strokeWidth={2.5} />
-              新增角色
-            </button>
           </div>
-
           <div className="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-0.5">
             {roles.map((r) => {
               const isSelected = r.id === activeRoleId;

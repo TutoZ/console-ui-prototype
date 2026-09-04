@@ -12,7 +12,7 @@ import { resolveWorkLogResource } from '../../lib/workLogUi';
 import { WORKSPACE_COPY } from '@/lib/platformTerminology';
 import { PANEL } from '@/lib/ui';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, ChevronDown, Copy, FileText, Settings, UserCheck } from '@/lib/icons';
+import { BookOpen, CheckCircle2, ChevronDown, Copy, Cpu, FileText, UserCheck } from '@/lib/icons';
 import { MatrixLoader } from './MatrixLoader';
 
 /** 超过该字数视为过长，用卡片承载 */
@@ -33,8 +33,8 @@ type ActionDetail = {
   result: Record<string, unknown>;
   /** 展示用技术名 / skill id */
   techName?: string;
-  /** 步骤视觉类型 */
-  variant?: 'default' | 'skill-rw' | 'transfer' | 'rag' | 'read-file';
+  /** 步骤视觉类型 — 图标对齐平台配置项（技能 Cpu / 知识库 BookOpen） */
+  variant?: 'default' | 'skill' | 'skill-rw' | 'transfer' | 'rag' | 'read-file';
 };
 
 type DisplayStep =
@@ -232,8 +232,8 @@ function buildDisplaySteps(steps: ThoughtStep[], userQuery?: string): DisplaySte
         id: step.id,
         text: `检索 ${label}`,
         detail: {
-          techName: 'read_file',
-          variant: 'read-file',
+          techName: isDoc ? 'read_file' : 'knowledge_retrieve',
+          variant: isDoc ? 'read-file' : 'rag',
           params: { file_path: filePath },
           result: {
             content: [
@@ -254,13 +254,13 @@ function buildDisplaySteps(steps: ThoughtStep[], userQuery?: string): DisplaySte
       const skillId = step.resourceId ?? slugify(label);
       const isTransfer = meta?.kind === 'tool' || /转人工|transfer/i.test(label);
 
-      // 在首次技能调用前插入「Skill 读写」——参数/结果都较完整
+      // 在首次技能调用前插入「读取技能」——参数/结果都较完整
       if (!injectedSkillRw && !isTransfer) {
         injectedSkillRw = true;
         out.push({
           kind: 'action',
           id: `${step.id}_skill_rw`,
-          text: 'Skill 读写',
+          text: '读取技能',
           detail: buildSkillReadWriteDetail(label, skillId, workspace, userQuery),
         });
       }
@@ -281,7 +281,7 @@ function buildDisplaySteps(steps: ThoughtStep[], userQuery?: string): DisplaySte
         text: `调用 ${label}`,
         detail: {
           techName: skillId,
-          variant: 'default',
+          variant: 'skill',
           params: {
             skill_id: skillId,
             skill_name: label,
@@ -307,7 +307,7 @@ function buildDisplaySteps(steps: ThoughtStep[], userQuery?: string): DisplaySte
     }
   }
 
-  // 若本轮只有检索、没有技能工具，也补一条 Skill 读写示例（便于演示）
+  // 若本轮只有检索、没有技能工具，也补一条读取技能示例（便于演示）
   if (!injectedSkillRw) {
     const faqOrFirst = processSteps.find((s) => s.type === 'search' || s.type === 'tool');
     const fallbackId = faqOrFirst?.resourceId ?? 'skill_demo';
@@ -315,7 +315,7 @@ function buildDisplaySteps(steps: ThoughtStep[], userQuery?: string): DisplaySte
     out.push({
       kind: 'action',
       id: `skill_rw_${triggerId ?? 'demo'}`,
-      text: 'Skill 读写',
+      text: '读取技能',
       detail: buildSkillReadWriteDetail(fallbackName, fallbackId, workspace, userQuery),
     });
   }
@@ -408,11 +408,15 @@ function LongTextCard({ text }: { text: string }) {
 }
 
 function StepIcon({ variant }: { variant?: ActionDetail['variant'] }) {
+  /** 与平台配置项一致：员工技能 → Cpu，员工知识 → BookOpen */
   if (variant === 'transfer') {
     return <UserCheck size={12} className="text-sky-600 shrink-0" />;
   }
-  if (variant === 'skill-rw') {
-    return <Settings size={12} className="text-violet-600 shrink-0" />;
+  if (variant === 'skill' || variant === 'skill-rw') {
+    return <Cpu size={12} className="text-neutral-500 shrink-0" />;
+  }
+  if (variant === 'rag') {
+    return <BookOpen size={12} className="text-neutral-500 shrink-0" />;
   }
   if (variant === 'read-file') {
     return <FileText size={12} className="text-sky-600 shrink-0" />;
@@ -434,10 +438,11 @@ function FlowLine({
   const useRichJson =
     actionDetail &&
     (actionDetail.variant === 'skill-rw' ||
+      actionDetail.variant === 'skill' ||
       actionDetail.variant === 'transfer' ||
       Object.keys(actionDetail.params).length > 3);
 
-  // Skill 读写默认展开，方便看到参数/结果
+  // 读取技能默认展开，方便看到参数/结果
   useEffect(() => {
     if (actionDetail?.variant === 'skill-rw') {
       setShowDetail(true);
@@ -474,11 +479,6 @@ function FlowLine({
         >
           <StepIcon variant={actionDetail?.variant} />
           <span className="truncate font-medium">{text}</span>
-          {actionDetail?.techName && (
-            <span className="truncate text-[10px] font-medium text-neutral-400 font-mono max-w-[40%]">
-              {actionDetail.techName}
-            </span>
-          )}
           {hasDetail && (
             <span className="shrink-0 text-neutral-400">
               {showDetail ? <ChevronDown size={12} /> : <ChevronDown size={12} className="-rotate-90" />}
@@ -589,12 +589,6 @@ export const ExecutionProcessFold: React.FC<ExecutionProcessFoldProps> = ({
               detail={step.detail}
             />
           ))}
-          {status === 'running' && (
-            <div className="flex items-center gap-1.5 text-xs text-neutral-500">
-              <MatrixLoader size={14} />
-              继续处理中…
-            </div>
-          )}
         </div>
       )}
     </div>

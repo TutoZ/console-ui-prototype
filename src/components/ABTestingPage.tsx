@@ -18,19 +18,13 @@ import {
   Play,
   Pause,
 } from '@/lib/icons';
-import { SegmentedTabs } from './common/SegmentedTabs';
 import { Modal } from './common/Modal';
 import { PAGE, PANEL, BTN_INK, BTN_OUTLINE, FIELD, LABEL } from '@/lib/ui';
+import { OnlinePageHeader } from './common/OnlinePageLayout';
 import { ABTEST_COPY } from '@/lib/platformTerminology';
 import { cn } from '@/lib/utils';
 import { ContentBusy } from './common/ContentBusy';
 import { useMockLatency } from '@/lib/useMockLatency';
-
-const TRAINING_TABS = [
-  { tab: 'kb', label: '员工知识' },
-  { tab: 'skills', label: '员工技能' },
-  { tab: 'abTest', label: '员工比拼' },
-];
 
 type TimeRange = 'today' | '7d' | '30d' | 'custom';
 
@@ -356,7 +350,12 @@ export const ABTestingPage: React.FC = () => {
 
   return (
     <div className={PAGE}>
-      <SegmentedTabs items={TRAINING_TABS} />
+      <OnlinePageHeader title="员工比拼">
+        <button type="button" onClick={openCreate} className={BTN_INK}>
+          <Plus size={14} strokeWidth={2.5} />
+          新建比拼
+        </button>
+      </OnlinePageHeader>
 
       {demoStep === 'C2' && (
         <div className="mb-3 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-[13px] flex items-center justify-between text-[11px] text-emerald-800">
@@ -382,7 +381,7 @@ export const ABTestingPage: React.FC = () => {
             <button
               type="button"
               onClick={openCreate}
-              className="h-6 px-2 rounded-md bg-sky-600 hover:bg-sky-700 text-white text-[10px] font-bold flex items-center gap-0.5 cursor-pointer transition"
+              className={cn(BTN_INK, 'h-6 px-2 text-[10px] shrink-0')}
             >
               <Plus size={11} strokeWidth={2.5} />
               新增
@@ -533,7 +532,7 @@ export const ABTestingPage: React.FC = () => {
                         className={cn(BTN_INK, 'h-8 px-2.5 text-[10px] disabled:opacity-50')}
                       >
                         {simulatingId === selected.id ? (
-                          <Loader2 size={12} />
+                          <Loader2 size={12} className="animate-spin" />
                         ) : (
                           <RefreshCw size={12} />
                         )}

@@ -2,18 +2,17 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 区块级加载占位：只盖住需要加载的那一块；尺寸按槽位选。
+ * 区块级加载占位：只盖住需要加载的那一块；中间仅一个小圆环。
  */
 
 import React from 'react';
-import { MatrixLoader } from './MatrixLoader';
 import { cn } from '@/lib/utils';
 
 /** inline 按钮旁 / slot 列表空位 / panel 主内容区 */
 export const LOADER_SIZE = {
-  inline: 16,
-  slot: 28,
-  panel: 40,
+  inline: 14,
+  slot: 18,
+  panel: 20,
 } as const;
 
 export type ContentBusySize = number | keyof typeof LOADER_SIZE;
@@ -22,7 +21,7 @@ export type ContentBusyProps = {
   busy: boolean;
   children?: React.ReactNode;
   className?: string;
-  /** 默认 slot(28)；列表区用 panel(40)；按钮内用 inline(16) */
+  /** 默认 slot；列表区可用 panel；按钮内用 inline */
   size?: ContentBusySize;
   label?: string;
   /** busy 时半透明保留底层（少用） */
@@ -34,6 +33,18 @@ export type ContentBusyProps = {
 function resolveSize(size: ContentBusySize): number {
   if (typeof size === 'number') return size;
   return LOADER_SIZE[size];
+}
+
+/** 极简圆环加载 */
+function BusyCircle({ size, title }: { size: number; title: string }) {
+  return (
+    <span
+      className="inline-block shrink-0 rounded-full border-2 border-neutral-200 border-t-neutral-500 animate-spin"
+      style={{ width: size, height: size }}
+      title={title}
+      aria-hidden
+    />
+  );
 }
 
 export const ContentBusy: React.FC<ContentBusyProps> = ({
@@ -52,7 +63,7 @@ export const ContentBusy: React.FC<ContentBusyProps> = ({
     <div
       className={cn(
         'flex flex-col items-center justify-center gap-2 text-neutral-500 w-full',
-        !minHeight && 'py-10',
+        !minHeight && 'py-8',
         keepChildren && 'absolute inset-0 z-[1] bg-white/75',
         className,
       )}
@@ -61,7 +72,7 @@ export const ContentBusy: React.FC<ContentBusyProps> = ({
       aria-live="polite"
       aria-busy="true"
     >
-      <MatrixLoader size={px} className="shrink-0" title={label || '加载中'} />
+      <BusyCircle size={px} title={label || '加载中'} />
       {label ? <p className="text-[12px] leading-none">{label}</p> : null}
     </div>
   );

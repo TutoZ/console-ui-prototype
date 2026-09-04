@@ -3,10 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { X, CheckCircle2, Circle, Loader2, ChevronRight, RefreshCw } from '@/lib/icons';
-import { ONBOARDING_TOAST_STEP1, ONBOARDING_TOAST_STEP2, ONBOARDING_TOAST_STEP4 } from '@/lib/onboardingCopy';
+import {
+  ONBOARDING_TOAST_STEP1,
+  ONBOARDING_TOAST_STEP2,
+  ONBOARDING_TOAST_STEP3,
+  ONBOARDING_TOAST_STEP4,
+} from '@/lib/onboardingCopy';
 import {
   ONBOARDING_STEP_COUNT,
   ONBOARDING_STEPS,
@@ -44,12 +49,14 @@ function clampPos(x: number, y: number, panelH: number): PanelPos {
   };
 }
 
-function defaultPos(dockRight: boolean, panelH: number): PanelPos {
+function defaultPos(panelH: number): PanelPos {
   const y = Math.max(MARGIN, window.innerHeight - panelH - 96);
-  const x = dockRight
-    ? Math.max(MARGIN, window.innerWidth - PANEL_W - MARGIN)
-    : MARGIN;
+  const x = Math.max(MARGIN, window.innerWidth - PANEL_W - MARGIN);
   return clampPos(x, y, panelH);
+}
+
+function isLeftDocked(pos: PanelPos): boolean {
+  return pos.x < window.innerWidth / 2;
 }
 
 export const DemoGuide: React.FC = () => {
@@ -62,39 +69,41 @@ export const DemoGuide: React.FC = () => {
     showToast,
     hiredAgents,
     setActiveOnboardingAgentId,
-    activeOnboardingAgentId,
   } = useApp();
 
   const panelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<PanelPos | null>(() => loadStoredPos());
   const [dragging, setDragging] = useState(false);
+  const dockedOnOpen = useRef(false);
   const dragState = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(
     null,
   );
 
-  const dockRight = !!activeOnboardingAgentId;
-
-  const syncDefaultIfNeeded = useCallback(() => {
-    if (pos || !panelRef.current) return;
-    const h = panelRef.current.offsetHeight;
-    setPos(defaultPos(dockRight, h));
-  }, [pos, dockRight]);
-
   useLayoutEffect(() => {
-    syncDefaultIfNeeded();
-  }, [syncDefaultIfNeeded, showDemoGuide]);
+    if (!showDemoGuide) {
+      dockedOnOpen.current = false;
+      return;
+    }
+    if (!panelRef.current || dockedOnOpen.current) return;
+    dockedOnOpen.current = true;
+    const h = panelRef.current.offsetHeight;
+    const next = defaultPos(h);
+    if (!pos || isLeftDocked(pos)) {
+      setPos(pos ? clampPos(next.x, pos.y, h) : next);
+    }
+  }, [showDemoGuide, pos]);
 
   useEffect(() => {
     const onResize = () => {
       if (!panelRef.current) return;
       setPos((prev) => {
-        const p = prev ?? defaultPos(dockRight, panelRef.current!.offsetHeight);
+        const p = prev ?? defaultPos(panelRef.current!.offsetHeight);
         return clampPos(p.x, p.y, panelRef.current!.offsetHeight);
       });
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [dockRight]);
+  }, []);
 
   useEffect(() => {
     if (pos) {
@@ -122,10 +131,13 @@ export const DemoGuide: React.FC = () => {
     if (step.openOnboarding) {
       const targetId = resolveOnboardingTargetId();
       if (targetId) setActiveOnboardingAgentId(targetId);
+    } else {
+      setActiveOnboardingAgentId(null);
     }
 
     if (step.n === 1) showToast(ONBOARDING_TOAST_STEP1);
     if (step.n === 2) showToast(ONBOARDING_TOAST_STEP2);
+    if (step.n === 3) showToast(ONBOARDING_TOAST_STEP3);
     if (step.n === 4) showToast(ONBOARDING_TOAST_STEP4);
   };
 
@@ -169,7 +181,7 @@ export const DemoGuide: React.FC = () => {
 
   const panelStyle: React.CSSProperties = pos
     ? { left: pos.x, top: pos.y, width: PANEL_W }
-    : { left: dockRight ? undefined : MARGIN, right: dockRight ? MARGIN : undefined, bottom: 96, width: PANEL_W };
+    : { right: MARGIN, bottom: 96, width: PANEL_W };
 
   return (
     <div
@@ -177,7 +189,7 @@ export const DemoGuide: React.FC = () => {
       style={panelStyle}
       className={cn(
         'fixed z-50 bg-white border border-neutral-200 rounded-[13px] shadow-[0_16px_48px_rgba(31,35,41,0.14)] font-sans text-neutral-800 animate-in fade-in duration-200 flex flex-col max-h-[min(460px,calc(100vh-32px))]',
-        !pos && (dockRight ? 'slide-in-from-right-3' : 'slide-in-from-bottom-3'),
+        !pos && 'slide-in-from-right-3',
         dragging && 'select-none',
       )}
     >

@@ -15,6 +15,7 @@ interface OnboardingWorkspaceHeaderProps {
   activeTabId: string;
   onTabChange: (id: string) => void;
   onBack: () => void;
+  backLabel?: string;
   actions?: React.ReactNode;
 }
 
@@ -23,6 +24,7 @@ export const OnboardingWorkspaceHeader: React.FC<OnboardingWorkspaceHeaderProps>
   activeTabId,
   onTabChange,
   onBack,
+  backLabel = '返回我的团队',
   actions,
 }) => {
   return (
@@ -34,7 +36,7 @@ export const OnboardingWorkspaceHeader: React.FC<OnboardingWorkspaceHeaderProps>
           className={cn(BTN_SOFT, 'shrink-0 -ml-1 gap-1.5 text-neutral-500 hover:text-neutral-800')}
         >
           <ArrowLeft size={14} />
-          返回我的团队
+          {backLabel}
         </button>
 
         <div className="flex-1 min-w-0 flex justify-center overflow-x-auto custom-scrollbar">

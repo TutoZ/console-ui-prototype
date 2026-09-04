@@ -293,7 +293,7 @@ export const QcCreatePlanModal: React.FC<QcCreatePlanModalProps> = ({
           </div>
           {onlineQcAgents.length === 0 ? (
             <p className="mt-1 text-[11px] text-amber-700 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-              暂无已上岗质检数字员工，请先完成培训并上岗。
+              暂无质检数字员工，请先前往数字员工市场雇佣。
             </p>
           ) : (
             <div className="space-y-1.5">

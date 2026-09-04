@@ -1,7 +1,8 @@
 .card {
+  position: relative;
   width: 100%;
-  min-height: 224px;
-  aspect-ratio: 1;
+  height: auto;
+  min-height: 0;
   box-shadow: 0px 2px 9.99px 0px rgba(31, 35, 41, 0.02);
   border: 1px solid #E5E5E5;
   border-radius: 12.94px;
@@ -10,14 +11,47 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 12px 14px;
+  justify-content: flex-start;
+  padding: 28px 14px 12px;
+  overflow: visible;
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .card:hover {
   transform: translateY(-2px);
   box-shadow: 0px 4px 12px rgba(31, 35, 41, 0.08);
+}
+
+/** 右上角岗位标签：盖住描边、贴齐外角，无缝隙 */
+.familyRibbon {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  z-index: 2;
+  pointer-events: none;
+  max-width: calc(100% - 20px);
+  line-height: 0;
+}
+
+.familyBadge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  height: 22px;
+  padding: 0 10px 0 8px;
+  margin: 0;
+  border-radius: 0 12.94px 0 8px;
+  background: var(--muted);
+  border: none;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: none;
 }
 
 .cardInner {
@@ -27,13 +61,15 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  flex: 0 0 auto;
 }
 
 .avatarWrap {
   position: relative;
   width: 65.91px;
   height: 65.91px;
-  margin-bottom: 9.99px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
 .avatarBorder {
@@ -69,18 +105,21 @@
 .name {
   color: rgb(23, 23, 23);
   font-size: 13.98px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   font-weight: 500;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .descWrap {
   height: 35.7px;
   overflow: hidden;
-  margin-bottom: 10px;
+  margin-bottom: 4px;
+  width: 100%;
+  flex-shrink: 0;
 }
 
 .desc {
@@ -101,18 +140,30 @@
 .actionWrap {
   width: 100%;
   border-top: 1px solid rgba(237, 237, 237, 0.6);
-  padding-top: 10.98px;
+  padding-top: 8px;
+  margin-top: 0;
+  flex-shrink: 0;
 }
 
 .actionInner {
   display: flex;
-  gap: 5.99px;
-  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  justify-content: stretch;
+  align-items: center;
+  width: 100%;
+}
+
+.btnTrain,
+.btnRest,
+.btnWork {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
 }
 
 .btnTrain {
   position: relative;
-  width: 74.9px;
   height: 31.96px;
   box-shadow: 0px 1px 0px 0px rgba(0, 0, 0, 0.05);
   border: 1px solid #E5E5E5;
@@ -127,6 +178,16 @@
 
 .btnTrain:hover {
   background-color: #f9f9f9;
+}
+
+.btnTrainText,
+.btnRestText,
+.btnWorkText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  padding: 0 4px;
 }
 
 .btnTrainText {
@@ -148,7 +209,6 @@
 }
 
 .btnRest {
-  width: 74.9px;
   height: 31.96px;
   box-shadow: 0px 1px 0px 0px rgba(0, 0, 0, 0.05);
   border: 1px solid #91C5FF;
@@ -171,7 +231,6 @@
 }
 
 .btnWork {
-  width: 74.9px;
   height: 31.96px;
   box-shadow: 0px 1px 0px 0px rgba(0, 0, 0, 0.05);
   border: 1px solid #A4F4CF;
@@ -218,4 +277,48 @@
 
 .moreWrap {
   position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.moreWrap:hover {
+  z-index: 40;
+}
+
+.morePanel {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  z-index: 40;
+  padding-bottom: 6px;
+}
+
+.moreMenu {
+  min-width: 156px;
+  padding: 4px 0;
+  background: var(--background, #fff);
+  border: 1px solid var(--border, #e8e8e8);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(17, 17, 17, 0.1);
+}
+
+.moreItem {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--foreground, #111);
+  cursor: pointer;
+}
+
+.moreItem:hover {
+  background: var(--muted, #f5f5f5);
+}
+
+.moreItemDanger {
+  color: var(--destructive, #dc2626);
 }

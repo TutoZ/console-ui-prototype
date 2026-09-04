@@ -22,15 +22,13 @@ import {
   RotateCcw,
   Sparkles,
   Zap,
-  Layers,
   FileText,
   ChevronDown,
   MessageSquare,
   Headphones,
-  Settings2,
   Copy,
 } from '@/lib/icons';
-import { HiredAgent } from '../types';
+import { HiredAgent, type JobFamily } from '../types';
 import { defaultOpeningLineForAgent } from '@/lib/agentDefaultCopy';
 import { PROFILE_USER } from '@/lib/profileUser';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -40,13 +38,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { EmployeeCardRelay } from './employees/relay/EmployeeCardRelay';
+import cardStyles from './employees/relay/EmployeeCardRelay.module.scss';
 import { hasEmployeeTrainNotice } from '@/lib/masterTemplateUpgrade';
 import { EmployeeHomeRelay } from './employees/relay/EmployeeHomeRelay';
 import homeStyles from './employees/relay/EmployeeHomeRelay.module.scss';
 import { RELAY_HOME_ASSETS } from '@/lib/relayHomeAssets';
-import { agentAvatarForCard, agentAvatarForEditor } from '@/lib/agentAvatarDisplay';
-import { ONBOARDING_TOAST_STEP1, ONBOARDING_TOAST_STEP2 } from '@/lib/onboardingCopy';
-import { EMPLOYEE_RESOURCE_TERMS, LIFECYCLE_TERMS, DISMISS_EMPLOYEE_COPY, EMPLOYEE_PAGE_COPY, ORG_COPY, SEARCH_COPY, MASTER_TEMPLATE_TERMS, QC_TERMS } from '@/lib/platformTerminology';
+import { AGENT_AVATAR_PRESETS, agentAvatarForCard, agentAvatarForEditor } from '@/lib/agentAvatarDisplay';
+import { ONBOARDING_TOAST_STEP1, ONBOARDING_TOAST_STEP3, ONBOARDING_TOAST_STEP4, ONBOARDING_TOAST_COMPLETE } from '@/lib/onboardingCopy';
+import { EMPLOYEE_RESOURCE_TERMS, LIFECYCLE_TERMS, DISMISS_EMPLOYEE_COPY, EMPLOYEE_PAGE_COPY, ORG_COPY, SEARCH_COPY, MASTER_TEMPLATE_TERMS, QC_TERMS, NAV_TERMS } from '@/lib/platformTerminology';
 import { OnboardingConfigPanel } from './onboarding/OnboardingConfigPanel';
 import {
   OnboardingQcConfigPanel,
@@ -55,20 +54,19 @@ import { OnboardingQcTestPanel } from './onboarding/OnboardingQcTestPanel';
 import { OnboardingBuildTour } from './onboarding/OnboardingBuildTour';
 import { AgentVersionPanel } from './onboarding/AgentVersionPanel';
 import { OnboardingWorkspaceHeader } from './onboarding/OnboardingWorkspaceHeader';
-import { isQcAgent, isQcTrainingComplete } from '@/lib/jobFamily';
+import { isAgentOnDuty, isDomainOpsAgent, isQcAgent, isQcTrainingComplete, navigateToJobFamilyCapability, pendingOpsActionFor, resolveJobFamily, resolveEmployeeCategory, JOB_FAMILY_FULL_LABELS, supportsDutyToggle } from '@/lib/jobFamily';
 import {
   loadBuildTourSeen,
   saveBuildTourSeen,
 } from '@/lib/onboardingBuildTour';
 import {
-  OnboardingKnowledgePanel,
-  OnboardingSkillsPanel,
   OnboardingChannelsPanel,
 } from './onboarding/OnboardingWorkspacePanels';
 import {
   DEFAULT_ONBOARDING_WORKSPACE_TAB,
   ONBOARDING_WORKSPACE_TABS,
   isOnboardingWorkspaceTab,
+  normalizeOnboardingWorkspaceTab,
   type OnboardingWorkspaceTabId,
 } from '@/lib/onboardingWorkspaceTabs';
 import { SegmentedTabBar } from './common/SegmentedTabs';
@@ -76,6 +74,11 @@ import { SegmentedTabBar } from './common/SegmentedTabs';
 const QC_ONBOARDING_TABS = [{ id: 'build' as const, label: '入职培训' }] as const;
 import { ResizableSplitPane } from './common/ResizableSplitPane';
 import { Modal } from './common/Modal';
+import {
+  CreateEmployeeTypeModal,
+  type CreateEmployeePayload,
+} from './CreateEmployeeTypeModal';
+import { WorkflowPrototypeFrame } from './WorkflowPrototypeFrame';
 import { BTN_INK, BTN_MD, BTN_SOFT } from '@/lib/ui';
 import { ChatReplySkeleton, WorkLogSkeleton } from './common/LoadingSkeletons';
 import { ContentBusy } from './common/ContentBusy';
@@ -130,7 +133,8 @@ export const EmployeeManagePage: React.FC = () => {
   const { 
     hiredAgents, 
     updateHiredAgent, 
-    deleteHiredAgent, 
+    deleteHiredAgent,
+    createBlankHiredAgent,
     knowledgeBases, 
     skills,
     staff,
@@ -142,15 +146,19 @@ export const EmployeeManagePage: React.FC = () => {
     setActiveOnboardingAgentId,
     onboardingWorkspaceTab,
     setOnboardingWorkspaceTab,
-    createKnowledgeBase,
-    updateKnowledgeBase,
-    createSkill,
     showDemoGuide,
     setShowDemoGuide,
     showToast,
     setExperienceAgentId,
     setFocusKnowledgeBaseId,
     marketAgents,
+    setNavDomain,
+    setDomainOpsTab,
+    setQcRailTab,
+    setQcMainTab,
+    setPendingOpsAction,
+    setPendingOpsAgentId,
+    setShowTaskCenter,
   } = useApp();
 
   const onboardPanelBusy = useMockLatency(
@@ -164,8 +172,9 @@ export const EmployeeManagePage: React.FC = () => {
 
   // Onboarding Workplace States
   const [onboardingRelayAvatarIndex, setOnboardingRelayAvatarIndex] = useState(0);
-  const [openMenuAgentId, setOpenMenuAgentId] = useState<string | null>(null);
   const [dismissConfirmAgentId, setDismissConfirmAgentId] = useState<string | null>(null);
+  const [renameAgentId, setRenameAgentId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   type OnboardChatMsg = {
     id?: string;
@@ -193,9 +202,6 @@ export const EmployeeManagePage: React.FC = () => {
   const [onboardConfigSavedAt, setOnboardConfigSavedAt] = useState<Date | null>(null);
   const [previewSnapshotId, setPreviewSnapshotId] = useState<string | null>(null);
   const [configSyncToken, setConfigSyncToken] = useState(0);
-  const [kbPanelFocusId, setKbPanelFocusId] = useState<string | null>(null);
-  const [kbPanelAutoCreate, setKbPanelAutoCreate] = useState(false);
-  const [skillsPanelAutoCreate, setSkillsPanelAutoCreate] = useState(false);
   const [buildTourOpen, setBuildTourOpen] = useState(false);
   const [buildTourStep, setBuildTourStep] = useState(0);
 
@@ -221,12 +227,12 @@ export const EmployeeManagePage: React.FC = () => {
     [],
   );
 
-  const advanceOnboardingDemo = (from: 'A2' | 'A3', to: 'A3' | 'A4' | null) => {
+  const advanceOnboardingDemo = (from: 'A2' | 'A3' | 'A4', to: 'A3' | 'A4' | 'A5' | null) => {
     if (demoStep === from) setDemoStep(to);
   };
 
-  /** 第 2 步：需先保存再做能力测试 */
-  const onboardingSaveRequired = demoStep === 'A2';
+  /** 第 3 步：需先保存配置 */
+  const onboardingSaveRequired = demoStep === 'A3';
   const onboardingChatLocked = onboardingSaveRequired || !!previewSnapshotId;
 
   const handleSendOnboardTest = (onboardAgent: HiredAgent, textToSend?: string) => {
@@ -333,24 +339,92 @@ export const EmployeeManagePage: React.FC = () => {
   // Filter states
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'draft'>('all');
+  const [typeFilter, setTypeFilter] = useState<
+    'all' | Exclude<JobFamily, 'other'>
+  >('all');
+  const isTrainingPage = activeTab === 'training';
 
   // Create new Custom Agent states
   const [isCreating, setIsCreating] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-  const [newKbId, setNewKbId] = useState('');
-  const [newSkillId, setNewSkillId] = useState('');
+  const [workflowFrame, setWorkflowFrame] = useState<{
+    open: boolean;
+    name: string;
+    id: string;
+    avatar: string;
+  }>({ open: false, name: '', id: '', avatar: '' });
 
   const filtered = hiredAgents.filter(a => {
     const sMatch = a.name.toLowerCase().includes(search.toLowerCase()) || a.agentId.toLowerCase().includes(search.toLowerCase());
     if (!sMatch) return false;
-    
+    if (isTrainingPage && resolveEmployeeCategory(a) !== 'customer_service') return false;
+    if (typeFilter !== 'all' && resolveEmployeeCategory(a) !== typeFilter) return false;
     if (statusFilter === 'all') return true;
-    return a.status === statusFilter;
+    return statusFilter === 'online' ? isAgentOnDuty(a) : !isAgentOnDuty(a);
   });
 
+  const categoryCounts = useMemo(() => {
+    const counts: Record<'all' | JobFamily, number> = {
+      all: 0,
+      customer_service: 0,
+      quality_inspection: 0,
+      outbound: 0,
+      hotline: 0,
+      collection: 0,
+      telesales: 0,
+      followup: 0,
+      other: 0,
+    };
+    hiredAgents.forEach((a) => {
+      const sMatch =
+        a.name.toLowerCase().includes(search.toLowerCase()) ||
+        a.agentId.toLowerCase().includes(search.toLowerCase());
+      if (!sMatch) return;
+      if (isTrainingPage && resolveEmployeeCategory(a) !== 'customer_service') return;
+      if (statusFilter !== 'all') {
+        const onDuty = isAgentOnDuty(a);
+        if (statusFilter === 'online' ? !onDuty : onDuty) return;
+      }
+      const cat = resolveEmployeeCategory(a);
+      counts[cat] += 1;
+      counts.all += 1;
+    });
+    return counts;
+  }, [hiredAgents, isTrainingPage, search, statusFilter]);
+
+  const activeTabCount =
+    typeFilter === 'all'
+      ? categoryCounts.all ?? 0
+      : categoryCounts[typeFilter] ?? 0;
+
+  /** 分类 Tab 计数为 0，或尚未雇佣任何员工 → 展示完整缺省页 */
+  const showDefaultEmptyPage =
+    hiredAgents.length === 0 ||
+    (typeFilter !== 'all' && activeTabCount === 0);
+
+  const employeeListEmpty = (
+    <div className={homeStyles.emptyState}>
+      <img
+        className={homeStyles.emptyImage}
+        src={RELAY_HOME_ASSETS.employeesEmpty}
+        alt=""
+      />
+      <div className={homeStyles.emptyTextGroup}>
+        <div className={homeStyles.emptyTitle}>{EMPLOYEE_PAGE_COPY.emptyList}</div>
+        <div className={homeStyles.emptySubtitle}>{EMPLOYEE_PAGE_COPY.emptyHint}</div>
+      </div>
+    </div>
+  );
+
+  const completeOnboardingWizard = () => {
+    if (demoStep !== 'A4') return;
+    setDemoStep('A5');
+    showToast(ONBOARDING_TOAST_COMPLETE);
+  };
+
   const toggleStatus = (id: string, s: 'online' | 'draft') => {
-    updateHiredAgent(id, { status: s === 'online' ? 'draft' : 'online' });
+    const next = s === 'online' ? 'draft' : 'online';
+    updateHiredAgent(id, { status: next });
+    if (next === 'online') completeOnboardingWizard();
   };
 
   // Run mock dialog testing inside the modal
@@ -399,29 +473,64 @@ export const EmployeeManagePage: React.FC = () => {
     }, replyMs);
   };
 
-  const executeCreate = () => {
-    if (!newName.trim()) return;
-    
-    // Create Agent manual
-    const newAg: HiredAgent = {
-      id: `h_custom_${Date.now()}`,
-      name: newName,
-      marketId: 'm_custom_gen',
-      agentId: `AGENT_${Math.floor(200 + Math.random() * 700)}`,
-      avatar: '🦾',
-      description: newDesc || '自定义定制的强认知人工智能专家座席助理。',
-      skills: newSkillId ? [newSkillId] : [],
-      knowledgeBases: newKbId ? [newKbId] : [],
-      status: 'draft',
-      hiredAt: new Date().toISOString().replace('T', ' ').substring(0, 16)
-    };
+  const openCreateModal = () => {
+    setIsCreating(true);
+  };
 
-    hiredAgents.unshift(newAg);
+  useEffect(() => {
+    if (isTrainingPage) return;
+    try {
+      if (sessionStorage.getItem('js_open_employee_create') === '1') {
+        sessionStorage.removeItem('js_open_employee_create');
+        setIsCreating(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [isTrainingPage]);
+
+  const executeCreate = (payload: CreateEmployeePayload) => {
+    const name = payload.name.trim() || '新员工';
+    const family: JobFamily = isTrainingPage
+      ? 'customer_service'
+      : payload.jobFamily;
+
+    if (payload.mode === 'preset') {
+      const newAg = createBlankHiredAgent({
+        name,
+        description: payload.description.trim(),
+        jobFamily: family,
+        buildMode: 'preset',
+        enterTraining: false,
+      });
+      setIsCreating(false);
+      setWorkflowFrame({
+        open: true,
+        name: newAg.name,
+        id: newAg.agentId,
+        avatar: newAg.avatar,
+      });
+      showToast(
+        payload.createMethod === 'ai'
+          ? '已进入预设流程编排画布（可结合 AI 完善节点）'
+          : '已进入预设流程编排画布',
+      );
+      return;
+    }
+
+    createBlankHiredAgent({
+      name,
+      description: payload.description.trim(),
+      jobFamily: family,
+      buildMode: 'autonomous',
+      enterTraining: family === 'customer_service',
+    });
     setIsCreating(false);
-    setNewName('');
-    setNewDesc('');
-    setNewKbId('');
-    setNewSkillId('');
+    showToast(
+      payload.createMethod === 'ai'
+        ? '已进入员工培训，可继续对话完善配置'
+        : '已创建数字员工，可手动完善配置',
+    );
   };
 
   const onboardingAgent = activeOnboardingAgentId 
@@ -438,9 +547,14 @@ export const EmployeeManagePage: React.FC = () => {
     [hiredAgents, dismissConfirmAgentId],
   );
 
+  const renameAgent = useMemo(
+    () => hiredAgents.find((a) => a.id === renameAgentId) ?? null,
+    [hiredAgents, renameAgentId],
+  );
+
   const handleConfirmDismissAgent = () => {
     if (!dismissConfirmAgent) return;
-    const { id, name } = dismissConfirmAgent;
+    const { id } = dismissConfirmAgent;
     deleteHiredAgent(id);
     if (activeOnboardingAgentId === id) {
       setActiveOnboardingAgentId(null);
@@ -449,8 +563,43 @@ export const EmployeeManagePage: React.FC = () => {
     showToast(DISMISS_EMPLOYEE_COPY.successToast, 'success');
   };
 
+  const openRenameAgent = (agent: HiredAgent) => {
+    setRenameAgentId(agent.id);
+    setRenameValue(agent.name);
+  };
+
+  const handleConfirmRenameAgent = () => {
+    if (!renameAgent) return;
+    const next = renameValue.trim().slice(0, 8);
+    if (!next) {
+      showToast('请输入员工名称', 'error');
+      return;
+    }
+    updateHiredAgent(renameAgent.id, { name: next });
+    setRenameAgentId(null);
+    showToast('已重命名');
+  };
+
+  const copyEmployeeId = async (agentId: string) => {
+    try {
+      await navigator.clipboard.writeText(agentId);
+      showToast('已复制员工 ID');
+    } catch {
+      showToast('复制失败，请重试', 'error');
+    }
+  };
+
+  const openCustomerPreview = (agent: HiredAgent) => {
+    if (agent.status !== 'online') {
+      showToast('未上线员工不可预览，请先准予上岗');
+      return;
+    }
+    setExperienceAgentId(agent.id);
+    setActiveTab('customerExperience');
+  };
+
   useEffect(() => {
-    if (demoStep === 'A2' && activeOnboardingAgentId) {
+    if (demoStep === 'A3' && activeOnboardingAgentId) {
       setOnboardRightTab('versions');
     }
   }, [demoStep, activeOnboardingAgentId]);
@@ -476,19 +625,44 @@ export const EmployeeManagePage: React.FC = () => {
     agentId: string,
     tab: OnboardingWorkspaceTabId = DEFAULT_ONBOARDING_WORKSPACE_TAB,
     relayAvatarIndex?: number,
-    opts?: { startBuildTour?: boolean },
+    opts?: { startBuildTour?: boolean; rightTab?: 'chat' | 'versions' },
   ) => {
-    setOnboardingWorkspaceTab(tab);
+    const target = hiredAgents.find((a) => a.id === agentId);
+    // 质检暂不走入职培训工作台，改到智能质检一级导航
+    if (isQcAgent(target)) {
+      navigateToJobFamilyCapability('quality_inspection', 'training', {
+        setNavDomain,
+        setActiveTab,
+        setDomainOpsTab,
+        setQcRailTab,
+        setQcMainTab,
+      });
+      return;
+    }
+    setOnboardingWorkspaceTab(normalizeOnboardingWorkspaceTab(tab));
     setOnboardingRelayAvatarIndex(
       relayAvatarIndex ?? Math.max(0, hiredAgents.findIndex((a) => a.id === agentId)),
     );
     setActiveOnboardingAgentId(agentId);
-    const target = hiredAgents.find((a) => a.id === agentId);
+    if (opts?.rightTab) {
+      setOnboardRightTab(opts.rightTab);
+    } else if (tab === 'build') {
+      setOnboardRightTab('chat');
+    }
     if (opts?.startBuildTour !== false && !isQcAgent(target)) {
       // 下一帧再开，确保培训页 DOM 已挂载
       window.setTimeout(() => maybeStartBuildTour(), 80);
     }
   };
+
+  // 历史残留：质检岗若仍挂着入职培训，自动退出
+  useEffect(() => {
+    if (!activeOnboardingAgentId) return;
+    const agent = hiredAgents.find((a) => a.id === activeOnboardingAgentId);
+    if (isQcAgent(agent)) {
+      setActiveOnboardingAgentId(null);
+    }
+  }, [activeOnboardingAgentId, hiredAgents, setActiveOnboardingAgentId]);
 
   // 雇佣后自动进入培训页时，同步触发遮罩引导（质检岗跳过客服遮罩）
   useEffect(() => {
@@ -496,7 +670,7 @@ export const EmployeeManagePage: React.FC = () => {
     const agent = hiredAgents.find((a) => a.id === activeOnboardingAgentId);
     if (isQcAgent(agent)) return;
     if (loadBuildTourSeen()) return;
-    if (onboardingWorkspaceTab !== 'build') return;
+    if (normalizeOnboardingWorkspaceTab(onboardingWorkspaceTab) !== 'build') return;
     if (buildTourOpen) return;
     const timer = window.setTimeout(() => maybeStartBuildTour(), 120);
     return () => window.clearTimeout(timer);
@@ -575,9 +749,9 @@ export const EmployeeManagePage: React.FC = () => {
       });
       setOnboardConfigSavedAt(new Date());
       setOnboardConfigDirty(false);
-      if (demoStep === 'A2') {
-        advanceOnboardingDemo('A2', 'A3');
-        showToast(`培训存档已完成，可在右侧进行${LIFECYCLE_TERMS.onboardTest}。`);
+      if (demoStep === 'A3') {
+        advanceOnboardingDemo('A3', 'A4');
+        showToast(ONBOARDING_TOAST_STEP4);
       }
     };
 
@@ -605,11 +779,8 @@ export const EmployeeManagePage: React.FC = () => {
             return;
           }
           setActiveOnboardingAgentId(null);
-          if (demoStep === 'A3') {
-            setDemoStep('A4');
-            showToast(
-              `「${onboardingAgent.name}」培训已完成。可在员工卡片上「上岗」，或到「组织管理 → 坐席管理」配备协同数字员工。`,
-            );
+          if (demoStep === 'A4') {
+            showToast(ONBOARDING_TOAST_STEP4);
           } else {
             showToast(`「${onboardingAgent.name}」培训已完成。需要接待时，请在员工卡片上点击「上岗」。`);
           }
@@ -626,11 +797,13 @@ export const EmployeeManagePage: React.FC = () => {
       </button>
     );
 
+    const workspaceTab = normalizeOnboardingWorkspaceTab(onboardingWorkspaceTab);
+
     return (
       <div className="h-screen w-screen flex flex-col bg-paper overflow-hidden text-neutral-800 font-sans">
         <OnboardingWorkspaceHeader
           tabs={isQcOnboarding ? QC_ONBOARDING_TABS : ONBOARDING_WORKSPACE_TABS}
-          activeTabId={onboardingWorkspaceTab}
+          activeTabId={workspaceTab}
           onTabChange={(id) => {
             if (isOnboardingWorkspaceTab(id)) setOnboardingWorkspaceTab(id);
           }}
@@ -644,7 +817,7 @@ export const EmployeeManagePage: React.FC = () => {
           minHeight="min(60vh, 520px)"
           className="flex-1 min-h-0"
         >
-        {onboardingWorkspaceTab === 'build' && isQcOnboarding && (
+        {workspaceTab === 'build' && isQcOnboarding && (
           <ResizableSplitPane
             storageKey="js_qc_onboarding_split"
             defaultRatio={0.55}
@@ -670,10 +843,10 @@ export const EmployeeManagePage: React.FC = () => {
           />
         )}
 
-        {onboardingWorkspaceTab === 'build' && !isQcOnboarding && (
-        <ResizableSplitPane
-          storageKey="js_onboarding_split"
-          defaultRatio={7 / 12}
+        {workspaceTab === 'build' && !isQcOnboarding && (
+          <ResizableSplitPane
+          storageKey="js_onboarding_split_v2"
+          defaultRatio={0.63}
           className="bg-paper"
           left={
             <OnboardingConfigPanel
@@ -696,8 +869,13 @@ export const EmployeeManagePage: React.FC = () => {
               onApplyPreview={() => previewSnapshot && handleApplySnapshot(previewSnapshot.id)}
               buildTourStep={buildTourOpen ? buildTourStep : null}
               onCreateSkill={() => {
-                setSkillsPanelAutoCreate(true);
-                setOnboardingWorkspaceTab('skills');
+                try {
+                  sessionStorage.setItem('js_open_skill_create', '1');
+                } catch {
+                  /* ignore */
+                }
+                setActiveTab('skills');
+                showToast('正在进入技能创建…');
               }}
             />
           }
@@ -914,51 +1092,23 @@ export const EmployeeManagePage: React.FC = () => {
         />
         )}
 
-        {!isQcOnboarding && onboardingWorkspaceTab === 'kb' && (
-          <OnboardingKnowledgePanel
-            agent={onboardingAgent}
-            knowledgeBases={knowledgeBases}
-            createKnowledgeBase={createKnowledgeBase}
-            updateHiredAgent={updateHiredAgent}
-            updateKnowledgeBase={updateKnowledgeBase}
-            showToast={showToast}
-            initialSelectedKbId={kbPanelFocusId}
-            onClearInitialSelect={() => setKbPanelFocusId(null)}
-            initialOpenCreate={kbPanelAutoCreate}
-            onClearInitialCreate={() => setKbPanelAutoCreate(false)}
-          />
-        )}
-
-        {!isQcOnboarding && onboardingWorkspaceTab === 'skills' && (
-          <OnboardingSkillsPanel
-            agent={onboardingAgent}
-            skills={skills}
-            createSkill={createSkill}
-            updateHiredAgent={updateHiredAgent}
-            showToast={showToast}
-            onSkillBound={() => {}}
-            initialOpenCreate={skillsPanelAutoCreate}
-            onClearInitialCreate={() => setSkillsPanelAutoCreate(false)}
-          />
-        )}
-
-        {!isQcOnboarding && onboardingWorkspaceTab === 'channels' && (
+        {!isQcOnboarding && workspaceTab === 'channels' && (
           <OnboardingChannelsPanel agent={onboardingAgent} showToast={showToast} />
         )}
         </ContentBusy>
 
         {!isQcOnboarding && (
         <OnboardingBuildTour
-          open={buildTourOpen && onboardingWorkspaceTab === 'build'}
+          open={buildTourOpen && workspaceTab === 'build'}
           currentStep={buildTourStep}
           onStepChange={setBuildTourStep}
           onClose={() => closeBuildTour(true)}
           onComplete={() => {
             closeBuildTour(true);
-            if (demoStep === 'A2') {
-              // 遮罩引导完成，仍停留在第 2 步，引导用户保存
+            if (demoStep === 'A3') {
+              // 遮罩引导完成，仍停留在第 3 步，引导用户保存
             }
-            showToast(ONBOARDING_TOAST_STEP2);
+            showToast(ONBOARDING_TOAST_STEP3);
           }}
         />
         )}
@@ -966,240 +1116,175 @@ export const EmployeeManagePage: React.FC = () => {
     );
   }
 
+  const renderEmployeeCard = (agent: HiredAgent) => {
+    const index = hiredAgents.findIndex((a) => a.id === agent.id);
+    const family = resolveJobFamily(agent);
+    const category = resolveEmployeeCategory(agent);
+    const isOnline = isAgentOnDuty(agent);
+    const cardAvatar = agentAvatarForCard(agent.avatar, index, agent.avatarCustomized);
+    const marketAgent = marketAgents.find((m) => m.id === agent.marketId);
+    const hasTrainNotice = hasEmployeeTrainNotice(agent, marketAgent);
+    const opsAgent = isDomainOpsAgent(agent);
+    const navApi = {
+      setNavDomain,
+      setActiveTab,
+      setDomainOpsTab,
+      setQcRailTab,
+      setQcMainTab,
+    };
+    const usesChannelDispatch =
+      family === 'customer_service' || family === 'hotline' || family === 'other';
+    const openDispatch = () => {
+      if (usesChannelDispatch) {
+        openAgentWorkspace(agent.id, 'channels', undefined, { startBuildTour: false });
+        return;
+      }
+      const action = pendingOpsActionFor(family, 'dispatch');
+      setPendingOpsAction(action);
+      setPendingOpsAgentId(action ? agent.id : null);
+      if (action === 'open-task-center') setShowTaskCenter(true);
+      navigateToJobFamilyCapability(family, 'dispatch', navApi);
+      completeOnboardingWizard();
+    };
+    const primaryLabel = '员工培训';
+    const onPrimary = () => {
+      if (demoStep === 'A2') setDemoStep('A3');
+      if (opsAgent) {
+        const action = pendingOpsActionFor(family, 'training');
+        setPendingOpsAction(action);
+        setPendingOpsAgentId(action ? agent.id : null);
+        navigateToJobFamilyCapability(family, 'training', navApi);
+        return;
+      }
+      if (agent.buildMode === 'preset') {
+        setWorkflowFrame({
+          open: true,
+          name: agent.name,
+          id: agent.agentId,
+          avatar: agent.avatar,
+        });
+        return;
+      }
+      if (family === 'customer_service') {
+        setActiveTab('training');
+      }
+      openAgentWorkspace(agent.id, 'build', index);
+    };
+    return (
+      <EmployeeCardRelay
+        key={agent.id}
+        name={agent.name}
+        desc={agent.description}
+        avatar={cardAvatar.kind === 'image' ? cardAvatar.src : cardAvatar.emoji}
+        avatarFallback={cardAvatar.kind === 'emoji' ? cardAvatar.emoji : undefined}
+        isOnline={isOnline}
+        showStatusDot={isTrainingPage}
+        hasTrainNotice={hasTrainNotice}
+        jobFamilyLabel={JOB_FAMILY_FULL_LABELS[category]}
+        primaryActionLabel={primaryLabel}
+        onPrimaryAction={onPrimary}
+        onDispatchTask={openDispatch}
+        dispatchActionLabel={usesChannelDispatch ? '派出渠道' : '派发任务'}
+        showGoOnlineButton={false}
+        moreMenu={
+          isTrainingPage ? (
+          <div className={cardStyles.moreMenu}>
+            <button
+              type="button"
+              className={cardStyles.moreItem}
+              onClick={() => void copyEmployeeId(agent.agentId)}
+            >
+              复制员工 ID
+            </button>
+            <button
+              type="button"
+              className={cardStyles.moreItem}
+              onClick={() => openRenameAgent(agent)}
+            >
+              重命名
+            </button>
+            <button
+              type="button"
+              className={cardStyles.moreItem}
+              onClick={() =>
+                openAgentWorkspace(agent.id, 'build', index, {
+                  startBuildTour: false,
+                  rightTab: 'versions',
+                })
+              }
+            >
+              {LIFECYCLE_TERMS.switchVersion}
+            </button>
+            <button
+              type="button"
+              className={cardStyles.moreItem}
+              onClick={() => openCustomerPreview(agent)}
+            >
+              {NAV_TERMS.customerPreview}
+            </button>
+            <button
+              type="button"
+              className={`${cardStyles.moreItem} ${cardStyles.moreItemDanger}`}
+              onClick={() => setDismissConfirmAgentId(agent.id)}
+            >
+              {LIFECYCLE_TERMS.dismiss}
+            </button>
+          </div>
+          ) : undefined
+        }
+      />
+    );
+  };
+
   return (
     <>
     <EmployeeHomeRelay
       activeSubTab="employees"
-      onSubTabChange={(tab) => setActiveTab(tab)}
+      showBanner={!isTrainingPage}
       onStartHire={() => {
         setShowDemoGuide(true);
         setDemoStep('A1');
         setActiveTab('market');
         showToast(`第一步：${ONBOARDING_TOAST_STEP1}`);
       }}
-      onCreateFromScratch={() => setIsCreating(true)}
+      onCreateFromScratch={openCreateModal}
+      pageTitle={isTrainingPage ? '员工培训' : undefined}
+      createButtonLabel={isTrainingPage ? '创建在线客服' : undefined}
       search={search}
       onSearchChange={setSearch}
       statusFilter={statusFilter}
       onStatusFilterChange={setStatusFilter}
+      typeFilter={isTrainingPage ? 'customer_service' : typeFilter}
+      onTypeFilterChange={isTrainingPage ? undefined : setTypeFilter}
       listBusy={employeeListBusy}
     >
-      {filtered.length === 0 ? (
+      {showDefaultEmptyPage ? (
+        employeeListEmpty
+      ) : filtered.length === 0 ? (
         <div className={homeStyles.emptyState}>
-          {hiredAgents.length === 0 ? (
-            <>
-              <img
-                className={homeStyles.emptyImage}
-                src={RELAY_HOME_ASSETS.employeesEmpty}
-                alt=""
-              />
-              <div className={homeStyles.emptyTextGroup}>
-                <div className={homeStyles.emptyTitle}>{EMPLOYEE_PAGE_COPY.emptyList}</div>
-                <div className={homeStyles.emptySubtitle}>{EMPLOYEE_PAGE_COPY.emptyHint}</div>
-              </div>
-            </>
-          ) : (
-            <div className={homeStyles.emptySubtitle}>{EMPLOYEE_PAGE_COPY.noMatch}</div>
-          )}
+          <div className={homeStyles.emptySubtitle}>{EMPLOYEE_PAGE_COPY.noMatch}</div>
         </div>
       ) : (
-      filtered.map((agent, index) => {
-        const isOnline = agent.status === 'online';
-        const cardAvatar = agentAvatarForCard(agent.avatar, index, agent.avatarCustomized);
-        const marketAgent = marketAgents.find((m) => m.id === agent.marketId);
-        const hasTrainNotice = hasEmployeeTrainNotice(agent, marketAgent);
-        return (
-          <EmployeeCardRelay
-            key={agent.id}
-            name={agent.name}
-            desc={agent.description}
-            avatar={cardAvatar.kind === 'image' ? cardAvatar.src : cardAvatar.emoji}
-            avatarFallback={cardAvatar.kind === 'emoji' ? cardAvatar.emoji : undefined}
-            isOnline={isOnline}
-            hasTrainNotice={hasTrainNotice}
-            onTrain={() => openAgentWorkspace(agent.id, 'build', index)}
-            onToggleStatus={() => toggleStatus(agent.id, agent.status)}
-            onMoreClick={(e) => {
-              e.stopPropagation();
-              setOpenMenuAgentId(openMenuAgentId === agent.id ? null : agent.id);
-            }}
-            moreOpen={openMenuAgentId === agent.id}
-            moreMenu={
-              openMenuAgentId === agent.id ? (
-                <>
-                  <div className="fixed inset-0 z-20" onClick={() => setOpenMenuAgentId(null)} />
-                  <div className="absolute right-0 bottom-12 z-30 bg-white border border-neutral-200 shadow-[0_12px_30px_rgba(0,0,0,0.12)] rounded-[13px] py-2 w-[148px] text-left animate-in fade-in slide-in-from-bottom-2 duration-150">
-                    {isQcAgent(agent) ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOpenMenuAgentId(null);
-                          if (!isOnline) {
-                            showToast('请先上岗后再进入质检工作台');
-                            return;
-                          }
-                          setActiveTab('qcWorkspace');
-                        }}
-                        className="w-full text-left px-4 py-2 hover:bg-neutral-50 text-[11px] font-extrabold text-neutral-700 flex items-center gap-1.5 cursor-pointer"
-                      >
-                        进入质检工作台
-                      </button>
-                    ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!isOnline) {
-                          showToast(`未上线员工不可预览，请先${LIFECYCLE_TERMS.approveOnline}`);
-                          return;
-                        }
-                        setOpenMenuAgentId(null);
-                        setExperienceAgentId(agent.id);
-                        setActiveTab('customerExperience');
-                      }}
-                      className={cn(
-                        'w-full text-left px-4 py-2 text-[11px] font-extrabold flex items-center gap-1.5',
-                        isOnline
-                          ? 'hover:bg-neutral-50 text-neutral-700 cursor-pointer'
-                          : 'text-neutral-400 cursor-not-allowed opacity-50',
-                      )}
-                    >
-                      💬 客户体验预览
-                    </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOpenMenuAgentId(null);
-                        openAgentWorkspace(agent.id, 'channels', undefined, { startBuildTour: false });
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-neutral-50 text-[11px] font-extrabold text-neutral-700 flex items-center gap-1.5 cursor-pointer border-t border-neutral-100"
-                    >
-                      🚀 派出数字员工
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOpenMenuAgentId(null);
-                        void navigator.clipboard.writeText(agent.id).then(
-                          () => showToast('数字员工 ID 已复制'),
-                          () => showToast('复制失败，请手动选择 ID'),
-                        );
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-neutral-50 text-[11px] font-extrabold text-neutral-700 flex items-center gap-1.5 cursor-pointer border-t border-neutral-100"
-                    >
-                      📋 复制数字员工ID
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOpenMenuAgentId(null);
-                        const nameVal = prompt('请输入数字员工的新名字（限8字）：', agent.name);
-                        if (nameVal?.trim()) {
-                          updateHiredAgent(agent.id, { name: nameVal.trim().slice(0, 8) });
-                          showToast('更新成功');
-                        }
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-neutral-50 text-[11px] font-extrabold text-neutral-700 flex items-center gap-1.5 cursor-pointer border-t border-neutral-100"
-                    >
-                      ✏️ 重命名
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOpenMenuAgentId(null);
-                        setDismissConfirmAgentId(agent.id);
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-rose-50 text-[11px] font-extrabold text-rose-500 border-t border-neutral-100 flex items-center gap-1.5 cursor-pointer"
-                    >
-                      🚪 辞退员工
-                    </button>
-                  </div>
-                </>
-              ) : null
-            }
-          />
-        );
-      }))
-      }
-    </EmployeeHomeRelay>
-
-      {/* CREATE NEW CUSTOM AGENT MODAL */}
-      {isCreating && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-[13px] w-full max-w-md shadow-2xl p-6 text-neutral-800 animate-in fade-in zoom-in-95 duration-200">
-            <h2 className="text-lg font-black text-neutral-950 mb-3 tracking-tight">自建数字员工</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-neutral-500 mb-1">员工名称 * (限8字)</label>
-                <input 
-                  type="text" 
-                  maxLength={8}
-                  placeholder="不超过8个字" 
-                  value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  className="w-full text-xs bg-neutral-50 border border-neutral-300 rounded-lg p-2.5 focus:outline-none focus:border-neutral-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-neutral-500 mb-1">能力描述与岗位职责</label>
-                <textarea 
-                  placeholder="主要负责回答高层企业级客户的计费、账目扣抵等。语气需要专业严谨..." 
-                  value={newDesc}
-                  onChange={e => setNewDesc(e.target.value)}
-                  className="w-full text-xs bg-neutral-50 border border-neutral-300 rounded-lg p-2.5 h-20 focus:outline-none focus:border-neutral-500 outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-neutral-500 mb-1">{EMPLOYEE_RESOURCE_TERMS.employeeKnowledge}</label>
-                  <select 
-                    value={newKbId}
-                    onChange={e => setNewKbId(e.target.value)}
-                    className="w-full text-xs bg-neutral-50 border border-neutral-300 rounded-lg p-2.5"
-                  >
-                    <option value="">{EMPLOYEE_RESOURCE_TERMS.assignNone}</option>
-                    {knowledgeBases.map(k => (
-                      <option key={k.id} value={k.id}>{k.name.substring(0, 15)}...</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-neutral-500 mb-1">{EMPLOYEE_RESOURCE_TERMS.employeeSkill}</label>
-                  <select 
-                    value={newSkillId}
-                    onChange={e => setNewSkillId(e.target.value)}
-                    className="w-full text-xs bg-neutral-50 border border-neutral-300 rounded-lg p-2.5"
-                  >
-                    <option value="">{EMPLOYEE_RESOURCE_TERMS.assignNone}</option>
-                    {skills.map(s => (
-                      <option key={s.id} value={s.id}>{s.name.substring(0, 15)}...</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 justify-end mt-6 pt-4 border-t border-neutral-100">
-              <button 
-                onClick={() => setIsCreating(false)}
-                className="px-4 py-2 text-xs font-bold bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-lg"
-              >
-                取消
-              </button>
-              <button 
-                onClick={executeCreate}
-                className="px-4 py-2 text-xs font-bold bg-ink hover:bg-ink-hover text-white rounded-lg shadow-sm"
-              >
-                开始招聘
-              </button>
-            </div>
-          </div>
+        <div className={homeStyles.cardList}>
+          {filtered.map((agent) => renderEmployeeCard(agent))}
         </div>
       )}
+    </EmployeeHomeRelay>
+
+      <CreateEmployeeTypeModal
+        open={isCreating}
+        onClose={() => setIsCreating(false)}
+        onConfirm={executeCreate}
+        lockJobFamily={isTrainingPage ? 'customer_service' : undefined}
+      />
+
+      <WorkflowPrototypeFrame
+        open={workflowFrame.open}
+        agentName={workflowFrame.name}
+        agentId={workflowFrame.id}
+        agentAvatar={workflowFrame.avatar}
+        onClose={() => setWorkflowFrame((prev) => ({ ...prev, open: false }))}
+      />
 
       {/* DIALOGUE SANDBOX TESTING MODAL */}
       {testAgent && (
@@ -1353,6 +1438,38 @@ export const EmployeeManagePage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <Modal
+        open={!!renameAgent}
+        onClose={() => setRenameAgentId(null)}
+        title="重命名"
+        maxWidth="max-w-sm"
+        footer={
+          <>
+            <button type="button" className={BTN_SOFT} onClick={() => setRenameAgentId(null)}>
+              取消
+            </button>
+            <button type="button" className={BTN_INK} onClick={handleConfirmRenameAgent}>
+              确定
+            </button>
+          </>
+        }
+      >
+        <label className="block space-y-1.5">
+          <span className="text-[12px] font-medium text-neutral-600">员工名称</span>
+          <Input
+            autoFocus
+            value={renameValue}
+            maxLength={8}
+            placeholder="请输入名称"
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleConfirmRenameAgent();
+            }}
+            className="h-9"
+          />
+        </label>
+      </Modal>
 
       <Modal
         open={!!dismissConfirmAgent}

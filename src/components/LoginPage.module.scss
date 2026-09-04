@@ -1,0 +1,1185 @@
+/**
+ * 京小灵登录页 — 版式对齐 Relay chatId=2091507502989455362
+ */
+
+.pageContainer {
+  min-height: 100vh;
+  width: 100%;
+  background-color: #fff;
+  display: flex;
+  overflow: hidden;
+}
+
+.pageContainerInvite {
+  flex-direction: column;
+
+  .leftPanel,
+  .rightPanel {
+    min-height: 100%;
+  }
+}
+
+.pageMain {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.leftPanel {
+  display: none;
+  position: relative;
+  width: 50%;
+  min-height: 100vh;
+  flex-shrink: 0;
+
+  @media (min-width: 1024px) {
+    display: block;
+  }
+}
+
+.leftPanelCert {
+  background-color: #fff;
+
+  @media (min-width: 1024px) {
+    width: 240px;
+    min-width: 240px;
+  }
+}
+
+/* 企业实名认证：顶栏京小灵独立展示 + 下方内容区（对齐 eauth 版式） */
+.certPageRoot {
+  min-height: 100vh;
+  width: 100%;
+  background: #f5f6f8;
+  display: flex;
+  flex-direction: column;
+}
+
+.certBrandBar {
+  flex-shrink: 0;
+  height: 64px;
+  padding: 0 32px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  box-sizing: border-box;
+}
+
+.certBrandLogoBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.certBrandLogo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.certBrandDivider {
+  margin: 0 12px;
+  color: #d1d5db;
+  font-size: 18px;
+  font-weight: 300;
+  line-height: 1;
+  user-select: none;
+}
+
+.certBrandTitle {
+  margin: 0;
+  color: #17171d;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.certMain {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 24px 48px;
+  box-sizing: border-box;
+
+  @media (max-width: 1200px) {
+    padding: 0 16px 48px;
+  }
+}
+
+.bgImage {
+  position: absolute;
+  top: 21px;
+  left: 21px;
+  width: calc(100% - 42px);
+  height: calc(100% - 42px);
+  max-width: none;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 12px;
+  z-index: 1;
+  display: block;
+}
+
+.brandLogo {
+  position: absolute;
+  top: 40px;
+  left: 40px;
+  z-index: 5;
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.mainTitle {
+  position: absolute;
+  left: 61px;
+  bottom: 172px;
+  max-width: 426px;
+  color: #1f2329;
+  font-weight: 700;
+  font-size: clamp(32px, 3.2vw, 54px);
+  line-height: 1.33;
+  z-index: 4;
+}
+
+.mainTitleLine1 {
+  display: block;
+  white-space: nowrap;
+}
+
+.mainTitleLine2 {
+  display: block;
+}
+
+.subTitle {
+  position: absolute;
+  left: 61px;
+  bottom: 105px;
+  max-width: 483px;
+  color: #646a73;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 28px;
+  letter-spacing: -0.44px;
+  z-index: 3;
+}
+
+.rightPanel {
+  flex: 1;
+  min-width: 0;
+  min-height: 100vh;
+  background-color: #fff;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  z-index: 2;
+}
+
+.formShell {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 24px 100px;
+  box-sizing: border-box;
+  min-height: 0;
+
+  @media (max-width: 1023px) {
+    padding-top: 100px;
+  }
+}
+
+.certShell {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 32px 80px;
+  box-sizing: border-box;
+  min-height: 0;
+  overflow-y: auto;
+
+  @media (max-width: 1023px) {
+    padding: 100px 16px 64px;
+  }
+}
+
+.certContainer {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.certLogoMobile {
+  display: none;
+}
+
+.formContainer {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.formTopBar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  margin-bottom: 24px;
+  gap: 12px;
+  min-height: 36px;
+
+  @media (max-width: 1023px) {
+    justify-content: space-between;
+  }
+}
+
+.mobilePageHeader {
+  @media (max-width: 1023px) {
+    position: fixed;
+    top: 40px;
+    left: 40px;
+    right: 40px;
+    width: auto;
+    margin: 0;
+    z-index: 10;
+    pointer-events: none;
+
+    > * {
+      pointer-events: auto;
+    }
+  }
+}
+
+.mobileOnlyTopBar {
+  display: none;
+
+  @media (max-width: 1023px) {
+    display: flex;
+  }
+}
+
+.formBrandLogo {
+  display: none;
+  height: 36px;
+  width: auto;
+  max-width: 140px;
+  object-fit: contain;
+
+  @media (max-width: 1023px) {
+    display: block;
+  }
+}
+
+.privateLogin {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.privateLoginText {
+  color: #000;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 14px;
+}
+
+.privateLoginIcon {
+  width: 14px;
+  height: 14px;
+}
+
+.formMain {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 26px;
+  text-align: center;
+}
+
+.title {
+  color: #17171d;
+  font-weight: 600;
+  font-size: 30px;
+  line-height: 28px;
+  letter-spacing: 1px;
+}
+
+.desc {
+  color: rgba(23, 23, 29, 0.8);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 14px;
+}
+
+.descBlock {
+  color: rgba(23, 23, 29, 0.8);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+  max-width: 360px;
+}
+
+.tabsWrapper {
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.tabs {
+  width: 100%;
+  height: 52px;
+  background-color: rgba(98, 105, 153, 0.06);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  padding: 6px;
+  box-sizing: border-box;
+  gap: 8px;
+}
+
+.tabActive,
+.tabNormal {
+  flex: 1;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.tabActive {
+  background-color: #fff;
+  box-shadow:
+    0 2px 4px 0 rgba(0, 0, 0, 0.02),
+    0 1px 6px -1px rgba(0, 0, 0, 0.02),
+    0 1px 2px 0 rgba(0, 0, 0, 0.03);
+}
+
+.tabTextActive {
+  color: #17171d;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 36px;
+  white-space: nowrap;
+}
+
+.tabTextNormal {
+  color: #8d8d99;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 36px;
+  white-space: nowrap;
+}
+
+.inputArea {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.inputRow {
+  width: 100%;
+  height: 52px;
+  background-color: rgba(98, 105, 153, 0.06);
+  border-radius: 10px;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: border-color 0.2s, background-color 0.2s;
+
+  &:focus-within {
+    border-color: #000;
+    background-color: #fff;
+  }
+}
+
+.inputField {
+  flex: 1;
+  height: 100%;
+  border: none;
+  background: transparent;
+  padding: 0 20px;
+  color: #000;
+  font-weight: 400;
+  font-size: 16px;
+  outline: none;
+  min-width: 0;
+
+  &::placeholder {
+    color: rgba(0, 0, 0, 0.25);
+  }
+}
+
+.inputFieldShort {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  background: transparent;
+  padding: 0 20px;
+  color: #000;
+  font-weight: 400;
+  font-size: 16px;
+  outline: none;
+
+  &::placeholder {
+    color: rgba(0, 0, 0, 0.25);
+  }
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  background-color: rgba(17, 17, 17, 0.12);
+  flex-shrink: 0;
+}
+
+.getVcodeBtn {
+  width: 121px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: #000;
+  font-weight: 500;
+  font-size: 16px;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+
+  &:disabled {
+    color: rgba(0, 0, 0, 0.35);
+    cursor: not-allowed;
+  }
+}
+
+.fieldError {
+  margin: -10px 0 10px;
+  font-size: 11px;
+  line-height: 16px;
+  color: #dc2626;
+}
+
+.agreementRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 4px;
+  margin-bottom: 22px;
+  width: 100%;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 1px solid rgba(229, 231, 235, 0.8);
+  border-radius: 4px;
+  background-color: #fff;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.checkboxChecked {
+  background-color: #1474f2;
+  border-color: #1474f2;
+}
+
+.agreementText {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 20px;
+  color: #8d8d99;
+}
+
+.grayText {
+  color: inherit;
+  font-weight: 400;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.darkText {
+  color: #0f172b;
+  font-weight: 400;
+  font-size: inherit;
+  line-height: inherit;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 0;
+  display: inline;
+  vertical-align: baseline;
+}
+
+.submitBtn {
+  width: 100%;
+  height: 52px;
+  background-color: #000;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 12px;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.createAccountRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.noAccountText {
+  color: rgba(11, 11, 12, 0.5);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.08px;
+}
+
+.goCreateText {
+  color: #1474f2;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.08px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.helpLinks {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.helpText {
+  color: rgba(11, 11, 12, 0.5);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.08px;
+}
+
+.resetLink {
+  color: #1474f2;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: -0.08px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 0;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+.footer {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+
+.copyright {
+  color: rgba(91, 98, 117, 0.88);
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  margin: 0;
+}
+
+.icpInfo {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+  color: rgba(91, 98, 117, 0.88);
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.icpText {
+  color: inherit;
+}
+
+.icpLink {
+  color: inherit;
+  cursor: pointer;
+}
+
+.qrcodeArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.qrcodeWrapper {
+  width: 180px;
+  height: 180px;
+  border-radius: 8px;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.qrcodeImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.supportMethods {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.supportLabel {
+  color: #8d8d99;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.methodItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.methodIcon {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.methodText {
+  color: #171717;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 21px;
+  letter-spacing: -0.15px;
+}
+
+.enterpriseDone {
+  border-radius: 10px;
+  border: 1px solid #a7f3d0;
+  background: #ecfdf5;
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #404040;
+  margin-bottom: 16px;
+}
+
+.backLink {
+  width: 100%;
+  text-align: center;
+  color: rgba(11, 11, 12, 0.5);
+  font-size: 14px;
+  line-height: 20px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+}
+
+.tenantList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.tenantCard {
+  width: 100%;
+  min-height: 72px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background-color: rgba(98, 105, 153, 0.08);
+  padding: 16px 18px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+  box-sizing: border-box;
+
+  &:hover:not(:disabled) {
+    border-color: #646a73;
+    background-color: rgba(98, 105, 153, 0.06);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.tenantCardSelected {
+  border-color: #000;
+  background-color: #fff;
+}
+
+.tenantCompany {
+  color: #17171d;
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 22px;
+  margin-bottom: 6px;
+}
+
+.tenantMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tenantUser {
+  color: #8d8d99;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.tenantId {
+  color: #8d8d99;
+  font-size: 11px;
+  line-height: 16px;
+  flex-shrink: 0;
+}
+
+.tenantBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tenantTags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tenantRoleOwner {
+  font-size: 11px;
+  line-height: 18px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(98, 105, 153, 0.1);
+  color: #646a73;
+}
+
+.tenantRoleSeat {
+  font-size: 11px;
+  line-height: 18px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(98, 105, 153, 0.1);
+  color: #646a73;
+}
+
+.tenantStatusTrial,
+.tenantStatusActive {
+  font-size: 12px;
+  line-height: 18px;
+  color: #16a34a;
+}
+
+.tenantStatusPending {
+  font-size: 12px;
+  line-height: 18px;
+  color: #ea580c;
+}
+
+.tenantStatusReviewing {
+  font-size: 12px;
+  line-height: 18px;
+  color: #1474f2;
+}
+
+.tenantLastAccess {
+  color: rgba(11, 11, 12, 0.35);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.tenantCreateBtn {
+  width: 100%;
+  height: 52px;
+  border-radius: 10px;
+  border: none;
+  background-color: #000;
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+
+  &:hover {
+    opacity: 0.92;
+  }
+}
+
+.tenantSwitchBtn {
+  width: 100%;
+  height: 52px;
+  border-radius: 10px;
+  border: none;
+  background-color: rgba(98, 105, 153, 0.08);
+  color: #17171d;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 20px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(98, 105, 153, 0.12);
+  }
+}
+
+/* 邀请加入 · 全宽顶部通知条 */
+.inviteContextStrip {
+  flex-shrink: 0;
+  width: 100%;
+  padding: 10px 20px;
+  background: linear-gradient(90deg, #eef2ff 0%, #f5f3ff 48%, #eef2ff 100%);
+  box-sizing: border-box;
+}
+
+.inviteContextStripInner {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.inviteContextStripMark {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #1e90ff;
+}
+
+.inviteContextStripText {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 20px;
+  color: #17171d;
+  min-width: 0;
+}
+
+.inviteContextStripWarning {
+  background: linear-gradient(90deg, #fffbeb 0%, #fef3c7 48%, #fffbeb 100%);
+}
+
+.inviteContextStripMarkWarning {
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+}
+
+.inviteContextMetaWarning {
+  color: #b45309;
+}
+
+.inviteContextStripHintWarning {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.inviteContextStripTitle {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.inviteContextStripMeta {
+  color: #646a73;
+  font-weight: 400;
+}
+
+.inviteContextStripSep {
+  color: #c9cdd4;
+  user-select: none;
+}
+
+.inviteContextBadgeJd {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+  white-space: nowrap;
+}
+
+.inviteContextBadgeWechat {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  white-space: nowrap;
+}
+
+.inviteContextMetaStrong {
+  color: #17171d;
+  font-weight: 600;
+}
+
+.inviteRolePanel {
+  width: 100%;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: rgba(98, 105, 153, 0.06);
+  border: 1px solid rgba(17, 17, 17, 0.06);
+  box-sizing: border-box;
+}
+
+.inviteRolePanelLabel {
+  margin: 0 0 10px;
+  color: #646a73;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.inviteRoleTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inviteRoleTag {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: #f0f7ff;
+  border: 1px solid rgba(145, 197, 255, 0.6);
+  color: #0050d2;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.inviteFieldBlock {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.inviteFieldLabel {
+  display: block;
+  margin-bottom: 8px;
+  color: #646a73;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.inviteFieldRequired {
+  color: #dc2626;
+  margin-left: 2px;
+}
+
+.inviteFieldReadonly {
+  cursor: default;
+  background-color: rgba(98, 105, 153, 0.04);
+
+  &:focus-within {
+    border-color: transparent;
+    background-color: rgba(98, 105, 153, 0.04);
+  }
+}
+
+.inviteFieldReadonlyText {
+  flex: 1;
+  padding: 0 20px;
+  color: #17171d;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 52px;
+}
+
+.inviteFieldRoles {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inviteFieldRolesLabel {
+  font-size: 12px;
+  color: #646a73;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.inviteSuccessPanel {
+  width: 100%;
+  border: 1px solid #e5e5e5;
+  border-radius: 7px;
+  background: #fff;
+  padding: 4px 16px;
+}
+
+.inviteSuccessRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  font-size: 13px;
+  line-height: 20px;
+
+  & + & {
+    border-top: 1px solid #f5f5f5;
+  }
+}
+
+.inviteSuccessLabel {
+  width: 4.5rem;
+  color: #737373;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.inviteSuccessValue {
+  flex: 1;
+  color: #17171d;
+  font-weight: 500;
+  text-align: right;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inviteSuccessStatus {
+  flex: 1;
+  color: #b45309;
+  font-weight: 600;
+  font-size: 12px;
+  text-align: right;
+}
+
+.inviteSuccessBadge {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.inviteSuccessIcon {
+  display: block;
+  margin: 0 auto 12px;
+  color: #10b981;
+}
+

@@ -323,7 +323,7 @@ export const OnboardingQcTestPanel: React.FC<OnboardingQcTestPanelProps> = ({
 
               {spinning ? (
                 <div className="flex items-center gap-2 text-[11px] text-neutral-500 pl-10">
-                  <Loader2 size={13} />
+                  <Loader2 size={13} className="animate-spin" />
                   正在按标准试跑…
                 </div>
               ) : null}
@@ -336,7 +336,6 @@ export const OnboardingQcTestPanel: React.FC<OnboardingQcTestPanelProps> = ({
                       result={latest}
                       onRetry={() => {
                         setTab('chat');
-                        showToast('可继续粘贴会话或勾选样例再测');
                       }}
                     />
                   ) : (

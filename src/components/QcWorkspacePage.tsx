@@ -2,26 +2,22 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 质检工作台 — 按流程：概览指引 → 计划常驻 → 会话质检单
- * 侧栏架构对齐客服工作台
+ * 质检运营应用 — 按流程：概览指引 → 计划常驻 → 会话质检单
+ * 嵌在管理台主内容区（侧栏「应用 → 质检」），不跳出全屏
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { agentAvatarForCard, RELAY_CARD_AVATARS } from '@/lib/agentAvatarDisplay';
-import { isQcAgent } from '@/lib/jobFamily';
+import { isAgentOnDuty, isQcAgent } from '@/lib/jobFamily';
 import { QC_TERMS } from '@/lib/platformTerminology';
-import { RELAY_HOME_ASSETS } from '@/lib/relayHomeAssets';
 import { BTN_INK, BTN_OUTLINE, BTN_SOFT, FIELD, LABEL, PANEL } from '@/lib/ui';
 import { cn } from '@/lib/utils';
 import {
-  Activity,
   BarChart3,
   ChevronDown,
-  Home,
   Settings2,
-  ShieldCheck,
   Sparkles,
   Trash2,
   TrendingUp,
@@ -29,6 +25,9 @@ import {
 } from '@/lib/icons';
 import { QcCreatePlanModal } from './QcCreatePlanModal';
 import { QcObserveConfigModal } from './QcObserveConfigModal';
+import { QcDataSummaryView } from './QcDataSummaryView';
+import { QcPlanBoard } from './QcPlanBoard';
+import { QcPlanDataView } from './QcPlanDataView';
 import { SessionRecordsPage } from './SessionRecordsPage';
 import {
   buildObservePanelData,
@@ -50,8 +49,10 @@ import {
   type QcPlanSource,
   type QcPlanStatus,
 } from '@/lib/qcWorkspaceMock';
-
-type QcRailTab = 'overview' | 'workspace';
+import { QC_APP_IMPLEMENTED_TABS, qcAppTabLabel } from '@/lib/navDomain';
+import { QcTemplatesView } from './QcTemplatesView';
+import { initialTemplates } from '@/src/modules/qc/mockData';
+import type { QualityTemplate } from '@/src/modules/qc/types';
 
 type QcCollabMode = 'parallel' | 'by_capability' | 'serial';
 
@@ -95,16 +96,24 @@ function fromDatetimeLocalValue(value: string) {
 }
 
 export const QcWorkspacePage: React.FC = () => {
-  const { hiredAgents, sessions, setActiveTab, showToast } = useApp();
-  const [railTab, setRailTab] = useState<QcRailTab>('overview');
+  const { hiredAgents, sessions, setActiveTab, showToast, qcRailTab, setQcRailTab, qcMainTab, setQcMainTab, pendingOpsAction, setPendingOpsAction, pendingOpsAgentId, setPendingOpsAgentId } = useApp();
+  /** board 计划列表 → data 查看数据 → session 查看会话 */
+  const [workspaceView, setWorkspaceView] = useState<'board' | 'data' | 'session'>('board');
   const [plansSeeded, setPlansSeeded] = useState(false);
+  const [qcTemplates, setQcTemplates] = useState<QualityTemplate[]>(initialTemplates);
+
+  useEffect(() => {
+    setWorkspaceView((view) =>
+      qcMainTab === 'plans' && (view === 'data' || view === 'session') ? view : 'board',
+    );
+  }, [qcMainTab]);
 
   const qcAgents = useMemo(() => hiredAgents.filter(isQcAgent), [hiredAgents]);
 
   /** 概览智能洞察：优先在岗质检员工，头像与「我的数字员工」同源 */
   const insightAgentVisual = useMemo(() => {
     const agent =
-      qcAgents.find((a) => a.status === 'online') ?? qcAgents[0] ?? null;
+      qcAgents.find((a) => isAgentOnDuty(a)) ?? qcAgents[0] ?? null;
     if (!agent) {
       return {
         name: '会话质检专员',
@@ -121,7 +130,7 @@ export const QcWorkspacePage: React.FC = () => {
     );
     return {
       name: agent.name,
-      online: agent.status === 'online',
+      online: isAgentOnDuty(agent),
       render: agentAvatarForCard(agent.avatar, idx, agent.avatarCustomized),
     };
   }, [qcAgents, hiredAgents]);
@@ -282,11 +291,50 @@ export const QcWorkspacePage: React.FC = () => {
     [plans, planFilterId],
   );
 
+  useEffect(() => {
+    if (
+      (workspaceView === 'data' || workspaceView === 'session') &&
+      !activePlan &&
+      plans.length > 0
+    ) {
+      setWorkspaceView('board');
+    }
+  }, [workspaceView, activePlan, plans.length]);
+
+  const openPlanData = (planId: string) => {
+    setPlanFilterId(planId);
+    setQueueTab('all');
+    setSelectedTicketId(null);
+    setQcRailTab('workspace');
+    setQcMainTab('plans');
+    setWorkspaceView('data');
+  };
+
   const openPlanSessions = (planId: string, ticketId?: string) => {
     setPlanFilterId(planId);
     setQueueTab('all');
     setSelectedTicketId(ticketId ?? null);
-    setRailTab('workspace');
+    setQcRailTab('workspace');
+    setQcMainTab('plans');
+    setWorkspaceView('session');
+  };
+
+  const openSummarySession = (sessionId: string) => {
+    const ticket = enrichedTickets.find((t) => t.session.id === sessionId);
+    if (ticket) {
+      openPlanSessions(ticket.planId, ticket.id);
+      return;
+    }
+    const plan = plans.find((p) => p.status === 'running') ?? plans[0];
+    if (plan) {
+      setPlanFilterId(plan.id);
+      setSelectedTicketId(null);
+      setQcRailTab('workspace');
+      setQcMainTab('plans');
+      setWorkspaceView('session');
+      return;
+    }
+    showToast('暂无关联质检计划，无法打开会话');
   };
 
   const selectedTicketIndex = selectedTicket
@@ -325,7 +373,7 @@ export const QcWorkspacePage: React.FC = () => {
   };
 
   const onlineQcAgents = useMemo(
-    () => qcAgents.filter((a) => a.status === 'online'),
+    () => qcAgents.filter(isAgentOnDuty),
     [qcAgents],
   );
 
@@ -355,22 +403,19 @@ export const QcWorkspacePage: React.FC = () => {
     qcAgents.find((a) => a.id === newPlanInspectorId);
   const createStandard = resolveInspectorStandard(createInspector);
 
-  const railNavClass = (active: boolean) =>
-    cn(
-      'group w-full flex flex-col items-center gap-1.5 py-2.5 px-1 rounded-[10px] transition-all duration-200 cursor-pointer',
-      active
-        ? 'text-neutral-900 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] ring-1 ring-neutral-200/80'
-        : 'text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100/70',
-    );
-
   const goNext = () => {
     if (nextStep.action === 'market') setActiveTab('market');
     else if (nextStep.action === 'employees') setActiveTab('employees');
-    else if (nextStep.action === 'plans' || nextStep.action === 'sessions') {
-      setRailTab('workspace');
+    else if (nextStep.action === 'sessions') {
+      const running = plans.find((p) => p.status === 'running') ?? plans[0];
+      if (running) openPlanData(running.id);
+      else {
+        setQcRailTab('workspace');
+        setWorkspaceView('board');
+      }
     } else {
-      setRailTab('workspace');
-      if (plans[0]) setPlanFilterId(plans[0].id);
+      setQcRailTab('workspace');
+      setWorkspaceView('board');
     }
   };
 
@@ -395,6 +440,19 @@ export const QcWorkspacePage: React.FC = () => {
     setShowCreatePlan(true);
   };
 
+  useEffect(() => {
+    if (pendingOpsAction !== 'create-plan') return;
+    setWorkspaceView('board');
+    resetCreatePlanForm();
+    if (pendingOpsAgentId) {
+      setNewPlanInspectorIds([pendingOpsAgentId]);
+      setNewPlanInspectorId(pendingOpsAgentId);
+    }
+    setShowCreatePlan(true);
+    setPendingOpsAction(null);
+    setPendingOpsAgentId(null);
+  }, [pendingOpsAction, pendingOpsAgentId, setPendingOpsAction, setPendingOpsAgentId]);
+
   const handleCreatePlan = () => {
     const name = newPlanName.trim();
     if (!name) {
@@ -415,10 +473,10 @@ export const QcWorkspacePage: React.FC = () => {
       onlineQcAgents[0] ??
       qcAgents[0];
     if (!lead) {
-      showToast('请先雇佣并上岗质检数字员工');
+      showToast('请先雇佣质检数字员工');
       return;
     }
-    if (lead.status !== 'online') {
+    if (!isAgentOnDuty(lead)) {
       showToast('请先让该质检员上岗后再创建计划');
       return;
     }
@@ -460,13 +518,15 @@ export const QcWorkspacePage: React.FC = () => {
       warningCount: 0,
       averageScore: 0,
       createdAt: startAt,
+      updatedBy: '当前用户',
       startAt,
     };
     setPlans((prev) => [plan, ...prev]);
     resetCreatePlanForm();
     setShowCreatePlan(false);
     setPlanFilterId(plan.id);
-    setRailTab('workspace');
+    setQcRailTab('workspace');
+    setWorkspaceView('board');
     setQueueTab('all');
     showToast(`计划「${name}」已创建，点击「开始」运行`);
   };
@@ -485,6 +545,18 @@ export const QcWorkspacePage: React.FC = () => {
       }),
     );
     showToast('计划已开始运行');
+  };
+
+  const pausePlan = (planId: string) => {
+    setPlans((prev) =>
+      prev.map((p) => (p.id === planId ? { ...p, status: 'paused' as const } : p)),
+    );
+    showToast('计划已暂停');
+  };
+
+  const togglePlanRun = (planId: string, next: 'running' | 'paused') => {
+    if (next === 'running') startPlan(planId);
+    else pausePlan(planId);
   };
 
   const endPlan = (planId: string) => {
@@ -510,84 +582,9 @@ export const QcWorkspacePage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex bg-white text-neutral-800 h-screen overflow-hidden font-sans">
-      {/* 左侧窄轨：参考精致图标轨（拉开间距、图标与文案分层） */}
-      <div className="w-16 bg-neutral-50 border-r border-neutral-200/80 flex flex-col items-center justify-between py-4 shrink-0 z-10 select-none">
-        <div className="flex flex-col items-center w-full px-1.5 gap-5">
-          <button
-            type="button"
-            onClick={() => setActiveTab('employees')}
-            title="返回管理后台"
-            className="h-9 w-9 flex items-center justify-center rounded-[10px] overflow-hidden transition duration-200 hover:bg-neutral-100 cursor-pointer"
-          >
-            <img
-              src={RELAY_HOME_ASSETS.logo}
-              alt="JoySupport"
-              className="h-10 w-10 object-cover object-left select-none pointer-events-none"
-              draggable={false}
-            />
-          </button>
-
-          <div className="flex flex-col items-center gap-3 w-full">
-            <button
-              type="button"
-              onClick={() => setRailTab('overview')}
-              className={railNavClass(railTab === 'overview')}
-              title={QC_TERMS.overview}
-            >
-              <Activity
-                size={20}
-                strokeWidth={railTab === 'overview' ? 2.25 : 1.75}
-                className="shrink-0"
-              />
-              <span
-                className={cn(
-                  'text-[11px] leading-none tracking-tight',
-                  railTab === 'overview' ? 'font-semibold' : 'font-medium',
-                )}
-              >
-                {QC_TERMS.overview}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setRailTab('workspace')}
-              className={railNavClass(railTab === 'workspace')}
-              title={QC_TERMS.plans}
-            >
-              <ShieldCheck
-                size={20}
-                strokeWidth={railTab === 'workspace' ? 2.25 : 1.75}
-                className="shrink-0"
-              />
-              <span
-                className={cn(
-                  'text-[11px] leading-none tracking-tight',
-                  railTab === 'workspace' ? 'font-semibold' : 'font-medium',
-                )}
-              >
-                质检
-              </span>
-            </button>
-          </div>
-        </div>
-
-        <div className="w-full flex flex-col items-center gap-3 px-1.5">
-          <div className="w-7 h-px bg-neutral-200" />
-          <button
-            type="button"
-            className={railNavClass(false)}
-            onClick={() => setActiveTab('employees')}
-            title="返回管理后台"
-          >
-            <Home size={20} strokeWidth={1.75} className="shrink-0" />
-            <span className="text-[11px] leading-none tracking-tight font-medium">返回</span>
-          </button>
-        </div>
-      </div>
-
+    <div className="flex-1 flex min-h-0 h-full bg-white text-neutral-800 overflow-hidden font-sans">
       {/* —— 概览：观测面板 + 产线指引 —— */}
-      {railTab === 'overview' && (
+      {qcRailTab === 'overview' && (
         <div className="flex-1 overflow-y-auto p-5 md:p-6 bg-white animate-in fade-in duration-300">
           <div className="max-w-6xl mx-auto space-y-4">
             <div className="flex items-center justify-end gap-2">
@@ -602,9 +599,6 @@ export const QcWorkspacePage: React.FC = () => {
                 <button
                   type="button"
                   className={cn(BTN_INK, 'h-8 px-3 text-[12px]')}
-                  onClick={() =>
-                    showToast('观测面板已打开当前窗口数据')
-                  }
                 >
                   观测面板
                 </button>
@@ -654,7 +648,7 @@ export const QcWorkspacePage: React.FC = () => {
                         ? 'bg-emerald-500'
                         : 'bg-neutral-400',
                     )}
-                    title={insightAgentVisual.online ? '已上岗' : '未上岗'}
+                    title={insightAgentVisual.online ? '运行中' : '未上岗'}
                   />
                 </div>
 
@@ -673,7 +667,7 @@ export const QcWorkspacePage: React.FC = () => {
                       </span>
                     ) : (
                       <span className="text-[10px] font-medium text-neutral-400">
-                        未上岗
+                        未就绪
                       </span>
                     )}
                   </div>
@@ -789,7 +783,14 @@ export const QcWorkspacePage: React.FC = () => {
                 <button
                   type="button"
                   className="text-[11px] font-semibold text-neutral-800 underline-offset-2 hover:underline cursor-pointer"
-                  onClick={() => setRailTab('workspace')}
+                  onClick={() => {
+                    const running = plans.find((p) => p.status === 'running') ?? plans[0];
+                    if (running) openPlanData(running.id);
+                    else {
+                      setQcRailTab('workspace');
+                      setWorkspaceView('board');
+                    }
+                  }}
                 >
                   去处理质检单
                 </button>
@@ -835,13 +836,75 @@ export const QcWorkspacePage: React.FC = () => {
         </div>
       )}
 
-      {/* —— 会话质检：左侧计划列表 → 右侧该计划下会话单 —— */}
-      {railTab === 'workspace' && (
+      {qcRailTab === 'templates' && (
+        <QcTemplatesView
+          templates={qcTemplates}
+          setTemplates={setQcTemplates}
+          showToast={showToast}
+        />
+      )}
+
+      {/* —— 质检：计划看板（默认） / 会话质检台（查看数据下钻） —— */}
+      {qcRailTab === 'workspace' && workspaceView !== 'session' && (
+        <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+          {qcMainTab === 'plans' && workspaceView === 'board' && (
+            <QcPlanBoard
+              plans={plans}
+              onCreatePlan={openCreatePlan}
+              onViewData={openPlanData}
+              onToggleRun={togglePlanRun}
+              onDeletePlan={deletePlan}
+            />
+          )}
+          {qcMainTab === 'plans' && workspaceView === 'data' && activePlan && (
+            <QcPlanDataView
+              plan={activePlan}
+              tickets={enrichedTickets.filter((t) => t.planId === activePlan.id)}
+              agentNameById={agentNameById}
+              onBack={() => setWorkspaceView('board')}
+              onViewSession={(ticketId) => openPlanSessions(activePlan.id, ticketId)}
+            />
+          )}
+          {qcMainTab === 'summary' && (
+            <QcDataSummaryView
+              sessions={sessions}
+              hiredAgents={hiredAgents}
+              onViewSession={openSummarySession}
+              showToast={showToast}
+            />
+          )}
+          {qcMainTab === 'templates' && (
+            <QcTemplatesView
+              templates={qcTemplates}
+              setTemplates={setQcTemplates}
+              showToast={showToast}
+            />
+          )}
+          {!QC_APP_IMPLEMENTED_TABS.has(qcMainTab) && (
+            <div className="flex-1 flex items-center justify-center text-sm text-neutral-500">
+              「{qcAppTabLabel(qcMainTab)}」即将上线
+            </div>
+          )}
+        </div>
+      )}
+
+      {qcRailTab === 'workspace' && workspaceView === 'session' && (
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
           <div className="shrink-0 px-4 py-3 border-b border-neutral-200 bg-white flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="text-sm font-extrabold text-neutral-800 tracking-tight">质检计划与会话</h2>
-              <p className="text-[11px] text-neutral-500 mt-0.5">先创建计划，再持续查看会话质检单</p>
+            <div className="min-w-0 flex items-center gap-3">
+              <button
+                type="button"
+                className={cn(BTN_OUTLINE, 'h-8 px-3 shrink-0')}
+                onClick={() => setWorkspaceView('data')}
+              >
+                返回数据
+              </button>
+              <div className="min-w-0">
+                <h2 className="text-sm font-extrabold text-neutral-800 tracking-tight truncate">
+                  {activePlan?.name ?? '会话质检'}
+                </h2>
+                <p className="text-[11px] text-neutral-500 mt-0.5">查看并处理该计划下的会话质检单</p>
+              </div>
             </div>
             <button
               type="button"
@@ -1242,7 +1305,6 @@ export const QcWorkspacePage: React.FC = () => {
                                             <button
                                               type="button"
                                               className="text-[10px] font-semibold text-live hover:underline cursor-pointer"
-                                              onClick={() => showToast('操作备注已预留（原型）')}
                                             >
                                               操作备注
                                             </button>
@@ -1330,7 +1392,6 @@ export const QcWorkspacePage: React.FC = () => {
                         type="button"
                         className="h-8 px-4 rounded-md bg-live text-white text-[11px] font-semibold hover:opacity-90 cursor-pointer disabled:opacity-50"
                         onClick={() => {
-                          showToast('纠错已提交（原型）');
                           markResolved(selectedTicket.id);
                         }}
                       >
@@ -1379,7 +1440,6 @@ export const QcWorkspacePage: React.FC = () => {
           setObserveConfig(cfg);
           setShowObserveConfig(false);
           setSelectedSystemMetricId(cfg.systemMetricIds[0] ?? null);
-          showToast('观测指标已更新');
         }}
       />
 

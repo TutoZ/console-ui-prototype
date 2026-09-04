@@ -23,7 +23,6 @@ const HIRE_COPY = {
   hireReady: '立即雇佣',
   hireAgain: '再次雇佣',
   customApply: '帮我定制一位',
-  customManage: '跟进定制进度',
 } as const;
 
 export const MarketCardRelay: React.FC<MarketCardRelayProps> = ({
@@ -74,9 +73,9 @@ export const MarketCardRelay: React.FC<MarketCardRelayProps> = ({
         <button
           type="button"
           className={styles.btnOutline}
-          onClick={onCustomRequest ?? onHire}
+          onClick={isHiredAlready ? onHire : onCustomRequest ?? onHire}
         >
-          {isHiredAlready ? HIRE_COPY.customManage : HIRE_COPY.customApply}
+          {isHiredAlready ? HIRE_COPY.hireAgain : HIRE_COPY.customApply}
         </button>
       )}
     </article>

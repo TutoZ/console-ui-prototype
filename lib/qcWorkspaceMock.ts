@@ -43,6 +43,8 @@ export type QcPlan = {
   warningCount: number;
   averageScore: number;
   createdAt: string;
+  /** 最近修改人（运营侧展示） */
+  updatedBy?: string;
   /** 计划开始时间 */
   startAt: string;
   /** 计划结束时间（结束后写入） */
@@ -130,6 +132,7 @@ export function buildDefaultQcPlans(qcAgents: HiredAgent[]): QcPlan[] {
       warningCount: 7,
       averageScore: 81,
       createdAt: '2026-07-22 09:00',
+      updatedBy: '张敏',
       startAt: '2026-07-22 09:00',
     },
     {
@@ -150,6 +153,7 @@ export function buildDefaultQcPlans(qcAgents: HiredAgent[]): QcPlan[] {
       warningCount: 3,
       averageScore: 74,
       createdAt: '2026-07-18 14:20',
+      updatedBy: '王芳',
       startAt: '2026-07-18 14:20',
       endAt: '2026-07-25 18:00',
     },

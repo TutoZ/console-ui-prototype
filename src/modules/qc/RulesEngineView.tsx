@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { QualityTemplate, Role } from './types';
 import { qcNotify } from './qcNotify';
 import {
@@ -9,6 +9,8 @@ interface RulesEngineViewProps {
   role: Role;
   templates: QualityTemplate[];
   setTemplates: React.Dispatch<React.SetStateAction<QualityTemplate[]>>;
+  /** 详情页聚焦某模板时预选 */
+  focusTemplateId?: string;
 }
 
 export interface RuleItem {
@@ -68,9 +70,17 @@ function executeOperator(session, metadata) {
     };
 }`;
 
-export const RulesEngineView: React.FC<RulesEngineViewProps> = ({ role, templates, setTemplates }) => {
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(templates[0]?.id || "");
-  const [searchQuery, setSearchQuery] = useState("");
+export const RulesEngineView: React.FC<RulesEngineViewProps> = ({ role, templates, setTemplates, focusTemplateId }) => {
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
+    focusTemplateId || templates[0]?.id || '',
+  );
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (focusTemplateId && templates.some((t) => t.id === focusTemplateId)) {
+      setSelectedTemplateId(focusTemplateId);
+    }
+  }, [focusTemplateId, templates]);
   
   
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);

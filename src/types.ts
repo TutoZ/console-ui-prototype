@@ -4,7 +4,15 @@
  */
 
 /** 数字员工岗位族 — 决定工作台与培训表单 */
-export type JobFamily = 'customer_service' | 'quality_inspection';
+export type JobFamily =
+  | 'customer_service'
+  | 'quality_inspection'
+  | 'outbound'
+  | 'hotline'
+  | 'collection'
+  | 'telesales'
+  | 'followup'
+  | 'other';
 
 /** 质检标准指标类型（对齐 QC 下钻） */
 export type QcIndicatorType = '质检类' | '分类标签' | '多维度评分类';
@@ -145,6 +153,8 @@ export interface HiredAgent {
   languageStyle?: string;  // 语言风格
   constraints?: string;    // 约束 & 限制
   openingLine?: string;    // 机器人开场白
+  /** 是否对答复做上下文润色 */
+  replyPolishEnabled?: boolean;
   backgroundKnowledge?: string; // 背景知识
   workflowNotes?: string;  // 技能 & 工作流说明
   /** 应答超时（秒），超时后返回兜底话术 */
@@ -155,6 +165,8 @@ export interface HiredAgent {
   transferTarget?: 'workspace' | 'external';
   /** 转其他工作台时的人工接待 URL */
   transferExternalUrl?: string;
+  /** 构建模式：自主规划 / 预设流程（workflow 画布） */
+  buildMode?: 'autonomous' | 'preset';
   /** 入职考核页配置培训存档 */
   configSnapshots?: AgentConfigSnapshot[];
   /** 当前线上运行的快照 id */
@@ -176,6 +188,7 @@ export interface AgentConfigFields {
   languageStyle?: string;
   constraints?: string;
   openingLine?: string;
+  replyPolishEnabled?: boolean;
   backgroundKnowledge?: string;
   workflowNotes?: string;
   responseTimeoutSeconds?: number;
@@ -202,6 +215,12 @@ export interface KnowledgeBase {
   updatedAt: string;
 }
 
+/** 技能包内单文件 — 供创建发布与后续进化 diff */
+export interface SkillFile {
+  path: string;
+  content: string;
+}
+
 export interface Skill {
   id: string;
   name: string;
@@ -210,6 +229,20 @@ export interface Skill {
   usedByAgents: string[]; // Hired agent names
   type: 'subscribed' | 'mine' | 'market';
   description: string;
+  /** 技能标识，对齐 SKILL.md frontmatter */
+  skillCode?: string;
+  version?: string;
+  files?: SkillFile[];
+  source?: 'nl' | 'api_doc' | 'mcp' | 'github' | 'upload';
+  /** 草稿 / 已发布（AOP 工作台） */
+  status?: 'draft' | 'published';
+  kind?: 'kb' | 'tool';
+  hasScripts?: boolean;
+  hasKBs?: boolean;
+  /** AOP 工作台草稿快照 */
+  draftData?: Record<string, unknown>;
+  enId?: string;
+  cnName?: string;
 }
 
 export interface ABTest {

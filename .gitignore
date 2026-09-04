@@ -7,3 +7,8 @@ coverage/
 .env*
 !.env.example
 .vercel
+*.tgz
+
+# Local extract scratch (do not scan / commit)
+.tmp-skill-ref/
+.tmp-*/

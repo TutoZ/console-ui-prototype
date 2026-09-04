@@ -48,7 +48,6 @@ export const QcLabelAnalysisPanel: React.FC<Props> = ({
   category,
   onChange,
   onRemove,
-  showToast,
 }) => {
   const cfg = ensureConfig(category);
   const patch = (next: Partial<QcAnalysisConfig>) =>
@@ -90,7 +89,6 @@ export const QcLabelAnalysisPanel: React.FC<Props> = ({
             <button
               type="button"
               className="text-[11px] font-semibold text-live cursor-pointer"
-              onClick={() => showToast('外部知识库导入已预留（原型）')}
             >
               导入外部知识库
             </button>
@@ -229,7 +227,6 @@ export const QcMultiAnalysisPanel: React.FC<Props> = ({
   category,
   onChange,
   onRemove,
-  showToast,
 }) => {
   const cfg = ensureConfig(category);
   const total = cfg.totalMapping ?? createMappingRow();
@@ -272,7 +269,6 @@ export const QcMultiAnalysisPanel: React.FC<Props> = ({
             <button
               type="button"
               className="text-[11px] font-semibold text-live cursor-pointer"
-              onClick={() => showToast('外部知识库导入已预留（原型）')}
             >
               导入外部知识库
             </button>

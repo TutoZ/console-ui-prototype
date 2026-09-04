@@ -41,7 +41,12 @@ export const RELAY_CARD_AVATARS = [
 ] as const;
 
 export function relayAvatarForAgent(avatar: string, index: number): string {
-  if (avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('data:')) {
+  if (
+    avatar.startsWith('http://') ||
+    avatar.startsWith('https://') ||
+    avatar.startsWith('data:') ||
+    avatar.startsWith('/assets/')
+  ) {
     return avatar;
   }
   return RELAY_CARD_AVATARS[index % RELAY_CARD_AVATARS.length];

@@ -372,6 +372,25 @@
 | `MODAL_OVERLAY` | `bg-black/40` + backdrop-blur |
 | `MODAL_PANEL` | `bg-popover` + H5 p-5 + radius-lg + shadow-lg + ring |
 | `badgeClass` | 见 §3 语义色 + T-10 + rounded-full |
+| `confirmStatusBadgeClass` | 确认流「已确认 / 待确认」角标，见 §3.1.1 |
+
+### 3.1.1 确认流状态角标 `confirmStatusBadgeClass(tone)`
+
+| tone | 场景 | 底 Hex | 字 Hex | 尺寸 class |
+|------|------|--------|--------|------------|
+| `confirmed` | 确认卡标题「已确认」 | `#D1FAE5` emerald-100 | `#065F46` emerald-800 | `h-[18px] px-1.5 rounded text-[11px]` |
+| `confirmedSoft` | 草案卡内联「已确认」 | `#ECFDF5` emerald-50 | `#047857` emerald-700 | `text-[10px] px-1.5 py-0.5 rounded-md` |
+| `pending` | 配对「待确认」 | `#FFFBEB` amber-50 | `#B45309` amber-700 | 同 confirmedSoft |
+
+```tsx
+import { confirmStatusBadgeClass } from '@/lib/ui';
+
+<span className={confirmStatusBadgeClass('confirmed')}>已确认</span>
+<span className={confirmStatusBadgeClass('confirmedSoft')}>已确认</span>
+<span className={confirmStatusBadgeClass('pending')}>待确认</span>
+```
+
+组件：`SkillRoundConfirmCard`、`SkillChatConfirmDock`。
 
 ---
 

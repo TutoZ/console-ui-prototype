@@ -5,22 +5,24 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Search, Plus, Trash2, KeyRound, Contact, ChevronDown, Check, UserCheck } from '@/lib/icons';
-import { SegmentedTabs } from './common/SegmentedTabs';
-import { PageHeader } from './common/PageHeader';
+import { Search, Plus, Trash2, KeyRound, ChevronDown, Check, UserCheck, ClipboardCheck } from '@/lib/icons';
 import { Modal } from './common/Modal';
-import { PAGE, PANEL, BTN_INK, BTN_SOFT, FIELD, LABEL, SEARCH_FIELD } from '@/lib/ui';
+import { BTN_INK, BTN_SOFT, FIELD, LABEL, SEARCH_FIELD } from '@/lib/ui';
+import {
+  ONLINE_PAGE,
+  OnlinePageHeader,
+  OnlineEmptyRow,
+  onlineTableClass,
+} from './common/OnlinePageLayout';
 import { cn } from '@/lib/utils';
 import { ContentBusy } from './common/ContentBusy';
 import { useMockLatency } from '@/lib/useMockLatency';
 import type { HiredAgent } from '../types';
-import { ONBOARDING_TOAST_COMPLETE } from '@/lib/onboardingCopy';
 import { ORG_COPY } from '@/lib/platformTerminology';
-
-const MGMT_TABS = [
-  { tab: 'staff', label: '员工分配' },
-  { tab: 'roles', label: '角色权限' },
-];
+import { updateInviteApplicationStatus } from '@/lib/subUserInviteStore';
+import { CreateSubUserInviteWizard } from './staff/CreateSubUserInviteWizard';
+import { SubUserJoinApprovalBatchModal } from './nav/SubUserJoinApprovalBatchModal';
+import type { SubUserJoinApplication } from '@/lib/navNotificationsMock';
 
 function formatBoundAgentsLabel(ids: string[], agents: HiredAgent[]): string {
   if (ids.length === 0) return '未绑定 (人工接管)';
@@ -117,19 +119,13 @@ function AgentMultiSelect({
 }
 
 export const StaffManagePage: React.FC = () => {
-  const { staff, roles, createStaff, deleteStaff, updateStaff, hiredAgents, showToast, demoStep, setDemoStep } = useApp();
+  const { staff, roles, deleteStaff, updateStaff, hiredAgents, showToast } = useApp();
   const [search, setSearch] = useState('');
   const tableBusy = useMockLatency('staff-table', 'pageList');
 
   // Modal states
-  const [isCreating, setIsCreating] = useState(false);
-  const [name, setName] = useState('');
-  const [account, setAccount] = useState('');
-  const [workId, setWorkId] = useState('');
-  const [email, setEmail] = useState('');
-  const [roleId, setRoleId] = useState('r_agent');
-  const [maxSlots, setMaxSlots] = useState(5);
-  const [boundAgentIds, setBoundAgentIds] = useState<string[]>([]);
+  const [isInviteWizardOpen, setIsInviteWizardOpen] = useState(false);
+  const [isApprovalFlowOpen, setIsApprovalFlowOpen] = useState(false);
   const [isBulkBinding, setIsBulkBinding] = useState(false);
   const [bulkAgentId, setBulkAgentId] = useState('');
   const [bulkStaffIds, setBulkStaffIds] = useState<string[]>([]);
@@ -143,31 +139,6 @@ export const StaffManagePage: React.FC = () => {
 
   const handleBoundAgentsChange = (staffId: string, ids: string[]) => {
     updateStaff(staffId, { boundAgentIds: ids.length ? ids : undefined });
-
-    if (demoStep === 'A4' && ids.length > 0) {
-      setDemoStep(null);
-      showToast(ONBOARDING_TOAST_COMPLETE);
-    }
-  };
-
-  const handleCreate = () => {
-    if (!name.trim() || !account.trim() || !workId.trim()) {
-      showToast('请填好坐席的姓名、账号和工号。');
-      return;
-    }
-    createStaff(name, account, workId, email || `${account}@joyserving.com`, roleId, maxSlots, boundAgentIds);
-    if (demoStep === 'A4' && boundAgentIds.length > 0) {
-      setDemoStep(null);
-      showToast(ONBOARDING_TOAST_COMPLETE);
-    }
-    setIsCreating(false);
-    setName('');
-    setAccount('');
-    setWorkId('');
-    setEmail('');
-    setRoleId('r_agent');
-    setMaxSlots(5);
-    setBoundAgentIds([]);
   };
 
   const handleResetPassword = (staffName: string) => {
@@ -211,9 +182,6 @@ export const StaffManagePage: React.FC = () => {
 
     if (updatedCount === 0) {
       showToast('所选坐席已全部绑定该数字员工，无需重复操作。');
-    } else if (demoStep === 'A4') {
-      setDemoStep(null);
-      showToast(ONBOARDING_TOAST_COMPLETE);
     } else {
       showToast(ORG_COPY.bulkBindSuccess(agent?.name ?? '数字员工', updatedCount));
     }
@@ -221,66 +189,77 @@ export const StaffManagePage: React.FC = () => {
     setIsBulkBinding(false);
   };
 
-  return (
-    <div className={PAGE}>
-      <SegmentedTabs items={MGMT_TABS} />
+  const handleApproveApplication = (application: SubUserJoinApplication) => {
+    updateInviteApplicationStatus(application.id, 'approved', { approverName: 'cooper' });
+    showToast(`已通过 ${application.name} 的加入申请，子用户已创建`);
+  };
 
-      <PageHeader
-        icon={<Contact size={24} />}
-        title="员工分配"
-      >
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+  const handleRejectApplication = (application: SubUserJoinApplication) => {
+    updateInviteApplicationStatus(application.id, 'rejected', { approverName: 'cooper' });
+    showToast(`已拒绝 ${application.name} 的加入申请`);
+  };
+
+  return (
+    <div className={ONLINE_PAGE}>
+      <OnlinePageHeader title="账号管理">
+        <div className="relative w-full sm:w-64 shrink-0">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
           <input
             type="text"
             placeholder="搜索真实员工/工号..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
-            className={cn(SEARCH_FIELD, 'pl-9 pr-4')}
+            onChange={(e) => setSearch(e.target.value)}
+            className={cn(SEARCH_FIELD, 'w-full pl-9 pr-4')}
           />
         </div>
 
-        <button onClick={openBulkBindModal} className={BTN_SOFT} disabled={onlineAgents.length === 0}>
+        <button type="button" onClick={openBulkBindModal} className={BTN_SOFT} disabled={onlineAgents.length === 0}>
           <UserCheck size={14} />
           <span>批量绑定</span>
         </button>
 
-        <button onClick={() => setIsCreating(true)} className={BTN_INK}>
+        <button type="button" onClick={() => setIsApprovalFlowOpen(true)} className={BTN_SOFT}>
+          <ClipboardCheck size={14} />
+          <span>{ORG_COPY.approvalFlowManage}</span>
+        </button>
+
+        <button type="button" onClick={() => setIsInviteWizardOpen(true)} className={BTN_INK}>
           <Plus size={14} />
           <span>{ORG_COPY.addStaff}</span>
         </button>
-      </PageHeader>
+      </OnlinePageHeader>
 
-      {/* Staff Table */}
-      <div className={`${PANEL} overflow-hidden`}>
-        <table className="w-full text-left border-collapse text-xs text-neutral-700">
+      <div className={onlineTableClass.wrap}>
+        <table className={onlineTableClass.table}>
           <thead>
-            <tr className="bg-neutral-100 border-b border-neutral-200 text-[10px] text-neutral-400 font-extrabold uppercase tracking-wider">
-              <th className="px-4 py-2.5">坐席信息</th>
-              <th className="px-4 py-2.5">登录账号</th>
-              <th className="px-4 py-2.5">坐席工号</th>
-              <th className="px-4 py-2.5">注册邮箱</th>
-              <th className="px-4 py-2.5">系统授权角色</th>
-              <th className="px-4 py-2.5">绑定协同数字员工</th>
-              <th className="px-4 py-2.5 text-center">最大接入上限 (Slots)</th>
-              <th className="px-4 py-2.5 text-right">操作</th>
+            <tr className={onlineTableClass.headRow}>
+              <th className={onlineTableClass.thFirst}>坐席信息</th>
+              <th className={onlineTableClass.th}>登录账号</th>
+              <th className={onlineTableClass.th}>坐席工号</th>
+              <th className={onlineTableClass.th}>注册邮箱</th>
+              <th className={onlineTableClass.th}>系统授权角色</th>
+              <th className={onlineTableClass.th}>绑定协同数字员工</th>
+              <th className={cn(onlineTableClass.th, 'text-center')}>最大接入上限 (Slots)</th>
+              <th className={onlineTableClass.thLast}>操作</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-neutral-100">
+          <tbody className={onlineTableClass.body}>
             {tableBusy ? (
               <tr>
                 <td colSpan={8} className="p-0">
                   <ContentBusy busy size="panel" minHeight={200} />
                 </td>
               </tr>
+            ) : filtered.length === 0 ? (
+              <OnlineEmptyRow colSpan={8}>暂无坐席数据</OnlineEmptyRow>
             ) : (
             filtered.map(s => {
               const roleObj = roles.find(r => r.id === s.roleId);
               const isMe = s.id === 'hs_001';
 
               return (
-                <tr key={s.id} className="hover:bg-neutral-50 transition duration-150">
-                  <td className="px-4 py-2.5">
+                <tr key={s.id} className={onlineTableClass.row}>
+                  <td className={onlineTableClass.tdFirst}>
                     <div className="flex items-center gap-2.5">
                       <div className="h-8 w-8 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200 flex items-center justify-center font-bold">
                         {s.name.charAt(0)}
@@ -291,27 +270,27 @@ export const StaffManagePage: React.FC = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 font-mono font-medium text-neutral-600">{s.account}</td>
-                  <td className="px-4 py-2.5 font-mono font-bold text-neutral-700">{s.workId}</td>
-                  <td className="px-4 py-2.5 text-neutral-500">{s.email}</td>
-                  <td className="px-4 py-2.5">
+                  <td className={onlineTableClass.td}>{s.account}</td>
+                  <td className={onlineTableClass.td}>{s.workId}</td>
+                  <td className={onlineTableClass.td}>{s.email}</td>
+                  <td className={onlineTableClass.td}>
                     <span className="bg-neutral-100 text-neutral-700 px-2.5 py-0.5 rounded-md border border-neutral-200 font-medium">
                       {roleObj ? roleObj.name : '坐席级别'}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className={onlineTableClass.td}>
                     <AgentMultiSelect
                       value={s.boundAgentIds ?? []}
                       onChange={(ids) => handleBoundAgentsChange(s.id, ids)}
                       agents={hiredAgents}
                     />
                   </td>
-                  <td className="px-4 py-2.5 text-center">
+                  <td className={cn(onlineTableClass.td, 'text-center')}>
                     <span className="font-mono font-black text-neutral-900 bg-neutral-100 border border-neutral-200 px-2.5 py-0.5 rounded-md text-[11px]">
                       {s.maxSlots} 人
                     </span>
                   </td>
-                  <td className="px-4 py-2.5 text-right space-x-1.5">
+                  <td className={onlineTableClass.tdLast}>
                     <button
                       onClick={() => handleResetPassword(s.name)}
                       className="text-neutral-500 hover:text-neutral-900 p-1.5 bg-neutral-50 hover:bg-neutral-100 rounded-lg border border-neutral-200 inline-flex items-center justify-center transition"
@@ -341,60 +320,21 @@ export const StaffManagePage: React.FC = () => {
         </table>
       </div>
 
-      {/* CREATE HUMAN STAFF MODAL */}
-      <Modal
-        open={isCreating}
-        onClose={() => setIsCreating(false)}
-        title="注册全新物理客服席位"
-        footer={
-          <>
-            <button onClick={() => setIsCreating(false)} className={BTN_SOFT}>取消</button>
-            <button onClick={handleCreate} className={BTN_INK}>一键注册工号</button>
-          </>
-        }
-      >
-        <div className="space-y-3.5">
-          <div>
-            <label className={LABEL}>客服真实姓名 *</label>
-            <input type="text" placeholder="如：蒋敏敏" value={name} onChange={e => setName(e.target.value)} className={FIELD} />
-          </div>
+      <CreateSubUserInviteWizard
+        open={isInviteWizardOpen}
+        onClose={() => setIsInviteWizardOpen(false)}
+        showToast={showToast}
+        onComplete={() => {
+          setIsInviteWizardOpen(false);
+        }}
+      />
 
-          <div>
-            <label className={LABEL}>员工登录账号 *</label>
-            <input type="text" placeholder="如：agent_minmin" value={account} onChange={e => setAccount(e.target.value)} className={FIELD} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={LABEL}>分配工号 *</label>
-              <input type="text" placeholder="如：STAFF_022" value={workId} onChange={e => setWorkId(e.target.value)} className={FIELD} />
-            </div>
-
-            <div>
-              <label className={LABEL}>系统角色</label>
-              <select value={roleId} onChange={e => setRoleId(e.target.value)} className={FIELD}>
-                {roles.map(r => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className={LABEL}>最大并行接待进线上限 (人)</label>
-            <input type="number" min="2" max="50" value={maxSlots} onChange={e => setMaxSlots(Number(e.target.value))} className={FIELD} />
-          </div>
-
-          <div>
-            <label className={LABEL}>初始绑定数字员工 (可选，可多选)</label>
-            <AgentMultiSelect
-              value={boundAgentIds}
-              onChange={setBoundAgentIds}
-              agents={hiredAgents}
-            />
-          </div>
-        </div>
-      </Modal>
+      <SubUserJoinApprovalBatchModal
+        open={isApprovalFlowOpen}
+        onClose={() => setIsApprovalFlowOpen(false)}
+        onApprove={handleApproveApplication}
+        onReject={handleRejectApplication}
+      />
 
       <Modal
         open={isBulkBinding}

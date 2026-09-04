@@ -4,6 +4,10 @@
 @import "sonner/dist/styles.css";
 @import "@fontsource-variable/inter";
 
+/* 勿扫描本地解压临时目录，避免引用已删除资源导致整站 CSS 500 */
+@source not "../.tmp-skill-ref";
+@source not "../.tmp-*";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -19,6 +23,9 @@
     --color-ink: var(--ink);                /* 主操作 / 标题 / 深色面 */
     --color-ink-hover: var(--ink-hover);    /* 墨黑 hover 态 */
     --color-live: var(--live);              /* 在线 / 实时指示蓝 */
+
+    /* 全平台描边：较默认 neutral-200 更淡，减少卡片/表格边框存在感 */
+    --color-neutral-200: #ececec;
 
     /* ── 清言参考：卡片 / 导航 净白系（用于卡片描边、侧栏激活态）──── */
     --color-card-line: var(--card-line);        /* 卡片 0.5px 发丝级冷灰描边 */
@@ -88,9 +95,9 @@
     --accent: oklch(0.97 0 0);
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.577 0.245 27.325);
-    /* 首页标准描边 #E5E5E5 */
-    --border: #e5e5e5;
-    --input: #e5e5e5;
+    /* 全平台标准描边 — 发丝级冷灰，较 #E5E5E5 更淡 */
+    --border: #ececec;
+    --input: #ececec;
     --ring: #a3a3a3;
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
@@ -105,7 +112,7 @@
     --sidebar-primary-foreground: oklch(0.985 0 0);
     --sidebar-accent: oklch(0.97 0 0);
     --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-border: #ececec;
     --sidebar-ring: oklch(0.708 0 0);
 
     /* JoyServing 别名 → shadcn Mira 预设（b1D0eCCA）语义 token */
@@ -113,11 +120,11 @@
     --surface: var(--card);
     --rail: var(--muted);
     --rail-strong: var(--accent);
-    --line: var(--border);
+    --line: #ebebeb;
     --ink: var(--primary);
     --ink-hover: color-mix(in oklch, var(--primary), white 12%);
     --live: oklch(0.623 0.214 259.815);
-    --card-line: var(--border);
+    --card-line: #ebebeb;
     --nav-active: var(--sidebar-accent);
     --nav-active-line: var(--sidebar-border);
 }
@@ -171,7 +178,39 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+
+  /*
+   * 1px 描边 → 0.5px 发丝线（高分辨率屏）；显式 border-2+ 因 utilities 层优先级不受影响。
+   * 必须用 longhand：若对 .border-t 写 border-width（四边简写），再叠加 * { border-color }
+   * 与 .border-t { border-top-width }，会在左/右/下泄漏 0.5px 杂线。
+   */
+  @supports (border-width: 0.5px) {
+    :where(.border) {
+      border-width: 0.5px;
     }
+    :where(.border-t) {
+      border-top-width: 0.5px;
+    }
+    :where(.border-b) {
+      border-bottom-width: 0.5px;
+    }
+    :where(.border-l) {
+      border-left-width: 0.5px;
+    }
+    :where(.border-r) {
+      border-right-width: 0.5px;
+    }
+    :where(.border-x) {
+      border-left-width: 0.5px;
+      border-right-width: 0.5px;
+    }
+    :where(.border-y) {
+      border-top-width: 0.5px;
+      border-bottom-width: 0.5px;
+    }
+  }
+
   body {
     @apply bg-background text-foreground;
     }
@@ -200,6 +239,25 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background-color: var(--color-neutral-400);
   }
+
+  .custom-scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-neutral-300) transparent;
+  }
+  .custom-scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .custom-scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--color-neutral-300);
+    border-radius: 9999px;
+  }
+  .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-neutral-400);
+  }
 }
 
 /* ── Sonner Toast：相对视口顶栏居中、无关闭钮 ─────────────── */
@@ -219,18 +277,44 @@
     right: auto !important;
     translate: -50% 0;
     margin-inline: 0 !important;
-    pointer-events: auto;
+    /* 禁止 pointer：Sonner 悬停会 pause 倒计时，导致 toast 不消失 */
+    pointer-events: none;
   }
 
   .cn-toast {
-    min-height: 32px !important;
-    padding: 6px 14px !important;
+    min-height: 34px !important;
+    height: 34px !important;
+    padding: 0 12px !important;
     justify-content: center !important;
     align-items: center !important;
     flex-wrap: nowrap !important;
     gap: 8px !important;
     width: max-content !important;
     max-width: min(92vw, 560px) !important;
+    border-radius: 8px !important;
+    border: 1px solid #ebebeb !important;
+    background-color: #fff !important;
+    color: #262626 !important;
+    box-shadow:
+      0 12px 24px -4px rgba(0, 0, 0, 0.06),
+      0 4px 28px 0 rgba(0, 0, 0, 0.04) !important;
+    pointer-events: none !important;
+  }
+
+  [data-sonner-toast][data-type='success'],
+  [data-sonner-toast][data-type='error'],
+  [data-sonner-toast][data-type='warning'],
+  [data-sonner-toast][data-type='info'],
+  [data-sonner-toast][data-type='loading'] {
+    background-color: #fff !important;
+    border-color: #ebebeb !important;
+    color: #262626 !important;
+  }
+
+  .cn-toast [data-icon] {
+    width: 16px !important;
+    height: 16px !important;
+    margin: 0 !important;
   }
 
   .cn-toast [data-content] {
@@ -241,13 +325,14 @@
 
   .cn-toast-title,
   .cn-toast [data-title] {
-    text-align: center;
+    text-align: left;
     white-space: nowrap !important;
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 12px !important;
-    line-height: 1.2 !important;
-    font-weight: 500 !important;
+    line-height: 18px !important;
+    font-weight: 400 !important;
+    color: #262626 !important;
   }
 
   .cn-toast [data-close-button] {
@@ -277,4 +362,153 @@
       linear-gradient(145deg, oklch(0.76 0.13 225), oklch(0.72 0.12 290));
     color: #fff !important;
   }
+}
+
+/* 技能创建输入框：对齐 JoyServing token（中性描边 + ink 主操作） */
+.skill-ai-composer {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(17, 17, 17, 0.04);
+}
+
+/* 侧栏对话输入：弱化描边，与消息区一体 */
+.skill-ai-composer--dock {
+  border: none;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 0 0 1px rgba(233, 234, 235, 0.45),
+    0 4px 16px -8px rgba(17, 17, 17, 0.12);
+}
+
+/* 索引知识下拉 — 对齐主应用浮层 PANEL */
+.skill-goal-composer-menu {
+  border: 1px solid #e5e5e5;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+.skill-confirm-written-flash {
+  animation: skill-confirm-write-pulse 0.9s ease-in-out 3;
+}
+
+.skill-confirm-typing {
+  animation: skill-confirm-write-pulse 1.1s ease-in-out infinite;
+}
+
+.skill-confirm-typing input,
+.skill-confirm-typing textarea {
+  caret-color: #1565bf;
+}
+
+@keyframes skill-confirm-write-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(21, 101, 191, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(21, 101, 191, 0.18);
+  }
+}
+
+.skill-form-scan-stage {
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.skill-form-scan-line {
+  position: absolute;
+  left: 50%;
+  top: -32%;
+  width: 2px;
+  height: 32%;
+  margin-left: -1px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, #1565bf 42%, #000000 50%, #1565bf 58%, rgba(0, 0, 0, 0) 100%);
+  animation: skill-form-scan-sweep 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes skill-form-scan-sweep {
+  0% {
+    top: -32%;
+  }
+  100% {
+    top: 100%;
+  }
+}
+
+/* SkillThinkingCard — Figma 442-1997 任务大纲生成中渐变标题 */
+@keyframes skill-thinking-title-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.skill-thinking-generating-title {
+  background: linear-gradient(
+    270deg,
+    #595959 0%,
+    #1565bf 25%,
+    #000000 50%,
+    #1565bf 75%,
+    #595959 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: skill-thinking-title-shimmer 2.4s linear infinite;
+}
+
+/* 京东朗正体 2.0 — 优先 WOFF2，TTF 兜底 */
+@font-face {
+  font-family: 'JDLangZheng';
+  src: url('/fonts/JINGDONGLangZhengTi2-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JDLangZheng';
+  src: url('/fonts/JINGDONGLangZhengTi2-Semibold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JDLangZheng';
+  src: url('/fonts/JINGDONGLangZhengTi2-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+.jd-langzheng {
+  font-family: 'JDLangZheng', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.food-safety-hero-caption {
+  font-family: 'JDLangZheng', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-weight: 700;
+  opacity: 1;
+}
+
+.food-safety-hero-caption-plain {
+  color: #171717;
+  text-shadow:
+    1.27px 1.27px 0px #ffffff,
+    0px 1.9px 6.33px rgba(255, 255, 255, 0.8);
+}
+
+.food-safety-hero-caption-accent {
+  background-image: linear-gradient(90deg, #005cff 0%, #00abff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
 }

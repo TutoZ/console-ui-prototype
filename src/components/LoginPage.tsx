@@ -1,640 +1,708 @@
-import * as React from "react";
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, Loader2 } from '@/lib/icons';
-import { CreagicLogo } from "@/src/components/CreagicLogo";
-import { DotGrid } from "@/src/components/DotGrid";
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * 京小灵平台登录页 — 版式对齐 Relay chatId=2091507502989455362
+ */
 
-/** 必填星号与文字同色（避免单独红色星号） */
-function ReqLabel({ children }: { children: string }) {
+import React, { useEffect, useState } from 'react';
+import { showAppToast } from '@/lib/appToast';
+import { ToastLoadingIcon } from './common/ToastLoadingIcon';
+import { EnterpriseCertificationView } from './EnterpriseCertificationView';
+import { FirstLoginPasswordModal } from './FirstLoginPasswordModal';
+import { TenantSelectContent, type TenantSelectContentProps } from './TenantSelectContent';
+import styles from './LoginPage.module.scss';
+import {
+  markPrivatePasswordChanged,
+  needsPrivatePasswordChange,
+} from '@/lib/privateAuth';
+import { assetWebp } from '@/lib/assetWebp';
+
+const PHONE_RE = /^1\d{10}$/;
+const CODE_RE = /^\d{6}$/;
+const LOGIN_BG = '/assets/login-left-panel.png';
+const LOGIN_BG_WEBP = assetWebp(LOGIN_BG);
+const LOGIN_BRAND_LOGO = '/assets/login-brand-logo.png';
+const PRIVATE_LOGIN_ARROW =
+  'https://img30.360buyimg.com/ling/jfs/t1/496276/17/14819/298/6a865c9aF4662ace3/027601c01c52b38e.png';
+
+function LoginPanelBackground({ className }: { className: string }) {
   return (
-    <span className="text-sm font-bold text-neutral-900">
-      {children}
-      <span className="font-bold text-neutral-900" aria-hidden="true">
-        {" "}
-        *
-      </span>
-    </span>
+    <picture>
+      <source srcSet={LOGIN_BG_WEBP} type="image/webp" />
+      <img className={className} src={LOGIN_BG} alt="" decoding="async" fetchPriority="high" />
+    </picture>
   );
 }
+const LOGIN_QR_IMAGE =
+  'https://img30.360buyimg.com/ling/jfs/t1/503802/3/10816/27522/6a8af089F37c52423/0276168168ab3ab6.jpg';
+const SCAN_METHOD_JD =
+  'https://img11.360buyimg.com/ling/jfs/t1/511063/37/2712/2410/6a8af089F310fa0ed/02760240247cc968.png';
+const SCAN_METHOD_WECHAT =
+  'https://img14.360buyimg.com/ling/jfs/t1/506728/22/8518/2493/6a8af089F2e365744/0276024024d254a0.png';
 
-type LoginView = "login" | "activation" | "request_access" | "register";
+type LoginTab = 'phone' | 'password' | 'scan';
+type LoginView = 'login' | 'enterprise' | 'certification';
+type LoginMode = 'saas' | 'private';
 
-export function LoginPage({ onLogin }: { onLogin: () => void }) {
-  const [view, setView] = useState<LoginView>("login");
-  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+type LoginPageProps = {
+  onSuccess: (phone: string) => void;
+  initialView?: LoginView;
+  tenantSelect?: TenantSelectContentProps;
+};
 
-  const [regName, setRegName] = useState("");
-  const [regEmail, setRegEmail] = useState("");
-  const [regPassword, setRegPassword] = useState("");
-  const [regConfirmPassword, setRegConfirmPassword] = useState("");
-  const [regError, setRegError] = useState("");
-  const [isRegLoading, setIsRegLoading] = useState(false);
+export const LoginPage: React.FC<LoginPageProps> = ({
+  onSuccess,
+  initialView = 'login',
+  tenantSelect,
+}) => {
+  const [view, setView] = useState<LoginView>(initialView);
+  const [loginMode, setLoginMode] = useState<LoginMode>('saas');
+  const [activeTab, setActiveTab] = useState<LoginTab>('phone');
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [account, setAccount] = useState('');
+  const [password, setPassword] = useState('');
+  const [codeCountdown, setCodeCountdown] = useState(0);
+  const [codeSending, setCodeSending] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<{
+    phone?: string;
+    code?: string;
+    account?: string;
+    password?: string;
+  }>({});
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [rememberEmail, setRememberEmail] = useState(false);
-  const [loginError, setLoginError] = useState("");
-  const [isLoginLoading, setIsLoginLoading] = useState(false);
+  const [entContact, setEntContact] = useState('');
+  const [entPhone, setEntPhone] = useState('');
+  const [entAgreed, setEntAgreed] = useState(false);
+  const [entErrors, setEntErrors] = useState<Partial<Record<'contact' | 'phone' | 'agree', string>>>({});
+  const [entSubmitting, setEntSubmitting] = useState(false);
 
-  const [inviteCode, setInviteCode] = useState("");
-  const [activationError, setActivationError] = useState("");
-  const [isActivationLoading, setIsActivationLoading] = useState(false);
-
-  const [reqName, setReqName] = useState("");
-  const [reqEmail, setReqEmail] = useState("");
-  const [reqReason, setReqReason] = useState("");
-  const [reqError, setReqError] = useState("");
-  const [isReqLoading, setIsReqLoading] = useState(false);
-  const [reqSuccess, setReqSuccess] = useState(false);
-
-  const [forgotEmail, setForgotEmail] = useState("");
-  const [forgotError, setForgotError] = useState("");
-  const [isForgotLoading, setIsForgotLoading] = useState(false);
-  const [forgotSuccess, setForgotSuccess] = useState(false);
-
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [lockoutEndTime, setLockoutEndTime] = useState<number | null>(null);
-  const [countdown, setCountdown] = useState(0);
+  const [privateAccount, setPrivateAccount] = useState('');
+  const [privatePassword, setPrivatePassword] = useState('');
+  const [privateErrors, setPrivateErrors] = useState<{
+    account?: string;
+    password?: string;
+  }>({});
+  const [privateSubmitting, setPrivateSubmitting] = useState(false);
+  const [showFirstLoginPwdModal, setShowFirstLoginPwdModal] = useState(false);
+  const [pendingPrivateAccount, setPendingPrivateAccount] = useState('');
+  const [pendingTempPassword, setPendingTempPassword] = useState('');
 
   useEffect(() => {
-    const remembered = localStorage.getItem("creagic_login_email") || "";
-    if (remembered) {
-      setEmail(remembered);
-      setRememberEmail(true);
-    }
-  }, []);
+    if (codeCountdown <= 0) return;
+    const timer = window.setInterval(() => {
+      setCodeCountdown((v) => (v <= 1 ? 0 : v - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [codeCountdown]);
 
   useEffect(() => {
-    if (!lockoutEndTime) return;
-    const updateCountdown = () => {
-      const remaining = Math.ceil((lockoutEndTime - Date.now()) / 1000);
-      if (remaining <= 0) {
-        setLockoutEndTime(null);
-        setFailedAttempts(0);
-        setCountdown(0);
-      } else {
-        setCountdown(remaining);
-      }
-    };
-    updateCountdown();
-    const id = window.setInterval(updateCountdown, 1000);
-    return () => window.clearInterval(id);
-  }, [lockoutEndTime]);
+    if (view !== 'enterprise') return;
+    const pendingPhone = sessionStorage.getItem('js_pending_enterprise_phone');
+    if (!pendingPhone) return;
+    setEntPhone(pendingPhone);
+    sessionStorage.removeItem('js_pending_enterprise_phone');
+  }, [view]);
 
-  const reportError = (setter: (msg: string) => void, msg: string) => {
-    setFailedAttempts((prev) => {
-      const next = prev + 1;
-      if (next >= 5) {
-        setLockoutEndTime(Date.now() + 60_000);
-        setter("错误次数过多，请1分钟后再试");
-      } else {
-        setter(msg);
-      }
-      return next;
-    });
-  };
-
-  const afterAuthSuccess = () => {
-    setFailedAttempts(0);
-    if (rememberEmail && email.trim()) {
-      localStorage.setItem("creagic_login_email", email.trim());
-    } else {
-      localStorage.removeItem("creagic_login_email");
+  const handleSendCode = async () => {
+    if (codeCountdown > 0 || codeSending) return;
+    if (!PHONE_RE.test(phone.trim())) {
+      setErrors((e) => ({ ...e, phone: '请输入有效的 11 位手机号' }));
+      return;
     }
-    onLogin();
+    setErrors((e) => ({ ...e, phone: undefined }));
+    setCodeSending(true);
+    await new Promise((r) => window.setTimeout(r, 600));
+    setCodeSending(false);
+    setCodeCountdown(60);
+    showAppToast('验证码已发送', 'success');
   };
 
   const handleLogin = async () => {
-    if (lockoutEndTime) return;
-    setLoginError("");
-    if (!email || !email.includes("@")) {
-      reportError(setLoginError, "请输入有效的邮箱地址");
+    const next: typeof errors = {};
+    if (!PHONE_RE.test(phone.trim())) next.phone = '请输入有效的 11 位手机号';
+    if (!CODE_RE.test(code.trim())) next.code = '请输入 6 位验证码';
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
+
+    setSubmitting(true);
+    await new Promise((r) => window.setTimeout(r, 800));
+    setSubmitting(false);
+    // 演示流程：登录/注册 → 创建企业 → 企业实名认证 → 租户选择
+    setEntPhone(phone.trim());
+    setEntContact('');
+    setEntAgreed(false);
+    setEntErrors({});
+    setView('enterprise');
+  };
+
+  const handleAccountLogin = async () => {
+    const next: typeof errors = {};
+    if (!account.trim()) next.account = '请输入账号';
+    if (!password.trim()) next.password = '请输入密码';
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
+
+    setSubmitting(true);
+    await new Promise((r) => window.setTimeout(r, 800));
+    setSubmitting(false);
+    onSuccess(account.trim());
+  };
+
+  const handleEnterpriseSubmit = async () => {
+    const next: typeof entErrors = {};
+    if (!entContact.trim()) next.contact = '请填写联系人姓名';
+    if (!PHONE_RE.test(entPhone.trim())) next.phone = '请填写有效的手机号';
+    if (!entAgreed) next.agree = '请先阅读并同意服务协议与隐私政策';
+    setEntErrors(next);
+    if (Object.keys(next).length > 0) return;
+
+    setEntSubmitting(true);
+    await new Promise((r) => window.setTimeout(r, 500));
+    setEntSubmitting(false);
+    setView('certification');
+  };
+
+  const handlePrivateLogin = async () => {
+    const next: typeof privateErrors = {};
+    if (!privateAccount.trim()) next.account = '请输入账号';
+    if (!privatePassword.trim()) next.password = '请输入密码';
+    setPrivateErrors(next);
+    if (Object.keys(next).length > 0) return;
+
+    setPrivateSubmitting(true);
+    await new Promise((r) => window.setTimeout(r, 800));
+    setPrivateSubmitting(false);
+
+    const account = privateAccount.trim();
+    if (needsPrivatePasswordChange(account)) {
+      setPendingPrivateAccount(account);
+      setPendingTempPassword(privatePassword);
+      setShowFirstLoginPwdModal(true);
       return;
     }
-    if (!password || password.length < 6) {
-      reportError(setLoginError, "密码长度不能少于6位");
-      return;
-    }
-    setIsLoginLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    if (email !== "admin@creagic.com" || password !== "123456") {
-      reportError(
-        setLoginError,
-        "邮箱或密码错误（测试账号：admin@creagic.com / 123456）"
-      );
-      setIsLoginLoading(false);
-      return;
-    }
-    setIsLoginLoading(false);
-    afterAuthSuccess();
+
+    onSuccess(account);
   };
 
-  const handleActivation = async () => {
-    if (lockoutEndTime) return;
-    setActivationError("");
-    if (!inviteCode || inviteCode.length < 6) {
-      reportError(setActivationError, "请输入有效的邀请码");
-      return;
-    }
-    setIsActivationLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    if (inviteCode !== "CREAGIC") {
-      reportError(setActivationError, "邀请码无效（测试邀请码：CREAGIC）");
-      setIsActivationLoading(false);
-      return;
-    }
-    setIsActivationLoading(false);
-    setFailedAttempts(0);
-    setView("register");
+  const completePrivateLogin = (account: string) => {
+    markPrivatePasswordChanged(account);
+    setShowFirstLoginPwdModal(false);
+    setPendingPrivateAccount('');
+    setPendingTempPassword('');
+    setPrivatePassword('');
+    onSuccess(account);
   };
 
-  const handleRegister = async () => {
-    if (lockoutEndTime) return;
-    setRegError("");
-    if (!regName.trim()) return reportError(setRegError, "请输入您的姓名");
-    if (!regEmail || !regEmail.includes("@")) {
-      return reportError(setRegError, "请输入有效的邮箱地址");
-    }
-    if (!regPassword || regPassword.length < 6) {
-      return reportError(setRegError, "密码长度不能少于6位");
-    }
-    if (regPassword !== regConfirmPassword) {
-      return reportError(setRegError, "两次输入的密码不一致");
-    }
-    setIsRegLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    setIsRegLoading(false);
-    setEmail(regEmail);
-    afterAuthSuccess();
-  };
+  const isCertView = view === 'certification';
 
-  const handleRequestAccess = async () => {
-    if (lockoutEndTime) return;
-    setReqError("");
-    if (!reqName.trim()) return reportError(setReqError, "请输入您的姓名");
-    if (!reqEmail || !reqEmail.includes("@")) {
-      return reportError(setReqError, "请输入有效的工作邮箱");
-    }
-    setIsReqLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    setIsReqLoading(false);
-    setReqSuccess(true);
-    setFailedAttempts(0);
-  };
+  // 认证完成后 App 会传入 tenantSelect；须优先于本地 certification 状态，否则会卡在认证成功页
+  if (tenantSelect) {
+    return (
+      <div className={styles.pageContainer}>
+        <div className={styles.leftPanel}>
+          <LoginPanelBackground className={styles.bgImage} />
+          <img className={styles.brandLogo} src={LOGIN_BRAND_LOGO} alt="京小灵" />
+          <div className={styles.mainTitle}>
+            <span className={styles.mainTitleLine1}>您的数字员工团队</span>
+            <span className={styles.mainTitleLine2}>随时待命</span>
+          </div>
+          <div className={styles.subTitle}>
+            开箱即用，一键上岗，服务提质增效、客户体验升级，释放团队创造力
+          </div>
+        </div>
 
-  const handleForgotPassword = async () => {
-    if (lockoutEndTime) return;
-    setForgotError("");
-    if (!forgotEmail || !forgotEmail.includes("@")) {
-      return reportError(setForgotError, "请输入有效的注册邮箱");
-    }
-    setIsForgotLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    setIsForgotLoading(false);
-    setForgotSuccess(true);
-    setFailedAttempts(0);
-  };
+        <div className={styles.rightPanel}>
+          <div className={styles.formShell}>
+            <div className={styles.formContainer}>
+              <div className={`${styles.formTopBar} ${styles.mobilePageHeader} ${styles.mobileOnlyTopBar}`}>
+                <img className={styles.formBrandLogo} src={LOGIN_BRAND_LOGO} alt="京小灵" />
+              </div>
+              <TenantSelectContent {...tenantSelect} />
+            </div>
+          </div>
 
-  const resetModals = () => {
-    setIsForgotPasswordOpen(false);
-    setForgotEmail("");
-    setForgotError("");
-    setForgotSuccess(false);
-  };
+          <div className={styles.footer}>
+            <p className={styles.copyright}>
+              Copyright © 2026 京小灵客户服务数字员工平台
+            </p>
+            <div className={styles.icpInfo}>
+              <span className={styles.icpText}>京公网安备 11011502040511号</span>
+              <span className={styles.icpLink}>京ICP备18016634号-46</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const inputCls =
-    "h-11 w-full rounded-[13px] border border-neutral-200 bg-neutral-50/50 px-3.5 text-[13px] text-neutral-900 outline-none transition-all focus:border-neutral-300 focus:bg-white focus:ring-1 focus:ring-neutral-900";
+  if (isCertView) {
+    return (
+      <div className={styles.certPageRoot}>
+        <header className={styles.certBrandBar}>
+          <button
+            type="button"
+            className={styles.certBrandLogoBtn}
+            onClick={() => setView('login')}
+            aria-label="返回首页"
+            title="返回首页"
+          >
+            <img className={styles.certBrandLogo} src={LOGIN_BRAND_LOGO} alt="京小灵" />
+          </button>
+          <span className={styles.certBrandDivider} aria-hidden>
+            丨
+          </span>
+          <h1 className={styles.certBrandTitle}>企业实名认证</h1>
+        </header>
+        <main className={styles.certMain}>
+          <EnterpriseCertificationView
+            contactName={entContact}
+            contactPhone={entPhone}
+            onBack={() => setView('login')}
+            onEnterPlatform={onSuccess}
+            showToast={showAppToast}
+          />
+        </main>
+      </div>
+    );
+  }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-neutral-100 p-4 font-sans text-neutral-900">
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <DotGrid
-          dotSize={5.5}
-          gap={9}
-          baseColor="#f4f4f5"
-          activeColor="#71717a"
-          proximity={78}
-          speedTrigger={100}
-          shockRadius={290}
-          shockStrength={6}
-          maxSpeed={5000}
-          resistance={750}
-          returnDuration={1.5}
-          ambientDriftPx={7}
-          ambientAccent
-        />
+    <div className={styles.pageContainer}>
+      {/* 左侧宣传区 */}
+      <div className={styles.leftPanel}>
+        <LoginPanelBackground className={styles.bgImage} />
+        <div className={styles.mainTitle}>
+          <span className={styles.mainTitleLine1}>您的数字员工团队</span>
+          <span className={styles.mainTitleLine2}>随时待命</span>
+        </div>
+        <div className={styles.subTitle}>
+          开箱即用，一键上岗，服务提质增效、客户体验升级，释放团队创造力
+        </div>
+        <img className={styles.brandLogo} src={LOGIN_BRAND_LOGO} alt="京小灵" />
       </div>
 
-      <div className="absolute left-6 top-6 z-20">
-        <div className="flex items-center rounded-full border border-neutral-200 bg-white/90 p-1 backdrop-blur-xl shadow-2xl shadow-neutral-200/40">
-          <div className="flex h-[38px] w-[38px] items-center justify-center rounded-full overflow-hidden bg-white">
-            <CreagicLogo />
+      {/* 右侧登录表单区 */}
+      <div className={styles.rightPanel}>
+        <div className={styles.formShell}>
+          <div className={styles.formContainer}>
+            <div className={`${styles.formTopBar} ${styles.mobilePageHeader}`}>
+              <img className={styles.formBrandLogo} src={LOGIN_BRAND_LOGO} alt="京小灵" />
+              <button
+                type="button"
+                className={styles.privateLogin}
+                onClick={() => {
+                  if (loginMode === 'saas') {
+                    setLoginMode('private');
+                    setView('login');
+                  } else {
+                    setLoginMode('saas');
+                  }
+                }}
+              >
+                <span className={styles.privateLoginText}>
+                  {loginMode === 'saas' ? '私有化登录' : 'Saas公有云登录'}
+                </span>
+                <img className={styles.privateLoginIcon} src={PRIVATE_LOGIN_ARROW} alt="" />
+              </button>
+            </div>
+
+            {view === 'login' ? (
+              loginMode === 'private' ? (
+                <div className={styles.formMain}>
+                  <div className={styles.header}>
+                    <div className={styles.title}>欢迎登录京小灵平台</div>
+                    <div className={styles.desc}>使用企业私有化部署实例内账号密码登录</div>
+                  </div>
+
+                  <div className={styles.inputArea}>
+                    <div className={styles.inputRow}>
+                      <input
+                        className={styles.inputField}
+                        type="text"
+                        placeholder="请输入账号"
+                        value={privateAccount}
+                        onChange={(e) => {
+                          setPrivateAccount(e.target.value);
+                          if (privateErrors.account) {
+                            setPrivateErrors((v) => ({ ...v, account: undefined }));
+                          }
+                        }}
+                        autoComplete="username"
+                        aria-label="账号"
+                      />
+                    </div>
+                    {privateErrors.account ? (
+                      <p className={styles.fieldError}>{privateErrors.account}</p>
+                    ) : null}
+
+                    <div className={styles.inputRow}>
+                      <input
+                        className={styles.inputField}
+                        type="password"
+                        placeholder="请输入密码"
+                        value={privatePassword}
+                        onChange={(e) => {
+                          setPrivatePassword(e.target.value);
+                          if (privateErrors.password) {
+                            setPrivateErrors((v) => ({ ...v, password: undefined }));
+                          }
+                        }}
+                        autoComplete="current-password"
+                        aria-label="密码"
+                      />
+                    </div>
+                    {privateErrors.password ? (
+                      <p className={styles.fieldError}>{privateErrors.password}</p>
+                    ) : null}
+                  </div>
+
+                  <button
+                    type="button"
+                    className={styles.submitBtn}
+                    onClick={handlePrivateLogin}
+                    disabled={privateSubmitting}
+                  >
+                    {privateSubmitting ? <ToastLoadingIcon size={18} onDark /> : '登录'}
+                  </button>
+
+                  <div className={styles.helpLinks}>
+                    <span className={styles.helpText}>无法登录？</span>
+                    <button
+                      type="button"
+                      className={styles.resetLink}
+                      onClick={() => showAppToast('请联系企业私有化管理员重置密码', 'info')}
+                    >
+                      请联系企业私有化管理员重置
+                    </button>
+                  </div>
+                </div>
+              ) : (
+              <div className={styles.formMain}>
+                <div className={styles.header}>
+                  <div className={styles.title}>欢迎登录京小灵平台</div>
+                  <div className={styles.desc}>请选择手机号、账号密码或扫码登录</div>
+                </div>
+
+                <div className={styles.tabsWrapper}>
+                  <div className={styles.tabs}>
+                    <button
+                      type="button"
+                      className={activeTab === 'phone' ? styles.tabActive : styles.tabNormal}
+                      onClick={() => setActiveTab('phone')}
+                    >
+                      <span
+                        className={
+                          activeTab === 'phone' ? styles.tabTextActive : styles.tabTextNormal
+                        }
+                      >
+                        手机号登录
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={activeTab === 'password' ? styles.tabActive : styles.tabNormal}
+                      onClick={() => setActiveTab('password')}
+                    >
+                      <span
+                        className={
+                          activeTab === 'password' ? styles.tabTextActive : styles.tabTextNormal
+                        }
+                      >
+                        账号密码
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={activeTab === 'scan' ? styles.tabActive : styles.tabNormal}
+                      onClick={() => setActiveTab('scan')}
+                    >
+                      <span
+                        className={
+                          activeTab === 'scan' ? styles.tabTextActive : styles.tabTextNormal
+                        }
+                      >
+                        扫码登录
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {activeTab === 'phone' ? (
+                  <div className={styles.inputArea}>
+                    <div className={styles.inputRow}>
+                      <input
+                        className={styles.inputField}
+                        type="tel"
+                        placeholder="请输入手机号"
+                        value={phone}
+                        onChange={(e) => {
+                          setPhone(e.target.value.replace(/\D/g, '').slice(0, 11));
+                          if (errors.phone) setErrors((v) => ({ ...v, phone: undefined }));
+                        }}
+                        inputMode="numeric"
+                        autoComplete="tel"
+                        aria-label="手机号"
+                      />
+                    </div>
+                    {errors.phone ? (
+                      <p className={styles.fieldError}>{errors.phone}</p>
+                    ) : null}
+
+                    <div className={styles.inputRow}>
+                      <input
+                        className={styles.inputFieldShort}
+                        type="text"
+                        placeholder="请输入验证码"
+                        value={code}
+                        onChange={(e) => {
+                          setCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                          if (errors.code) setErrors((v) => ({ ...v, code: undefined }));
+                        }}
+                        inputMode="numeric"
+                        aria-label="验证码"
+                      />
+                      <div className={styles.divider} aria-hidden />
+                      <button
+                        type="button"
+                        className={styles.getVcodeBtn}
+                        onClick={handleSendCode}
+                        disabled={codeCountdown > 0 || codeSending}
+                      >
+                        {codeSending ? (
+                          <ToastLoadingIcon size={16} />
+                        ) : codeCountdown > 0 ? (
+                          `${codeCountdown}s 后重发`
+                        ) : (
+                          '获取验证码'
+                        )}
+                      </button>
+                    </div>
+                    {errors.code ? (
+                      <p className={styles.fieldError}>{errors.code}</p>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      className={styles.submitBtn}
+                      onClick={handleLogin}
+                      disabled={submitting}
+                    >
+                      {submitting ? <ToastLoadingIcon size={18} onDark /> : '登录/注册'}
+                    </button>
+                  </div>
+                ) : activeTab === 'password' ? (
+                  <div className={styles.inputArea}>
+                    <div className={styles.inputRow}>
+                      <input
+                        className={styles.inputField}
+                        type="text"
+                        placeholder="请输入账号"
+                        value={account}
+                        onChange={(e) => {
+                          setAccount(e.target.value);
+                          if (errors.account) setErrors((v) => ({ ...v, account: undefined }));
+                        }}
+                        autoComplete="username"
+                        aria-label="账号"
+                      />
+                    </div>
+                    {errors.account ? (
+                      <p className={styles.fieldError}>{errors.account}</p>
+                    ) : null}
+
+                    <div className={styles.inputRow}>
+                      <input
+                        className={styles.inputField}
+                        type="password"
+                        placeholder="请输入密码"
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          if (errors.password) setErrors((v) => ({ ...v, password: undefined }));
+                        }}
+                        autoComplete="current-password"
+                        aria-label="密码"
+                      />
+                    </div>
+                    {errors.password ? (
+                      <p className={styles.fieldError}>{errors.password}</p>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      className={styles.submitBtn}
+                      onClick={handleAccountLogin}
+                      disabled={submitting}
+                    >
+                      {submitting ? <ToastLoadingIcon size={18} onDark /> : '登录'}
+                    </button>
+
+                    <div className={styles.createAccountRow}>
+                      <span className={styles.noAccountText}>忘记密码？</span>
+                      <button
+                        type="button"
+                        className={styles.goCreateText}
+                        onClick={() =>
+                          showAppToast('请通过手机号验证码登录，登录后可在账号设置中找回或重置密码', 'info')
+                        }
+                      >
+                        去找回
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.qrcodeArea}>
+                    <div className={styles.qrcodeWrapper}>
+                      <img className={styles.qrcodeImg} src={LOGIN_QR_IMAGE} alt="登录二维码" />
+                    </div>
+                    <div className={styles.supportMethods}>
+                      <span className={styles.supportLabel}>支持扫码方式</span>
+                      <div className={styles.methodItem}>
+                        <img className={styles.methodIcon} src={SCAN_METHOD_JD} alt="" />
+                        <span className={styles.methodText}>京东扫码登录</span>
+                      </div>
+                      <div className={styles.methodItem}>
+                        <img className={styles.methodIcon} src={SCAN_METHOD_WECHAT} alt="" />
+                        <span className={styles.methodText}>微信扫码登录</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              )
+            ) : (
+              <div className={styles.formMain}>
+                <div className={styles.header}>
+                  <div className={styles.title}>创建企业版</div>
+                  <div className={styles.desc}>
+                    请确认联系人信息，下一步完成企业实名认证
+                  </div>
+                </div>
+
+                <div className={styles.inputArea}>
+                    <div className={styles.inputRow}>
+                      <input
+                        className={styles.inputField}
+                        placeholder="请输入联系人姓名"
+                        value={entContact}
+                        onChange={(e) => {
+                          setEntContact(e.target.value);
+                          if (entErrors.contact) setEntErrors((v) => ({ ...v, contact: undefined }));
+                        }}
+                      />
+                    </div>
+                    {entErrors.contact ? (
+                      <p className={styles.fieldError}>{entErrors.contact}</p>
+                    ) : null}
+
+                    <div className={styles.inputRow}>
+                      <input
+                        className={styles.inputField}
+                        type="tel"
+                        placeholder="请输入手机号"
+                        value={entPhone}
+                        onChange={(e) => {
+                          setEntPhone(e.target.value.replace(/\D/g, '').slice(0, 11));
+                          if (entErrors.phone) setEntErrors((v) => ({ ...v, phone: undefined }));
+                        }}
+                        inputMode="numeric"
+                      />
+                    </div>
+                    {entErrors.phone ? (
+                      <p className={styles.fieldError}>{entErrors.phone}</p>
+                    ) : null}
+
+                    <div className={styles.agreementRow}>
+                      <button
+                        type="button"
+                        className={`${styles.checkbox} ${entAgreed ? styles.checkboxChecked : ''}`}
+                        onClick={() => {
+                          setEntAgreed((v) => !v);
+                          if (entErrors.agree) setEntErrors((v) => ({ ...v, agree: undefined }));
+                        }}
+                        aria-pressed={entAgreed}
+                        aria-label="同意京小灵企业服务协议与隐私政策"
+                      >
+                        {entAgreed ? (
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+                            <path
+                              d="M2.5 6.5L5 9L9.5 3"
+                              stroke="white"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        ) : null}
+                      </button>
+                      <div className={styles.agreementText}>
+                        <span className={styles.grayText}>我已阅读并同意 </span>
+                        <button
+                          type="button"
+                          className={styles.darkText}
+                          onClick={() => showAppToast('京小灵企业服务协议页面即将上线')}
+                        >
+                          《京小灵企业服务协议》
+                        </button>
+                        <span className={styles.grayText}> 与 </span>
+                        <button
+                          type="button"
+                          className={styles.darkText}
+                          onClick={() => showAppToast('隐私政策页面即将上线')}
+                        >
+                          《隐私政策》
+                        </button>
+                      </div>
+                    </div>
+                    {entErrors.agree ? (
+                      <p className={styles.fieldError}>{entErrors.agree}</p>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      className={styles.submitBtn}
+                      onClick={handleEnterpriseSubmit}
+                      disabled={entSubmitting}
+                    >
+                      {entSubmitting ? <ToastLoadingIcon size={18} onDark /> : '下一步'}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.backLink}
+                      onClick={() => setView('login')}
+                    >
+                      返回登录
+                    </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className={styles.footer}>
+          <p className={styles.copyright}>
+            Copyright © 2026 京小灵客户服务数字员工平台
+          </p>
+          <div className={styles.icpInfo}>
+            <span className={styles.icpText}>京公网安备 11011502040511号</span>
+            <span className={styles.icpLink}>京ICP备18016634号-46</span>
           </div>
         </div>
       </div>
 
-      <div className="relative z-10 flex min-h-screen items-center justify-center">
-        <AnimatePresence mode="wait">
-          {view === "login" && (
-            <motion.div
-              key="login"
-              initial={{ opacity: 0, y: 20, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.98 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-              className="w-full max-w-[360px] rounded-[24px] border border-neutral-100 bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:p-6"
-            >
-              <div className="mb-5 flex flex-col items-center">
-                <h1 className="mb-2 text-[21px] font-bold tracking-tight">
-                  登录您的账户
-                </h1>
-                <p className="text-sm text-neutral-500">
-                  输入您的邮箱和密码以访问 Creagic AI
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="block">
-                    <ReqLabel>邮箱</ReqLabel>
-                  </label>
-                  <input
-                    type="email"
-                    className={inputCls}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="请输入您的邮箱"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="block">
-                      <ReqLabel>密码</ReqLabel>
-                    </label>
-                    <button
-                      onClick={() => setIsForgotPasswordOpen(true)}
-                      className="text-sm font-medium text-sky-600 hover:text-sky-700"
-                    >
-                      忘记密码？
-                    </button>
-                  </div>
-                  <input
-                    type="password"
-                    className={inputCls}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="请输入您的密码"
-                  />
-                </div>
-                <label className="mt-1 flex cursor-pointer items-center gap-2.5 text-sm text-neutral-600">
-                  <input
-                    type="checkbox"
-                    checked={rememberEmail}
-                    onChange={(e) => setRememberEmail(e.target.checked)}
-                    className="h-4 w-4 rounded border-neutral-300"
-                  />
-                  记住邮箱
-                </label>
-
-                {loginError && (
-                  <p className="text-sm font-medium text-red-500">{loginError}</p>
-                )}
-
-                <button
-                  onClick={handleLogin}
-                  disabled={isLoginLoading || !!lockoutEndTime}
-                  className="mt-2 h-11 w-full rounded-[13px] bg-neutral-900 text-sm font-bold text-white transition-all active:scale-[0.98] disabled:opacity-70"
-                >
-                  {lockoutEndTime
-                    ? `请等待 ${countdown} 秒`
-                    : isLoginLoading
-                    ? <Loader2 className="mx-auto h-5 w-5 animate-spin" />
-                    : "登录"}
-                </button>
-
-                <p className="mt-0 mb-2 text-center text-xs leading-5 text-neutral-500">
-                  您需要先使用邀请码激活账户。
-                  <button
-                    onClick={() => setView("activation")}
-                    className="ml-1 font-medium text-sky-600 underline underline-offset-2"
-                  >
-                    返回首页输入邀请码
-                  </button>
-                </p>
-
-              </div>
-            </motion.div>
-          )}
-
-          {view === "activation" && (
-            <motion.div
-              key="activation"
-              initial={{ opacity: 0, y: 20, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.98 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-              className="w-full max-w-[360px] rounded-[24px] border border-neutral-100 bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:p-6"
-            >
-              <div className="mb-5 flex flex-col items-center">
-                <h1 className="mb-2 text-lg font-bold tracking-tight">激活您的账户</h1>
-                <p className="text-center text-sm leading-relaxed text-neutral-500">
-                  欢迎来到 Creagic AI！请输入邀请码开始使用
-                </p>
-              </div>
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="block">
-                    <ReqLabel>邀请码</ReqLabel>
-                  </label>
-                  <input
-                    type="text"
-                    className={inputCls}
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value)}
-                    placeholder="请输入您的邀请码"
-                  />
-                </div>
-                {activationError && (
-                  <p className="text-sm font-medium text-red-500">{activationError}</p>
-                )}
-                <button
-                  onClick={handleActivation}
-                  disabled={isActivationLoading || !!lockoutEndTime}
-                  className="mt-2 h-11 w-full rounded-[13px] bg-neutral-900 text-sm font-bold text-white transition-all active:scale-[0.98] disabled:opacity-70"
-                >
-                  {lockoutEndTime
-                    ? `请等待 ${countdown} 秒`
-                    : isActivationLoading
-                    ? <Loader2 className="mx-auto h-5 w-5 animate-spin" />
-                    : "开始使用"}
-                </button>
-                <div className="relative flex items-center py-2">
-                  <div className="flex-grow border-t border-neutral-100" />
-                  <span className="mx-4 text-xs font-medium uppercase tracking-wider text-neutral-400">or</span>
-                  <div className="flex-grow border-t border-neutral-100" />
-                </div>
-                <button
-                  onClick={() => {
-                    setReqSuccess(false);
-                    setView("request_access");
-                  }}
-                  className="h-11 w-full rounded-[13px] border border-neutral-200 bg-white text-sm font-bold text-neutral-900 transition-all active:scale-[0.98]"
-                >
-                  申请访问权限
-                </button>
-                <p className="text-center text-sm text-neutral-500">
-                  已激活账户？
-                  <button
-                    onClick={() => setView("login")}
-                    className="ml-1 font-bold text-neutral-900"
-                  >
-                    立即登录
-                  </button>
-                </p>
-              </div>
-            </motion.div>
-          )}
-
-          {view === "request_access" && (
-            <motion.div
-              key="request_access"
-              initial={{ opacity: 0, y: 20, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.98 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-              className="w-full max-w-[360px] rounded-[24px] border border-neutral-100 bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:p-6"
-            >
-              <div className="mb-5 flex flex-col items-center">
-                <h1 className="mb-2 text-lg font-bold tracking-tight text-neutral-900">
-                  申请访问权限
-                </h1>
-              </div>
-              {reqSuccess ? (
-                <div className="flex flex-col items-center gap-4 py-4">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-                    <CheckCircle2 className="h-8 w-8 text-green-600" />
-                  </div>
-                  <p className="text-center text-sm text-neutral-600">
-                    申请已提交，审核通过后邀请码会发送到 <strong>{reqEmail}</strong>
-                  </p>
-                  <button
-                    onClick={() => setView("activation")}
-                    className="mt-3 h-11 w-full rounded-[13px] bg-neutral-900 text-sm font-bold text-white"
-                  >
-                    返回
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="block">
-                      <ReqLabel>姓名</ReqLabel>
-                    </label>
-                    <input
-                      type="text"
-                      className={inputCls}
-                      value={reqName}
-                      onChange={(e) => setReqName(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="block">
-                      <ReqLabel>邮箱</ReqLabel>
-                    </label>
-                    <input
-                      type="email"
-                      className={inputCls}
-                      value={reqEmail}
-                      onChange={(e) => setReqEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-bold text-neutral-900">申请理由</label>
-                    <input
-                      type="text"
-                      className={inputCls}
-                      value={reqReason}
-                      onChange={(e) => setReqReason(e.target.value)}
-                    />
-                  </div>
-                  {reqError && (
-                    <p className="text-sm font-medium text-red-500">{reqError}</p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleRequestAccess}
-                    disabled={isReqLoading || !!lockoutEndTime}
-                    className="mt-2 h-11 w-full rounded-[13px] bg-neutral-900 text-sm font-bold text-white disabled:opacity-70"
-                  >
-                    {lockoutEndTime
-                      ? `请等待 ${countdown} 秒`
-                      : isReqLoading
-                      ? <Loader2 className="mx-auto h-5 w-5 animate-spin" />
-                      : "提交申请"}
-                  </button>
-                  <p className="text-center text-sm text-neutral-500">
-                    <button
-                      type="button"
-                      onClick={() => setView("login")}
-                      className="font-semibold text-neutral-900 underline decoration-neutral-300 underline-offset-2 transition-colors hover:text-cyan-700"
-                    >
-                      我有账号
-                    </button>
-                  </p>
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {view === "register" && (
-            <motion.div
-              key="register"
-              initial={{ opacity: 0, y: 20, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.98 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-              className="w-full max-w-[360px] rounded-[24px] border border-neutral-100 bg-white p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] sm:p-6"
-            >
-              <div className="mb-5 flex flex-col items-center">
-                <h1 className="mb-2 text-lg font-bold tracking-tight">创建您的账户</h1>
-              </div>
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="block">
-                    <ReqLabel>姓名</ReqLabel>
-                  </label>
-                  <input
-                    type="text"
-                    className={inputCls}
-                    value={regName}
-                    onChange={(e) => setRegName(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="block">
-                    <ReqLabel>邮箱</ReqLabel>
-                  </label>
-                  <input
-                    type="email"
-                    className={inputCls}
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="block">
-                    <ReqLabel>密码</ReqLabel>
-                  </label>
-                  <input
-                    type="password"
-                    className={inputCls}
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="block">
-                    <ReqLabel>确认密码</ReqLabel>
-                  </label>
-                  <input
-                    type="password"
-                    className={inputCls}
-                    value={regConfirmPassword}
-                    onChange={(e) => setRegConfirmPassword(e.target.value)}
-                  />
-                </div>
-                {regError && (
-                  <p className="text-sm font-medium text-red-500">{regError}</p>
-                )}
-                <button
-                  onClick={handleRegister}
-                  disabled={isRegLoading || !!lockoutEndTime}
-                  className="mt-2 h-11 w-full rounded-[13px] bg-neutral-900 text-sm font-bold text-white disabled:opacity-70"
-                >
-                  {lockoutEndTime
-                    ? `请等待 ${countdown} 秒`
-                    : isRegLoading
-                    ? <Loader2 className="mx-auto h-5 w-5 animate-spin" />
-                    : "完成注册"}
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      <AnimatePresence>
-        {isForgotPasswordOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
-              onClick={resetModals}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed left-1/2 top-1/2 z-50 w-full max-w-[360px] -translate-x-1/2 -translate-y-1/2 rounded-[24px] bg-white p-6 shadow-2xl"
-            >
-              {forgotSuccess ? (
-                <div className="flex flex-col items-center gap-6 py-4">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-                    <CheckCircle2 className="h-8 w-8 text-green-600" />
-                  </div>
-                  <h2 className="text-lg font-bold text-neutral-900">邮件已发送</h2>
-                  <p className="text-center text-sm text-neutral-600">
-                    重置密码链接已发送到 <strong>{forgotEmail}</strong>
-                  </p>
-                  <button
-                    onClick={resetModals}
-                    className="mt-2 h-11 w-full rounded-[13px] bg-neutral-900 text-sm font-bold text-white"
-                  >
-                    完成
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-6">
-                  <div>
-                    <h2 className="mb-2 text-lg font-bold text-neutral-900">忘记密码</h2>
-                    <p className="text-sm text-neutral-500">
-                      输入注册邮箱，我们会发送重置链接
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <input
-                      type="email"
-                      value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
-                      placeholder="请输入您的邮箱"
-                      className={inputCls}
-                    />
-                    {forgotError && (
-                      <p className="text-sm font-medium text-red-500">
-                        {forgotError}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={handleForgotPassword}
-                    disabled={isForgotLoading || !!lockoutEndTime}
-                    className="h-11 w-full rounded-[13px] bg-neutral-900 text-sm font-bold text-white disabled:opacity-70"
-                  >
-                    {lockoutEndTime
-                      ? `请等待 ${countdown} 秒`
-                      : isForgotLoading
-                      ? <Loader2 className="mx-auto h-5 w-5 animate-spin" />
-                      : "发送重置链接"}
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <FirstLoginPasswordModal
+        open={showFirstLoginPwdModal}
+        tempPassword={pendingTempPassword}
+        onCancel={() => {
+          setShowFirstLoginPwdModal(false);
+          setPendingPrivateAccount('');
+          setPendingTempPassword('');
+        }}
+        onConfirm={() => completePrivateLogin(pendingPrivateAccount)}
+      />
     </div>
   );
-}
+};

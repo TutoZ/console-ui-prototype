@@ -47,19 +47,19 @@ import { KnowledgeBaseWorkspaceModal } from '../knowledge/KnowledgeBaseWorkspace
 import { EMPLOYEE_RESOURCE_TERMS, MASTER_TEMPLATE_TERMS, ORG_COPY, SEARCH_COPY } from '@/lib/platformTerminology';
 import { getPendingTemplateUpgrade } from '@/lib/masterTemplateUpgrade';
 import { MasterTemplateUpgradeBanner } from './MasterTemplateUpgradeBanner';
+import { SkillRewriteField, SkillRewriteProvider } from '../skills/SkillRewriteField';
 import {
+  AGENT_AVATAR_PRESETS,
   agentAvatarForEditor,
   isAvatarImageUrl,
   RELAY_CARD_AVATARS,
 } from '@/lib/agentAvatarDisplay';
 
 /** 培训配置面板表单 — 比全局 FIELD 略大，提升可读性 */
-const ONBOARDING_FIELD = cn(FIELD, 'text-sm/relaxed');
+export const ONBOARDING_FIELD = cn(FIELD, 'text-sm/relaxed');
 
 /** 暂时隐藏入职标签的「标签选择 / 优化」与 chip 切换 */
 const SHOW_PERSONA_TAG_SELECTOR = false;
-
-const AVATAR_PRESETS = ['👩‍💼', '🛡️', '🔮', '💅', '👨‍🔬', '🙋‍♂️', '👩‍🎨', '🕵️‍♂️', '🎧', '🎙️', '🦾', '👨‍💼'];
 
 function AgentAvatarButton({
   agent,
@@ -129,7 +129,7 @@ function AgentAvatarButton({
             aria-label="关闭头像选择"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute left-0 top-full mt-2 z-50 w-56 bg-white border border-neutral-200 rounded-[13px] shadow-[0_12px_40px_rgba(0,0,0,0.08)] p-3 animate-in fade-in zoom-in-95 duration-150">
+          <div className="absolute left-0 top-full mt-2 z-50 w-[280px] bg-white border border-neutral-200 rounded-[13px] shadow-[0_12px_40px_rgba(0,0,0,0.08)] p-3 animate-in fade-in zoom-in-95 duration-150">
             <p className="text-xs font-semibold text-neutral-500 mb-2">官方头像</p>
             <button
               type="button"
@@ -152,23 +152,27 @@ function AgentAvatarButton({
                 </span>
               </span>
             </button>
-            <p className="text-xs font-semibold text-neutral-500 mb-2">表情头像</p>
-            <div className="grid grid-cols-6 gap-1.5 mb-2">
-              {AVATAR_PRESETS.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => pickAvatar(emoji)}
-                  className={cn(
-                    'h-8 w-8 rounded-lg text-base flex items-center justify-center border transition cursor-pointer hover:bg-neutral-100',
-                    agent.avatar === emoji && agent.avatarCustomized && !isAvatarImageUrl(agent.avatar)
-                      ? 'border-neutral-900 ring-1 ring-neutral-900/15 bg-rail'
-                      : 'border-neutral-200 bg-white',
-                  )}
-                >
-                  {emoji}
-                </button>
-              ))}
+            <p className="text-xs font-semibold text-neutral-500 mb-2">形象头像</p>
+            <div className="grid grid-cols-6 gap-1.5 mb-2 max-h-[168px] overflow-y-auto custom-scrollbar-thin pr-0.5">
+              {AGENT_AVATAR_PRESETS.map((src) => {
+                const selected = agent.avatar === src && agent.avatarCustomized;
+                return (
+                  <button
+                    key={src}
+                    type="button"
+                    onClick={() => pickAvatar(src)}
+                    title="选择形象头像"
+                    className={cn(
+                      'h-9 w-9 rounded-lg overflow-hidden border transition cursor-pointer hover:opacity-90',
+                      selected
+                        ? 'border-neutral-900 ring-1 ring-neutral-900/15'
+                        : 'border-neutral-200 bg-neutral-50',
+                    )}
+                  >
+                    <img src={src} alt="" className="h-full w-full object-cover" />
+                  </button>
+                );
+              })}
             </div>
             <button
               type="button"
@@ -328,25 +332,6 @@ const PERSONA_LIMITS: Record<PersonaTab, number> = {
   constraints: 1000,
 };
 
-function personaValueLength(agent: HiredAgent, id: PersonaTab): number {
-  switch (id) {
-    case 'name':
-      return agent.name.replace(/\s*#\d+$/, '').trim().length;
-    case 'description':
-      return (agent.description ?? '').length;
-    case 'persona':
-      return (agent.persona ?? '').length;
-    case 'background':
-      return (agent.backgroundKnowledge ?? '').length;
-    case 'workflow':
-      return (agent.workflowNotes ?? '').length;
-    case 'style':
-      return (agent.languageStyle ?? '').length;
-    case 'constraints':
-      return (agent.constraints ?? '').length;
-  }
-}
-
 function personaFieldValue(agent: HiredAgent, id: PersonaTab): string {
   switch (id) {
     case 'name':
@@ -415,79 +400,110 @@ function optimizePersonaFields(agent: HiredAgent, modules: PersonaTab[]): Partia
 
 function PersonaField({
   id,
+  label,
   agent,
   patch,
+  disabled,
 }: {
   id: PersonaTab;
+  label: string;
   agent: HiredAgent;
   patch: (updates: Partial<HiredAgent>) => void;
+  disabled?: boolean;
 }) {
   const max = PERSONA_LIMITS[id];
+  const common = {
+    fieldKey: `persona-${id}`,
+    fieldLabel: label,
+    label,
+    labelClassName: 'text-xs font-medium text-neutral-500',
+    maxLength: max,
+    disabled: !!disabled,
+    className: 'space-y-1',
+  } as const;
+
   switch (id) {
     case 'name':
       return (
-        <input
+        <SkillRewriteField
+          {...common}
           value={agent.name.replace(/\s*#\d+$/, '').trim()}
-          onChange={e => {
+          onChange={(val) => {
             const hash = agent.name.match(/#\d+$/)?.[0] ?? '';
-            patch({ name: `${e.target.value.slice(0, max)}${hash}` });
+            patch({ name: `${val.slice(0, max)}${hash}` });
           }}
-          className={cn(ONBOARDING_FIELD, 'h-8 py-1.5')}
           placeholder="食安险客服专员"
+          inputClassName={cn(ONBOARDING_FIELD, 'h-8 py-1.5 text-sm')}
         />
       );
     case 'description':
       return (
-        <textarea
+        <SkillRewriteField
+          {...common}
+          multiline
+          rows={3}
           value={agent.description ?? ''}
-          onChange={e => patch({ description: e.target.value.slice(0, max) })}
+          onChange={(val) => patch({ description: val.slice(0, max) })}
           placeholder="简要描述这位数字员工的岗位定位与服务范围…"
-          className={cn(ONBOARDING_FIELD, 'min-h-[72px] resize-y leading-relaxed')}
+          inputClassName={cn(ONBOARDING_FIELD, 'min-h-[72px] resize-y leading-relaxed text-sm')}
         />
       );
     case 'persona':
       return (
-        <textarea
+        <SkillRewriteField
+          {...common}
+          multiline
+          rows={3}
           value={agent.persona ?? ''}
-          onChange={e => patch({ persona: e.target.value.slice(0, max) })}
+          onChange={(val) => patch({ persona: val.slice(0, max) })}
           placeholder="描述职责与服务场景…"
-          className={cn(ONBOARDING_FIELD, 'min-h-[72px] resize-y leading-relaxed')}
+          inputClassName={cn(ONBOARDING_FIELD, 'min-h-[72px] resize-y leading-relaxed text-sm')}
         />
       );
     case 'background':
       return (
-        <textarea
+        <SkillRewriteField
+          {...common}
+          multiline
+          rows={3}
           value={agent.backgroundKnowledge ?? ''}
-          onChange={e => patch({ backgroundKnowledge: e.target.value.slice(0, max) })}
+          onChange={(val) => patch({ backgroundKnowledge: val.slice(0, max) })}
           placeholder="补充业务背景、知识来源与引用规范…"
-          className={cn(ONBOARDING_FIELD, 'min-h-[72px] resize-y leading-relaxed')}
+          inputClassName={cn(ONBOARDING_FIELD, 'min-h-[72px] resize-y leading-relaxed text-sm')}
         />
       );
     case 'workflow':
       return (
-        <textarea
+        <SkillRewriteField
+          {...common}
+          multiline
+          rows={3}
           value={agent.workflowNotes ?? ''}
-          onChange={e => patch({ workflowNotes: e.target.value.slice(0, max) })}
+          onChange={(val) => patch({ workflowNotes: val.slice(0, max) })}
           placeholder="描述技能触发条件与工作流编排…"
-          className={cn(ONBOARDING_FIELD, 'min-h-[72px] resize-y leading-relaxed')}
+          inputClassName={cn(ONBOARDING_FIELD, 'min-h-[72px] resize-y leading-relaxed text-sm')}
         />
       );
     case 'style':
       return (
-        <input
+        <SkillRewriteField
+          {...common}
           value={agent.languageStyle ?? ''}
-          onChange={e => patch({ languageStyle: e.target.value.slice(0, max) })}
-          className={cn(ONBOARDING_FIELD, 'h-8 py-1.5')}
+          onChange={(val) => patch({ languageStyle: val.slice(0, max) })}
           placeholder="例如：专业严谨、温和耐心"
+          inputClassName={cn(ONBOARDING_FIELD, 'h-8 py-1.5 text-sm')}
         />
       );
     case 'constraints':
       return (
-        <textarea
+        <SkillRewriteField
+          {...common}
+          multiline
+          rows={3}
           value={agent.constraints ?? ''}
-          onChange={e => patch({ constraints: e.target.value.slice(0, max) })}
+          onChange={(val) => patch({ constraints: val.slice(0, max) })}
           placeholder={'1. 回答简洁\n2. 超出知识范围时礼貌拒答…'}
-          className={cn(ONBOARDING_FIELD, 'min-h-[72px] resize-y leading-relaxed')}
+          inputClassName={cn(ONBOARDING_FIELD, 'min-h-[72px] resize-y leading-relaxed text-sm')}
         />
       );
   }
@@ -495,7 +511,7 @@ function PersonaField({
 
 function CharCount({ current, max }: { current: number; max: number }) {
   return (
-    <span className="text-xs text-neutral-500 tabular-nums">
+    <span className="text-xs text-neutral-500 tabular-nums font-normal">
       {current}/{max}
     </span>
   );
@@ -685,7 +701,7 @@ function getOnboardingRequiredErrors(agent: HiredAgent): string[] {
   return missing;
 }
 
-function ConfigSection({
+export function ConfigSection({
   title,
   icon,
   open,
@@ -1066,7 +1082,7 @@ export const OnboardingConfigPanel: React.FC<OnboardingConfigPanelProps> = ({
                 (readOnly || personaOptimizing) && 'opacity-50 pointer-events-none',
               )}
             >
-              {personaOptimizing ? <Loader2 size={12} /> : <RefreshCw size={12} />}
+              {personaOptimizing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
               {personaOptimizing ? '优化中…' : '优化'}
             </button>
           </div>
@@ -1097,20 +1113,21 @@ export const OnboardingConfigPanel: React.FC<OnboardingConfigPanelProps> = ({
               点击上方模块标签，在下方添加对应配置项
             </p>
           )}
-          {visiblePersonaTabs.map(tab => (
-            <div key={tab.id} className="space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <label className="text-xs font-medium text-neutral-500">
-                  {tab.label}
-                </label>
-                <CharCount
-                  current={personaValueLength(displayAgent, tab.id)}
-                  max={PERSONA_LIMITS[tab.id]}
-                />
-              </div>
-              <PersonaField id={tab.id} agent={displayAgent} patch={patch} />
-            </div>
-          ))}
+          <SkillRewriteProvider
+            onDirty={() => setIsDirty(true)}
+            onToast={showToast}
+          >
+            {visiblePersonaTabs.map(tab => (
+              <PersonaField
+                key={tab.id}
+                id={tab.id}
+                label={tab.label}
+                agent={displayAgent}
+                patch={patch}
+                disabled={readOnly}
+              />
+            ))}
+          </SkillRewriteProvider>
         </div>
       </ConfigSection>
 
@@ -1437,6 +1454,38 @@ export const OnboardingConfigPanel: React.FC<OnboardingConfigPanelProps> = ({
                 ? `${marketAgent.name}·${marketAgent.templateVersion}`
                 : '—'}
             </div>
+          </div>
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <div className="flex items-center gap-1 min-w-0">
+              <span className="text-xs font-medium text-neutral-500">
+                {EMPLOYEE_RESOURCE_TERMS.replyPolish}
+              </span>
+              <span title={EMPLOYEE_RESOURCE_TERMS.replyPolishHint}>
+                <HelpCircle size={11} className="text-neutral-500/70 shrink-0" />
+              </span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={displayAgent.replyPolishEnabled ?? true}
+              aria-label={EMPLOYEE_RESOURCE_TERMS.replyPolish}
+              disabled={readOnly}
+              onClick={() =>
+                patch({ replyPolishEnabled: !(displayAgent.replyPolishEnabled ?? true) })
+              }
+              className={cn(
+                'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent transition-colors cursor-pointer',
+                readOnly && 'opacity-50 pointer-events-none',
+                (displayAgent.replyPolishEnabled ?? true) ? 'bg-live' : 'bg-neutral-200',
+              )}
+            >
+              <span
+                className={cn(
+                  'pointer-events-none block h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+                  (displayAgent.replyPolishEnabled ?? true) ? 'translate-x-4' : 'translate-x-0.5',
+                )}
+              />
+            </button>
           </div>
         </div>
       </ConfigSection>

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Task } from '../types';
 import {
@@ -21,7 +21,8 @@ import {
 } from '@/lib/icons';
 import { Modal } from './common/Modal';
 import { SegmentedTabBar } from './common/SegmentedTabs';
-import { BTN_INK, BTN_SOFT, FIELD, LABEL, PAGE, PANEL } from '@/lib/ui';
+import { BTN_INK, BTN_SOFT, FIELD, LABEL, PAGE, PANEL, SEARCH_FIELD } from '@/lib/ui';
+import { OnlinePageHeader } from './common/OnlinePageLayout';
 import { TASK_CENTER_COPY } from '@/lib/platformTerminology';
 import { cn } from '@/lib/utils';
 
@@ -92,7 +93,7 @@ function agentTagId(agentId: string) {
 }
 
 export const TaskCenterPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
-  const { tasks, hiredAgents, createTask, updateTask, deleteTask, showToast } = useApp();
+  const { tasks, hiredAgents, createTask, updateTask, deleteTask, showToast, pendingOpsAction, setPendingOpsAction, pendingOpsAgentId, setPendingOpsAgentId } = useApp();
 
   const [taskTab, setTaskTab] = useState<TaskAudience>('b');
   const [search, setSearch] = useState('');
@@ -142,6 +143,16 @@ export const TaskCenterPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
     setEditingTask(null);
     setIsCreating(true);
   };
+
+  useEffect(() => {
+    if (pendingOpsAction !== 'open-task-center') return;
+    resetForm();
+    setEditingTask(null);
+    if (pendingOpsAgentId) setFormAgentId(pendingOpsAgentId);
+    setIsCreating(true);
+    setPendingOpsAction(null);
+    setPendingOpsAgentId(null);
+  }, [pendingOpsAction, pendingOpsAgentId, setPendingOpsAction, setPendingOpsAgentId]);
 
   const openEdit = (task: Task) => {
     setFormName(task.name);
@@ -208,74 +219,62 @@ export const TaskCenterPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
 
   return (
     <div className={embedded ? 'space-y-4 text-left' : cn(PAGE, 'space-y-4 text-left')}>
-      {/* 顶栏：标题 + 筛选/搜索 + 主操作 */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <h1 id="task-center-title" className="text-base font-extrabold text-neutral-900 tracking-tight">
-            任务中心
-          </h1>
-          <p className="text-[11px] text-neutral-500 mt-0.5">
-            {TASK_CENTER_COPY.subtitle}
-          </p>
-        </div>
+      <OnlinePageHeader title="任务中心">
+        <SegmentedTabBar
+          value={taskTab}
+          onChange={(id) => {
+            setTaskTab(id as 'b' | 'c');
+            setPage(1);
+          }}
+          items={[
+            {
+              id: 'b',
+              label: (
+                <>
+                  <Users size={13} />
+                  商家端任务
+                </>
+              ),
+            },
+            {
+              id: 'c',
+              label: (
+                <>
+                  <Headphones size={13} />
+                  顾客端任务
+                </>
+              ),
+            },
+          ]}
+        />
 
-        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 lg:justify-end">
-          <SegmentedTabBar
-            value={taskTab}
-            onChange={(id) => {
-              setTaskTab(id as 'b' | 'c');
+        <div className="relative w-full sm:w-44 shrink-0">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="搜索任务名称..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
               setPage(1);
             }}
-            items={[
-              {
-                id: 'b',
-                label: (
-                  <>
-                    <Users size={13} />
-                    商家端任务
-                  </>
-                ),
-              },
-              {
-                id: 'c',
-                label: (
-                  <>
-                    <Headphones size={13} />
-                    顾客端任务
-                  </>
-                ),
-              },
-            ]}
+            className={cn(SEARCH_FIELD, 'pl-8')}
           />
-
-          <div className="relative min-w-[160px] flex-1 sm:flex-none sm:w-44">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
-            <input
-              type="text"
-              placeholder="搜索任务名称..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              className="w-full h-8 pl-8 pr-3 text-[11px] rounded-lg border border-neutral-200/70 bg-white outline-none focus:border-neutral-400"
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowCommandModal(true)}
-            className="h-8 px-3 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition shrink-0"
-          >
-            <Plus size={13} strokeWidth={2.5} />
-            任务指令交互
-          </button>
-          <button type="button" onClick={openCreate} className={cn(BTN_INK, 'h-8 px-3 shrink-0')}>
-            <Plus size={13} strokeWidth={2.5} />
-            新建任务
-          </button>
         </div>
-      </div>
+
+        <button
+          type="button"
+          onClick={() => setShowCommandModal(true)}
+          className={cn(BTN_INK, 'shrink-0')}
+        >
+          <Plus size={13} strokeWidth={2.5} />
+          任务指令交互
+        </button>
+        <button type="button" onClick={openCreate} className={cn(BTN_INK, 'shrink-0')}>
+          <Plus size={13} strokeWidth={2.5} />
+          新建任务
+        </button>
+      </OnlinePageHeader>
 
       {/* 任务列表 — 主内容区 */}
       <section className={cn(PANEL, 'shadow-[0_2px_10px_rgba(31,35,41,0.03)] overflow-hidden')}>

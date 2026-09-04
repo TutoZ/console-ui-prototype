@@ -2,12 +2,13 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 雇佣员工向导 — 4 步流程（对齐 joypi-dev-workbench employee/center）
+ * 雇佣员工向导 — 4 步流程（市场 → 培训 → 配置 → 派发/上线）
  */
 
 export const ONBOARDING_STEP_COUNT = 4;
 
-export type OnboardingDemoStep = 'A1' | 'A2' | 'A3' | 'A4';
+/** A5 仅作「向导已完成」内部态，不在步骤列表展示 */
+export type OnboardingDemoStep = 'A1' | 'A2' | 'A3' | 'A4' | 'A5';
 
 export const ONBOARDING_DEMO_STEPS: OnboardingDemoStep[] = [
   'A1',
@@ -25,7 +26,6 @@ export interface OnboardingStepDef {
   openOnboarding?: boolean;
 }
 
-/** 与 joypi 一致的 4 步标题 */
 export const ONBOARDING_STEPS: OnboardingStepDef[] = [
   {
     n: 1,
@@ -35,33 +35,39 @@ export const ONBOARDING_STEPS: OnboardingStepDef[] = [
   },
   {
     n: 2,
-    title: '填写员工信息并保存配置',
+    title: '在我的数字员工点击培训',
     demoStep: 'A2',
     tab: 'employees',
-    openOnboarding: true,
   },
   {
     n: 3,
-    title: '能力测试效果并准予上岗',
+    title: '填写员工信息并保存配置',
     demoStep: 'A3',
     tab: 'employees',
     openOnboarding: true,
   },
   {
     n: 4,
-    title: '绑定给坐席使用',
+    title: '在我的数字员工点击派发任务或上线',
     demoStep: 'A4',
-    tab: 'staff',
+    tab: 'employees',
   },
 ];
 
 export function isOnboardingDemoStep(step: string | null | undefined): step is OnboardingDemoStep {
-  return ONBOARDING_DEMO_STEPS.includes(step as OnboardingDemoStep);
+  return (
+    step === 'A1' ||
+    step === 'A2' ||
+    step === 'A3' ||
+    step === 'A4' ||
+    step === 'A5'
+  );
 }
 
-/** 当前 demoStep 下已完成步数（A2 → 已完成 1 步） */
+/** 当前 demoStep 下已完成步数（A2 → 已完成 1 步；A5 → 全部完成） */
 export function onboardingCompletedCount(demoStep: string | null, hasOnlineAgent = false): number {
-  if (isOnboardingDemoStep(demoStep)) {
+  if (demoStep === 'A5') return ONBOARDING_STEP_COUNT;
+  if (demoStep === 'A1' || demoStep === 'A2' || demoStep === 'A3' || demoStep === 'A4') {
     return ONBOARDING_DEMO_STEPS.indexOf(demoStep);
   }
   if (hasOnlineAgent) return ONBOARDING_STEP_COUNT;
@@ -78,14 +84,17 @@ export function resolveOnboardingStepState(
   stepDemoKey: OnboardingDemoStep,
   hasOnlineAgent = false,
 ): { done: boolean; active: boolean } {
-  if (hasOnlineAgent && !isOnboardingDemoStep(demoStep)) {
+  if (demoStep === 'A5' || (hasOnlineAgent && !isOnboardingDemoStep(demoStep))) {
     return { done: true, active: false };
   }
-  if (!isOnboardingDemoStep(demoStep)) {
+  if (demoStep !== 'A1' && demoStep !== 'A2' && demoStep !== 'A3' && demoStep !== 'A4') {
     return { done: false, active: false };
   }
   const currentIdx = ONBOARDING_DEMO_STEPS.indexOf(demoStep);
   const stepIdx = ONBOARDING_DEMO_STEPS.indexOf(stepDemoKey);
+  if (stepIdx < 0) {
+    return { done: false, active: false };
+  }
   return {
     done: currentIdx > stepIdx,
     active: currentIdx === stepIdx,

@@ -59,6 +59,8 @@ description: JoyServing 京小灵设计系统全量 Token 索引。覆盖全部 
 | 实时蓝 | `#1E90FF` | `text-live` |
 | 信息浅蓝 | `#F0F9FF`（稿 `#F2F7FF`） | `bg-sky-50` |
 | 成功底 | `#ECFDF5` | `bg-emerald-50` |
+| 确认已写入（深） | `#D1FAE5` / `#065F46` | `confirmStatusBadgeClass('confirmed')` |
+| 确认已写入（浅） | `#ECFDF5` / `#047857` | `confirmStatusBadgeClass('confirmedSoft')` |
 | 警告底 | `#FFFBEB` | `bg-amber-50` |
 
 ### 间距

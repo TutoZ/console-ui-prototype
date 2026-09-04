@@ -3,18 +3,31 @@ import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Toaster as Sonner, type ToasterProps } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import {
-  Alert02Icon,
-  CheckmarkCircle02Icon,
-  InformationCircleIcon,
-  MultiplicationSignCircleIcon,
-} from '@hugeicons/core-free-icons';
-import { MatrixLoader } from '@/src/components/common/MatrixLoader';
+import { ToastLoadingIcon } from '@/src/components/common/ToastLoadingIcon';
+import { TOAST_ICON } from '@/lib/toastAssets';
+
+function ToastStatusIcon({ src, spin }: { src: string; spin?: boolean }) {
+  if (spin) {
+    return <ToastLoadingIcon size={16} className="size-4" />;
+  }
+  return (
+    <img
+      src={src}
+      alt=""
+      width={16}
+      height={16}
+      className="size-4 shrink-0 object-contain"
+      aria-hidden
+    />
+  );
+}
 
 const Toaster = ({
   closeButton = false,
   position = 'top-center',
+  duration = 1600,
+  visibleToasts = 1,
+  expand = false,
   ...props
 }: ToasterProps) => {
   const { theme = 'light' } = useTheme();
@@ -25,36 +38,35 @@ const Toaster = ({
       className="toaster group"
       closeButton={closeButton}
       position={position}
+      duration={duration}
+      visibleToasts={visibleToasts}
+      expand={expand}
       icons={{
-        success: (
-          <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-3.5 shrink-0" />
-        ),
-        info: (
-          <HugeiconsIcon icon={InformationCircleIcon} strokeWidth={2} className="size-3.5 shrink-0" />
-        ),
-        warning: (
-          <HugeiconsIcon icon={Alert02Icon} strokeWidth={2} className="size-3.5 shrink-0" />
-        ),
-        error: (
-          <HugeiconsIcon icon={MultiplicationSignCircleIcon} strokeWidth={2} className="size-3.5 shrink-0" />
-        ),
-        loading: (
-          <MatrixLoader size={14} className="size-3.5 shrink-0" />
-        ),
+        success: <ToastStatusIcon src={TOAST_ICON.success} />,
+        info: <ToastStatusIcon src={TOAST_ICON.info} />,
+        warning: <ToastStatusIcon src={TOAST_ICON.warning} />,
+        error: <ToastStatusIcon src={TOAST_ICON.error} />,
+        loading: <ToastStatusIcon src={TOAST_ICON.loading} spin />,
       }}
       style={
         {
-          '--normal-bg': 'var(--popover)',
-          '--normal-text': 'var(--popover-foreground)',
-          '--normal-border': 'var(--border)',
-          '--border-radius': 'var(--radius)',
+          '--normal-bg': '#ffffff',
+          '--normal-text': '#262626',
+          '--normal-border': '#ebebeb',
+          '--border-radius': '8px',
           '--width': 'auto',
         } as React.CSSProperties
       }
       toastOptions={{
+        duration,
         classNames: {
           toast: 'cn-toast',
           title: 'cn-toast-title',
+          success: 'cn-toast',
+          error: 'cn-toast',
+          warning: 'cn-toast',
+          info: 'cn-toast',
+          loading: 'cn-toast',
         },
       }}
       {...props}

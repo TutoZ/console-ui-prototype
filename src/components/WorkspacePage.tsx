@@ -35,6 +35,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { ContentBusy } from './common/ContentBusy';
+import { PictureWebp } from './common/PictureWebp';
 import { useMockLatency } from '@/lib/useMockLatency';
 import { buildLiveReasoningFeed } from '@/src/lib/liveReasoningFeed';
 import { WORKSPACE_COPY, SESSION_COPY } from '@/lib/platformTerminology';
@@ -373,9 +374,10 @@ export const WorkspacePage: React.FC = () => {
             title="返回管理后台"
             className="h-9 w-9 flex items-center justify-center rounded-[10px] overflow-hidden transition duration-200 hover:bg-neutral-100 cursor-pointer"
           >
-            <img
+            <PictureWebp
               src={RELAY_HOME_ASSETS.logo}
               alt="JoySupport"
+              loading="eager"
               className="h-10 w-10 object-cover object-left select-none pointer-events-none"
               draggable={false}
             />
@@ -515,7 +517,6 @@ export const WorkspacePage: React.FC = () => {
             </div>
 
             <Button 
-              onClick={() => showToast('📊 导出报表成功！已提取了满足检索范畴的会话清单并生成 Excel，可在您的浏览器下载列表。')}
               className="bg-neutral-800 hover:opacity-90 text-white font-semibold text-xs px-3 h-8 rounded-[7px] flex items-center gap-1.5 max-sm:w-full justify-center cursor-pointer transition"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">

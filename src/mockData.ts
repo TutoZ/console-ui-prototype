@@ -5,13 +5,14 @@
 
 import { AgentMarketInfo, HiredAgent, KnowledgeBase, Skill, ABTest, Task, HumanStaff, RolePermission, ChatSession } from './types';
 import { defaultFallbackScriptForAgent, defaultOpeningLineForAgent } from '@/lib/agentDefaultCopy';
+import { AGENT_AVATAR_PRESETS } from '@/lib/agentAvatarDisplay';
 
 /** 数字员工默认大语言模型（档案 / 更多设置展示） */
 export const DEFAULT_AGENT_MODEL = 'Qwen3.6-35B-A3B';
 
 /** 食安险数字员工默认入职标签（培训 / 雇佣时注入） */
 export const FOOD_SAFETY_AGENT_DEFAULTS = {
-  avatar: '🛡️',
+  avatar: AGENT_AVATAR_PRESETS[0],
   description:
     '专注餐饮商户食安责任险咨询，解答保障范围、保费方案、投保条件与理赔流程，协助完成线上报案与材料指引。',
   persona:
@@ -29,7 +30,7 @@ const QC_MARKET_DESC =
   '持续检核客服数字员工的会话质量：配置质检标准与会话来源，上岗后按计划分会话检出问题并可纠错。';
 
 export const QC_AGENT_DEFAULTS = {
-  avatar: '🔎',
+  avatar: AGENT_AVATAR_PRESETS[1],
   description: QC_MARKET_DESC,
   persona:
     '你是会话质检专员，按既定标准对客服数字员工的会话做 AI 初筛与问题标注，输出分数与违规点，供运营纠错与改进。',
@@ -41,25 +42,16 @@ export const INITIAL_MARKET_AGENTS: AgentMarketInfo[] = [
   {
     id: 'm_qc_session',
     name: '会话质检专员',
-    avatar: '🔎',
+    avatar: AGENT_AVATAR_PRESETS[1],
     description: QC_MARKET_DESC,
     category: 'ready',
     jobFamily: 'quality_inspection',
     capabilities: ['质检标准配置', '本平台会话来源', 'AI 分会话初筛', '结果纠错留痕'],
   },
   {
-    id: 'm_sales',
-    name: '食安险商户顾问',
-    avatar: '👩‍💼',
-    description: '5年保险经纪经验，擅长为餐饮连锁客户定制食安责任险方案，解答保费、加保与续保问题。',
-    category: 'ready',
-    jobFamily: 'customer_service',
-    capabilities: ['方案定制报价', '续保加保咨询', '门店风险初评', '客户经理协同']
-  },
-  {
     id: 'm_content',
     name: '食安险客服专员',
-    avatar: '🛡️',
+    avatar: AGENT_AVATAR_PRESETS[0],
     description: FOOD_SAFETY_AGENT_DEFAULTS.description,
     category: 'ready',
     jobFamily: 'customer_service',
@@ -69,33 +61,9 @@ export const INITIAL_MARKET_AGENTS: AgentMarketInfo[] = [
       '新增食安投诉情绪分级与自动升级转人工策略\n优化理赔测算技能调用链路，支持多票据合并测算\n补充 2026 版产品手册检索优先级与兜底话术',
   },
   {
-    id: 'm_assistant',
-    name: '通用个人助理',
-    avatar: '🔮',
-    description: '适合作为团队通用助理：可定制岗位职责与技能组合，统筹待办、整理会议要点，并长期记住业务上下文。',
-    category: 'ready',
-    capabilities: ['多线程流程统筹', '技能组合派发', '会议精要生成', '长期业务上下文记忆']
-  },
-  {
-    id: 'm_content_expert',
-    name: '内容运营专家',
-    avatar: '💅',
-    description: '专注热点追踪与多平台内容生产，把撰稿、分发与复盘串成一条可自动运转的运营流水线。',
-    category: 'ready',
-    capabilities: ['跨渠道协同调度', '动态热点追踪', '跨媒体智能分流', '运营链路复盘']
-  },
-  {
-    id: 'm_data',
-    name: '数据分析大师',
-    avatar: '👨‍🔬',
-    description: '帮团队清洗、关联业务数据，自动输出洞察报告，并对异常波动给出预警与趋势研判。',
-    category: 'custom',
-    capabilities: ['多维异动诊断', 'SQL复杂表关联', '自动生成洞察大盘', '时序负荷预测']
-  },
-  {
     id: 'm_wechat',
     name: '企微私域客服',
-    avatar: '🙋‍♂️',
+    avatar: AGENT_AVATAR_PRESETS[2],
     description: '嵌入企微社群，即时回答高频咨询，识别潜在客户意向，配合话术库维持高留存。',
     category: 'custom',
     capabilities: ['客户流失拦截', '裂变营销转化追踪', '高频话术无重合库', '企微风控敏感词监控']
@@ -103,35 +71,48 @@ export const INITIAL_MARKET_AGENTS: AgentMarketInfo[] = [
   {
     id: 'm_creative',
     name: '内容创作大师',
-    avatar: '👩‍🎨',
+    avatar: AGENT_AVATAR_PRESETS[3],
     description: '按小红书、抖音、B站等平台文风，生成高点击标题、短视频分镜与多渠道文案变体。',
     category: 'custom',
     capabilities: ['高点击率标题生成', '短视频分镜脑暴', '多源信息提取扩写', '文风格调无损转化']
   },
   {
-    id: 'm_leads',
-    name: '线索洞察专家',
-    avatar: '🕵️‍♂️',
-    description: '汇总各渠道线索，实时分级意向度，跟踪销售漏斗健康度并给出跟进建议。',
-    category: 'custom',
-    capabilities: ['意向度动态漏斗', '全网多模态线索追溯', '赢单概率预测估算', '失单溯源与归因']
-  },
-  {
     id: 'm_hotline',
-    name: '热线客服',
-    avatar: '🎧',
+    name: '热线接待专员',
+    avatar: AGENT_AVATAR_PRESETS[4],
     description: '快速响应呼入咨询，识别客户情绪与关键诉求，精准应答并完成工单关联。',
-    category: 'custom',
-    capabilities: ['超清文字实时互转', '智能打断防冲突', '情绪降噪缓冲', '呼入路由精准调度']
+    category: 'ready',
+    jobFamily: 'hotline',
+    capabilities: ['超清文字实时互转', '智能打断防冲突', '情绪降噪缓冲', '呼入路由精准调度'],
   },
   {
     id: 'm_outbound',
-    name: '外呼专员',
-    avatar: '🎙️',
+    name: '外呼触达专员',
+    avatar: AGENT_AVATAR_PRESETS[5],
     description: '批量外呼触达，按多分支话术流转沟通，识别拒接与意向并自动打标回访。',
-    category: 'custom',
-    capabilities: ['高维话术路径流转', '拒接拦截应对话术', '自动回访并挂机', '全量音频意图打标']
-  }
+    category: 'ready',
+    jobFamily: 'outbound',
+    capabilities: ['高维话术路径流转', '拒接拦截应对话术', '自动回访并挂机', '全量音频意图打标'],
+  },
+  {
+    id: 'm_collection',
+    name: '智能催收专员',
+    avatar: AGENT_AVATAR_PRESETS[6],
+    description:
+      '合规外呼催收，按案件策略推进沟通，识别还款意愿并推荐分期方案，降低投诉风险。',
+    category: 'ready',
+    jobFamily: 'collection',
+    capabilities: ['合规话术引导', '分期方案推荐', '还款意愿识别', '投诉风险预警'],
+  },
+  {
+    id: 'm_telesales',
+    name: '电销转化专员',
+    avatar: AGENT_AVATAR_PRESETS[7],
+    description: '外呼挖掘商机，按产品卖点与异议处理路径推进转化，沉淀意向线索至销售漏斗。',
+    category: 'ready',
+    jobFamily: 'telesales',
+    capabilities: ['卖点话术编排', '异议处理路径', '意向线索打标', '预约回访调度'],
+  },
 ];
 
 export const INITIAL_HIRED_AGENTS: HiredAgent[] = [
@@ -160,7 +141,7 @@ export const INITIAL_HIRED_AGENTS: HiredAgent[] = [
     name: '食安险商户顾问',
     marketId: 'm_sales',
     agentId: 'AGENT_101',
-    avatar: '👩‍💼',
+    avatar: AGENT_AVATAR_PRESETS[8],
     description: '5年保险经纪经验，负责餐饮连锁客户的食安责任险方案定制、续保与加保咨询。',
     persona: FOOD_SAFETY_AGENT_DEFAULTS.persona,
     languageStyle: FOOD_SAFETY_AGENT_DEFAULTS.languageStyle,
@@ -177,12 +158,51 @@ export const INITIAL_HIRED_AGENTS: HiredAgent[] = [
     name: '双十一企微专属小助手',
     marketId: 'm_wechat',
     agentId: 'AGENT_102',
-    avatar: '🙋‍♂️',
+    avatar: AGENT_AVATAR_PRESETS[2],
     description: '主要负责解答高频日常企微用户咨询，搜集潜在高品质线索，分流非核心故障至客服。',
     skills: ['s_emotion'],
     knowledgeBases: ['kb_faq'],
     status: 'online',
     hiredAt: '2026-06-10 18:30'
+  },
+  {
+    id: 'h_workflow_preset',
+    name: '流程编排客服',
+    marketId: 'm_custom_customer_service',
+    agentId: 'AGENT_310',
+    avatar: AGENT_AVATAR_PRESETS[12],
+    avatarCustomized: true,
+    buildMode: 'preset',
+    description:
+      '基于预设业务节点图编排咨询分流、知识检索与澄清追问，适合标准客服 SOP 与可审计流程场景。',
+    jobFamily: 'customer_service',
+    persona: '你是流程编排客服，按画布节点顺序处理咨询，缺信息时触发澄清，复杂问题转人工。',
+    languageStyle: '清晰、步骤化、少承诺',
+    constraints: '不越权改保单；不编造节点外结论；异常分支按流程转人工',
+    openingLine: defaultOpeningLineForAgent('流程编排客服'),
+    fallbackScript: defaultFallbackScriptForAgent(),
+    skills: ['s_emotion', 's_claim'],
+    knowledgeBases: ['kb_faq', 'kb_product'],
+    status: 'online',
+    hiredAt: '2026-06-15 10:00',
+  },
+  {
+    id: 'h_custom_other_001',
+    name: '自建回款跟进助手',
+    marketId: 'm_custom_gen',
+    agentId: 'AGENT_199',
+    avatar: AGENT_AVATAR_PRESETS[9],
+    description: '自建流程型数字员工：跟进分期回款节点，自动提醒资料补全并沉淀跟进记录。',
+    jobFamily: 'other',
+    persona: '你是自建回款跟进助手，负责按计划催办资料与回款节点，异常时升级提醒。',
+    languageStyle: '清晰、简短、行动导向',
+    constraints: '不承诺金额减免；不替代法务结论；高风险事项转人工确认',
+    openingLine: defaultOpeningLineForAgent('自建回款跟进助手'),
+    fallbackScript: defaultFallbackScriptForAgent(),
+    skills: ['s_emotion'],
+    knowledgeBases: ['kb_faq'],
+    status: 'draft',
+    hiredAt: '2026-06-12 09:20'
   }
 ];
 
@@ -390,7 +410,34 @@ export const INITIAL_SKILLS: Skill[] = [
     usedByAgents: [],
     type: 'market',
     description: '调取IP网关直接呼叫客户，挂断后自动记录话单并提取音频全文摘要，多维画像标注。'
-  }
+  },
+  {
+    id: 's_kb_recall',
+    name: '知识库多路召回与答案润色',
+    author: '京小灵官方',
+    updatedAt: '2026-05-28 10:20',
+    usedByAgents: [],
+    type: 'market',
+    description: '对员工知识库做混合检索，结合会话上下文润色答复，降低答非所问。'
+  },
+  {
+    id: 's_order_track',
+    name: '订单物流轨迹查询助手',
+    author: '履约中台',
+    updatedAt: '2026-06-01 09:15',
+    usedByAgents: [],
+    type: 'market',
+    description: '根据订单号拉取物流节点，向客户播报最新状态并预估送达时间。'
+  },
+  {
+    id: 's_ticket',
+    name: '工单自动建单与优先级分流',
+    author: '客服效率实验室',
+    updatedAt: '2026-05-18 14:40',
+    usedByAgents: [],
+    type: 'market',
+    description: '识别需跟进事项后自动创建工单，按紧急度与业务线分流至对应队列。'
+  },
 ];
 
 export const INITIAL_AB_TESTS: ABTest[] = [

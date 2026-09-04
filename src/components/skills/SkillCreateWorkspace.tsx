@@ -104,7 +104,7 @@ export const SkillCreateWorkspace: React.FC<SkillCreateWorkspaceProps> = ({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col bg-white">
-      <div className="shrink-0 px-5 pt-4">
+      <div className="shrink-0 px-5 pt-5">
         <button
           type="button"
           onClick={onBack}
