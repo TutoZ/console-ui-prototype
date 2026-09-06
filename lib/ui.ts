@@ -128,6 +128,16 @@ export const SKILL_AOP_SEND_BTN =
 export const SKILL_AOP_PRIMARY_BTN =
   'rounded-lg bg-[linear-gradient(135deg,#000000_0%,#1565BF_100%)] text-white font-medium hover:opacity-90 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed';
 
+/** 「改写」等 AI 轻按钮：与顶栏/发送钮同色系（黑 → #1565BF） */
+export const AI_LIGHT_BTN_BG = 'bg-[rgba(21,101,191,0.08)]';
+export const AI_GRADIENT_TEXT = NAV_ACTIVE_GRADIENT_TEXT;
+export const AI_GRADIENT_BTN_BG = NAV_ACTIVE_GRADIENT_BG;
+export const AI_ACCENT_TEXT = SKILL_AOP_ACCENT_TEXT;
+
+/** 表单内嵌「改写」小按钮 */
+export const AI_REWRITE_CHIP =
+  'inline-flex items-center justify-center gap-1 h-6 px-2.5 rounded-[7px] text-[12px] leading-none font-normal border-0 cursor-pointer transition';
+
 /** 顶栏二级 Tab 底部胶囊指示条（渐变，配合激活文字） */
 export const NAV_SECONDARY_TAB_INDICATOR =
   'absolute left-1/2 bottom-[3px] -translate-x-1/2 h-[3px] w-9 max-w-[55%] rounded-full bg-[linear-gradient(135deg,#000000_0%,#1565BF_100%)] pointer-events-none';

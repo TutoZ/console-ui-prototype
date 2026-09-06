@@ -35,6 +35,9 @@ export type { PanelModalProps } from './components/PanelModal';
 export { MatrixLoader, MATRIX_LOADER_SRC } from './components/MatrixLoader';
 export type { MatrixLoaderProps } from './components/MatrixLoader';
 
+export { LoadingCircle, LOADING_CIRCLE_SRC } from './components/LoadingCircle';
+export type { LoadingCircleProps } from './components/LoadingCircle';
+
 export { ContentBusy, LOADER_SIZE } from './components/ContentBusy';
 export type { ContentBusyProps, ContentBusySize } from './components/ContentBusy';
 

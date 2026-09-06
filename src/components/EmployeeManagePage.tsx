@@ -819,8 +819,8 @@ export const EmployeeManagePage: React.FC = () => {
         >
         {workspaceTab === 'build' && isQcOnboarding && (
           <ResizableSplitPane
-            storageKey="js_qc_onboarding_split"
-            defaultRatio={0.55}
+            storageKey="js_qc_onboarding_split_v2"
+            defaultRatio={0.68}
             className="bg-paper"
             left={
               <OnboardingQcConfigPanel
@@ -845,8 +845,8 @@ export const EmployeeManagePage: React.FC = () => {
 
         {workspaceTab === 'build' && !isQcOnboarding && (
           <ResizableSplitPane
-          storageKey="js_onboarding_split_v2"
-          defaultRatio={0.63}
+          storageKey="js_onboarding_split_v3"
+          defaultRatio={0.72}
           className="bg-paper"
           left={
             <OnboardingConfigPanel

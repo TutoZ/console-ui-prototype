@@ -282,22 +282,22 @@
   }
 
   .cn-toast {
-    min-height: 34px !important;
-    height: 34px !important;
-    padding: 0 12px !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 14px !important;
     justify-content: center !important;
     align-items: center !important;
     flex-wrap: nowrap !important;
     gap: 8px !important;
     width: max-content !important;
-    max-width: min(92vw, 560px) !important;
-    border-radius: 8px !important;
+    max-width: min(92vw, 420px) !important;
+    border-radius: 10px !important;
     border: 1px solid #ebebeb !important;
     background-color: #fff !important;
     color: #262626 !important;
     box-shadow:
-      0 12px 24px -4px rgba(0, 0, 0, 0.06),
-      0 4px 28px 0 rgba(0, 0, 0, 0.04) !important;
+      0 8px 20px -6px rgba(0, 0, 0, 0.08),
+      0 2px 8px rgba(0, 0, 0, 0.04) !important;
     pointer-events: none !important;
   }
 
@@ -329,8 +329,8 @@
     white-space: nowrap !important;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 12px !important;
-    line-height: 18px !important;
+    font-size: 13px !important;
+    line-height: 20px !important;
     font-weight: 400 !important;
     color: #262626 !important;
   }

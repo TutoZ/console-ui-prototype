@@ -255,8 +255,42 @@ export const Contact = wrap(ContactBookIcon);
 export const Save = wrap(SaveIcon);
 export const ShieldCheck = wrap(SecurityCheckIcon);
 export const Circle = wrap(CircleIcon);
-/** 常规加载态：旋转图标，请配合 `animate-spin` */
-export const Loader2 = wrap(Refresh01Icon);
+/**
+ * 常规圆环加载态 — 墨黑 / 中性色（与 LoadingCircle 一致）。
+ * 传入 `text-white` / `invert` 时自动反色（深色按钮）。
+ * `animate-spin` 可省略（组件自带）。
+ */
+export const Loader2 = ({
+  size = 16,
+  className = '',
+  style,
+}: IconProps) => {
+  const numericSize = typeof size === 'string' ? Number.parseInt(size, 10) || 16 : size;
+  const cls = String(className);
+  const onDark =
+    /\btext-white\b/.test(cls) ||
+    /\binvert\b/.test(cls) ||
+    /\bbrightness-0\b/.test(cls);
+  const cleaned = cls
+    .replace(/\banimate-spin(?:-slow)?\b/g, '')
+    .replace(/\btext-white\b/g, '')
+    .replace(/\binvert\b/g, '')
+    .replace(/\bbrightness-0\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return (
+    <span
+      className={`inline-block shrink-0 rounded-full border-2 animate-spin box-border ${
+        onDark
+          ? 'border-white/25 border-t-white'
+          : 'border-neutral-200 border-t-neutral-800'
+      } ${cleaned}`.trim()}
+      style={{ width: numericSize, height: numericSize, ...style }}
+      aria-hidden
+    />
+  );
+};
 export const RefreshCw = wrap(Refresh01Icon);
 export const Split = wrap(SplitIcon);
 export const Pause = wrap(PauseIcon);

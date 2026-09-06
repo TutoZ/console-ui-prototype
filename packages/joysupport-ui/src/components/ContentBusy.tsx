@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../cn';
+import { LoadingCircle } from './LoadingCircle';
 
 export const LOADER_SIZE = {
   inline: 14,
@@ -22,17 +23,6 @@ export type ContentBusyProps = {
 function resolveSize(size: ContentBusySize): number {
   if (typeof size === 'number') return size;
   return LOADER_SIZE[size];
-}
-
-function BusyCircle({ size, title }: { size: number; title: string }) {
-  return (
-    <span
-      className="inline-block shrink-0 rounded-full border-2 border-neutral-200 border-t-neutral-500 animate-spin"
-      style={{ width: size, height: size }}
-      title={title}
-      aria-hidden
-    />
-  );
 }
 
 export const ContentBusy: React.FC<ContentBusyProps> = ({
@@ -60,7 +50,7 @@ export const ContentBusy: React.FC<ContentBusyProps> = ({
       aria-live="polite"
       aria-busy="true"
     >
-      <BusyCircle size={px} title={label || '加载中'} />
+      <LoadingCircle size={px} title={label || '加载中'} />
       {label ? <p className="text-[12px] leading-none">{label}</p> : null}
     </div>
   );

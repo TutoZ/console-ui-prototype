@@ -1,19 +1,14 @@
 /**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- *
- * 全站默认圆环加载 — 墨黑 / 中性色（设计系统 primary #111，非品牌蓝）。
- * 新代码请用 LoadingCircle；ToastLoadingIcon 为同名别名。
+ * 全站默认圆环加载 — 墨黑 / 中性色（设计系统 primary #111）。
  */
 
 import React from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '../cn';
 
 export type LoadingCircleProps = {
   size?: number;
   className?: string;
   style?: React.CSSProperties;
-  /** 深色按钮等场景：白圈 */
   onDark?: boolean;
   title?: string;
 };
@@ -43,5 +38,5 @@ export function LoadingCircle({
   );
 }
 
-/** @deprecated 请优先用 LoadingCircle；保留别名以免旧引用断裂 */
-export const ToastLoadingIcon = LoadingCircle;
+/** @deprecated 保留常量以免外部引用报错；加载态已改为 CSS 圆环 */
+export const LOADING_CIRCLE_SRC = '';

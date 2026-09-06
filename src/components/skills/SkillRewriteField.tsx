@@ -7,8 +7,15 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, Loader2, Sparkles } from '@/lib/icons';
+import { ArrowUp, Loader2 } from '@/lib/icons';
 import { cn } from '@/lib/utils';
+import {
+  AI_ACCENT_TEXT,
+  AI_GRADIENT_BTN_BG,
+  AI_GRADIENT_TEXT,
+  AI_LIGHT_BTN_BG,
+  AI_REWRITE_CHIP,
+} from '@/lib/ui';
 
 export async function mockSkillFieldRewrite(
   currentValue: string,
@@ -16,7 +23,7 @@ export async function mockSkillFieldRewrite(
   maxLength: number,
   fieldLabel?: string,
 ): Promise<string> {
-  await new Promise((resolve) => setTimeout(resolve, 420));
+  await new Promise((resolve) => setTimeout(resolve, 900));
   const instr = instruction.trim();
   if (!instr) return currentValue;
 
@@ -202,6 +209,7 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     const onPointerDown = (event: MouseEvent) => {
+      if (isRewriting) return;
       const target = event.target as Node;
       if (anchorRef.current?.contains(target)) return;
       if (bubbleShellRef.current?.contains(target)) return;
@@ -211,7 +219,7 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
     };
     document.addEventListener('mousedown', onPointerDown);
     return () => document.removeEventListener('mousedown', onPointerDown);
-  }, [fieldKey, isOpen, setActiveKey, setInstruction]);
+  }, [fieldKey, isOpen, isRewriting, setActiveKey, setInstruction]);
 
   const submitRewrite = useCallback(async () => {
     const trimmed = instruction.trim();
@@ -226,7 +234,6 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
       onDirty?.();
       setActiveKey(null);
       setInstruction(fieldKey, '');
-      onToast?.('已改写');
     } finally {
       setRewritingKey(null);
     }
@@ -240,7 +247,6 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
     onApplyRewrite,
     onChange,
     onDirty,
-    onToast,
     setActiveKey,
     setInstruction,
     setRewritingKey,
@@ -275,6 +281,10 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
               disabled={isRewriting}
               onChange={(e) => setInstruction(fieldKey, e.target.value)}
               onKeyDown={(e) => {
+                if (isRewriting) {
+                  e.preventDefault();
+                  return;
+                }
                 if (e.key === 'Escape') {
                   setActiveKey(null);
                   setInstruction(fieldKey, '');
@@ -286,15 +296,27 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
                 }
               }}
               placeholder="描述如何改写这段内容…"
-              className="w-full min-h-[96px] max-h-40 bg-transparent text-[13px] px-4 pt-4 pb-14 outline-none resize-none placeholder:text-neutral-400 text-neutral-800 leading-relaxed rounded-2xl"
+              className={cn(
+                'w-full min-h-[96px] max-h-40 bg-transparent text-[13px] px-4 pt-4 pb-14 outline-none resize-none placeholder:text-neutral-400 text-neutral-800 leading-relaxed rounded-2xl',
+                isRewriting && 'opacity-70 cursor-wait',
+              )}
             />
-            <div className="absolute bottom-3 right-3">
+            <div className="absolute bottom-3 right-3 flex items-center gap-2">
+              {isRewriting ? (
+                <span className="text-[11px] text-neutral-400 tabular-nums">改写中…</span>
+              ) : null}
               <button
                 type="button"
                 disabled={isRewriting || !instruction.trim()}
                 onClick={() => void submitRewrite()}
-                title="应用改写"
-                className="w-8 h-8 rounded-lg bg-neutral-900 hover:bg-neutral-800 disabled:bg-neutral-200 text-white transition flex items-center justify-center cursor-pointer disabled:cursor-not-allowed"
+                title={isRewriting ? '改写中' : '应用改写'}
+                aria-busy={isRewriting}
+                className={cn(
+                  'w-8 h-8 rounded-lg text-white transition flex items-center justify-center shrink-0',
+                  isRewriting
+                    ? 'bg-neutral-900 cursor-wait'
+                    : 'bg-neutral-900 hover:bg-neutral-800 cursor-pointer disabled:bg-neutral-200 disabled:cursor-not-allowed',
+                )}
               >
                 {isRewriting ? (
                   <Loader2 size={14} className="animate-spin" />
@@ -373,18 +395,31 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
             }
           }}
           className={cn(
-            'absolute z-[1] inline-flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold transition cursor-pointer border shadow-sm',
+            AI_REWRITE_CHIP,
+            'absolute z-[1]',
             multiline ? 'right-1.5 top-1.5' : 'right-1.5 top-1/2 -translate-y-1/2',
             isOpen
-              ? 'bg-neutral-800 text-white border-neutral-800 opacity-100'
-              : 'bg-white/95 text-neutral-500 border-neutral-200 hover:text-neutral-800 hover:border-neutral-300 opacity-0 backdrop-blur-[2px]',
+              ? cn(AI_GRADIENT_BTN_BG, 'text-white opacity-100 shadow-[0_1px_0_rgba(0,0,0,0.05)]')
+              : cn(AI_LIGHT_BTN_BG, 'opacity-0 hover:bg-[rgba(21,101,191,0.12)]'),
             !isOpen && 'group-hover:opacity-100 group-focus-within:opacity-100',
-            !isOpen && 'pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto',
+            !isOpen &&
+              'pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto',
             (disabled || isRewriting) && 'opacity-50 cursor-not-allowed pointer-events-none',
           )}
         >
-          {isRewriting ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
-          改写
+          {isRewriting ? (
+            <Loader2 size={12} className={cn('animate-spin', isOpen ? 'text-white' : AI_ACCENT_TEXT)} />
+          ) : (
+            <img
+              src="/assets/ai-star-rewrite.svg"
+              alt=""
+              width={12}
+              height={12}
+              className={cn('size-3 shrink-0', isOpen && 'brightness-0 invert')}
+              aria-hidden
+            />
+          )}
+          <span className={cn(!isOpen && !isRewriting && AI_GRADIENT_TEXT)}>改写</span>
         </button>
       </div>
 

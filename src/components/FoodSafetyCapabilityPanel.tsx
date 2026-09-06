@@ -27,6 +27,7 @@ import {
 } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import { SKILL_AOP_GRADIENT_BG, SKILL_AOP_GRADIENT_TEXT } from '@/lib/ui';
+import { LoadingCircle } from './common/ToastLoadingIcon';
 import {
   FOOD_SAFETY_DEMO_ORDER,
   FOOD_SAFETY_CAPABILITY_STAGES,
@@ -364,10 +365,7 @@ function KnowledgeSkillCallStrip({
                   {done ? (
                     <Check size={14} strokeWidth={2.5} />
                   ) : active ? (
-                    <span
-                      className="block w-3.5 h-3.5 rounded-full border-2 border-[#1565BF]/20 border-t-[#1565BF] animate-spin"
-                      aria-hidden
-                    />
+                    <LoadingCircle size={14} />
                   ) : (
                     <LoopToneIcon
                       tone={ref.kind === 'knowledge' ? 'knowledge' : 'skill'}
@@ -763,7 +761,7 @@ function BrowserUseDemo({
 
           {!pageReady ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white">
-              <div className="w-8 h-8 rounded-full border-2 border-neutral-200 border-t-[#1677ff] animate-spin" />
+              <LoadingCircle size={32} />
               <p className="text-[12px] text-neutral-400">正在加载企业系统…</p>
             </div>
           ) : (
@@ -907,7 +905,7 @@ function BrowserUseDemo({
 
                     {loading ? (
                       <div className="px-4 py-10 flex flex-col items-center justify-center gap-2 text-[13px] text-neutral-500">
-                        <span className="w-5 h-5 rounded-full border-2 border-neutral-200 border-t-[#1677ff] animate-spin" />
+                        <LoadingCircle size={20} />
                         正在检索订单库…
                       </div>
                     ) : null}
@@ -1421,7 +1419,7 @@ function KnowledgeBrowseDemo({
                       ) : null}
                     </span>
                     {subPhase === 4 ? (
-                      <span className="w-3 h-3 rounded-full border-2 border-neutral-200 border-t-[#1565BF] animate-spin shrink-0" />
+                      <LoadingCircle size={12} className="shrink-0" />
                     ) : null}
                   </div>
                   {subPhase >= 3 && isKnowledge ? (
@@ -1636,10 +1634,7 @@ function AgentLoopThinkPanel({
                       THOUGHT
                     </span>
                     {running && !thoughtDone ? (
-                      <span
-                        className="block w-3 h-3 rounded-full border-2 border-[#1565BF]/20 border-t-[#1565BF] animate-spin"
-                        aria-hidden
-                      />
+                      <LoadingCircle size={12} />
                     ) : doneAll || (thoughtDone && !browseActive && !waitingToCallSystem) ? (
                       <Check size={13} className="text-emerald-600" strokeWidth={2.5} />
                     ) : null}

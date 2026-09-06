@@ -13,6 +13,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ChevronDown, ChevronUp } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import type { SkillThinkStep } from '@/lib/skillStudioMock';
+import { LoadingCircle } from '../common/ToastLoadingIcon';
 
 export type SkillThinkingCardMode = 'outline' | 'executing' | 'generating' | 'nested';
 
@@ -61,7 +62,7 @@ function PendingRing() {
 function RunningRing() {
   return (
     <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-      <span className="h-2.5 w-2.5 rounded-full border border-[#D9D9D9] border-t-[#595959] animate-spin" />
+      <LoadingCircle size={10} />
     </span>
   );
 }

@@ -226,7 +226,14 @@ export const SKILL_PAGE_COPY = {
   createSuccess: '技能已发布并加入团队',
   updateSuccess: '技能已更新',
   forkSuccess: '已另存为自建技能',
-  deleteBlocked: '已有同事配备此技能，无法删除',
+  deleteConfirmTitle: '删除技能',
+  deleteConfirmDesc: '删除后不可恢复，并将从已配备的同事中解除。',
+  deleteConfirmAction: '删除',
+  deleteSuccess: '已删除',
+  unsubscribeConfirmTitle: '取消订阅',
+  unsubscribeConfirmDesc: '取消后将回到技能市场，并从已配备的同事中解除。',
+  unsubscribeConfirmAction: '取消订阅',
+  deleteCancel: '取消',
 } as const;
 
 /** 员工知识 */

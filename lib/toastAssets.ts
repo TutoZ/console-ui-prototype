@@ -3,14 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * Toast 图标资源 — 对齐 Relay chatId=2091553404269633538
+ * loading 已改为 CSS LoadingCircle（墨黑），不再使用蓝色位图。
  */
 
 export const TOAST_ICON = {
   success:
     'https://img10.360buyimg.com/ling/jfs/t1/497380/9/11980/821/6a82b866F5a3dd733/027602002002378c.png',
   info: 'https://img10.360buyimg.com/ling/jfs/t1/510302/26/4334/895/6a8b1683F42a8716d/02760200208c45c9.png',
-  loading:
-    'https://img10.360buyimg.com/ling/jfs/t1/498300/17/12684/1737/6a8b1683Fd30f8483/02760200202415d7.png',
+  /** @deprecated 加载请用 LoadingCircle；保留空串避免误引用蓝色图 */
+  loading: '',
   warning:
     'https://img14.360buyimg.com/ling/jfs/t1/507248/28/4536/846/6a86dba0F881ebea7/0276020020a885ff.png',
   error:

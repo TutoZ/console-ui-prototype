@@ -2109,18 +2109,18 @@ export const ComponentLibraryPage: React.FC = () => {
         {/* ── Atom ── */}
         <Section
           id="atom-button"
-          source="BTN_INK / SOFT / OUTLINE / DANGER · Loading=disabled+MatrixLoader"
-          desc="悬停态按源码模拟（主按钮 opacity-90 等）。加载态：禁用 + 内嵌加载动画（14），可选文案「提交中…」。"
+          source="BTN_INK / SOFT / OUTLINE / DANGER · Loading=disabled+LoadingCircle"
+          desc="悬停态按源码模拟（主按钮 opacity-90 等）。加载态：禁用 + 内嵌圆环加载（14），可选文案「提交中…」。"
           dos={[
             '主 CTA 用 BTN_INK',
             '取消用 BTN_SOFT 或 OUTLINE',
             '危险操作用 BTN_DANGER',
-            '加载中必须 disabled，用 MatrixLoader（Loader2 别名）',
+            '加载中必须 disabled，用 LoadingCircle / MatrixLoader / Loader2',
           ]}
           donts={[
             '主色不要用蓝色',
             '不要自造圆角/高度（保持 h-8 / 7px）',
-            '不要用 CSS animate-spin 圆环替代点阵',
+            '不要用 CSS border 圆环替代 LoadingCircle',
           ]}
         >
           <SpecPanel className="p-0 overflow-x-auto">
@@ -2207,10 +2207,11 @@ export const ComponentLibraryPage: React.FC = () => {
               </button>
             </SpecStage>
             <p className="mt-2 text-[11px] text-neutral-400 leading-relaxed max-w-2xl">
-              深色底（BTN_INK）对点阵加{' '}
+              深色底（BTN_INK）对加载圈加{' '}
               <code className="px-1 py-0.5 rounded bg-neutral-100 text-neutral-600 text-[10px]">
                 brightness-0 invert
               </code>
+              或传 <code className="px-1 py-0.5 rounded bg-neutral-100 text-neutral-600 text-[10px]">onDark</code>
               ；浅色底保持默认。与知识库调试、AB 仿真等业务按钮一致。
             </p>
           </div>
@@ -2432,7 +2433,7 @@ export const ComponentLibraryPage: React.FC = () => {
           </SpecStage>
         </Section>
 
-        <Section id="feedback-busy" source="ContentBusy · MatrixLoader">
+        <Section id="feedback-busy" source="ContentBusy · LoadingCircle">
           <div className="flex flex-wrap gap-3 mb-3">
             <button type="button" className={BTN_SOFT} onClick={() => setBusyDemo((v) => !v)}>
               {busyDemo ? '关闭加载' : '打开加载'}
@@ -2441,7 +2442,7 @@ export const ComponentLibraryPage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className={cn(PANEL, 'p-4 flex flex-col items-center gap-2')}>
               <MatrixLoader size={16} />
-              <span className="text-neutral-500">行内 inline 16</span>
+              <span className="text-neutral-500">行内 LoadingCircle 16</span>
             </div>
             <div className={cn(PANEL, 'min-h-[120px]')}>
               <ContentBusy busy={busyDemo} size="slot" label="加载中">
@@ -2901,8 +2902,8 @@ export const ComponentLibraryPage: React.FC = () => {
           id="pattern-exec-fold"
           source="common/ExecutionProcessFold"
           desc="对话气泡内「处理过程」折叠；员工管理、客户体验页在用。"
-          dos={['running 时默认展开 + MatrixLoader', 'done 后显示步数 + CheckCircle']}
-          donts={['不要用灰色 pulse 替代点阵加载']}
+          dos={['running 时默认展开 + LoadingCircle', 'done 后显示步数 + CheckCircle']}
+          donts={['不要用灰色 pulse 替代圆环加载']}
         >
           <SpecStage className="max-w-md">
             <ExecutionProcessFold
@@ -3028,10 +3029,10 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section
           id="pattern-skeleton"
           source="LoadingSkeletons · 线上在用子集"
-          desc="未就绪区块用点阵 / 骨架；已就绪不显示。DocumentRowSkeleton / UploadZoneSkeleton / CardListSkeleton 全站无引用。"
+          desc="未就绪区块用 LoadingCircle / 骨架；已就绪不显示。DocumentRowSkeleton / UploadZoneSkeleton / CardListSkeleton 全站无引用。"
           dos={['对话用 ChatReplySkeleton', '工作日志用 WorkLogSkeleton', '解析态用 ParsingStatusCell']}
           donts={[
-            '不要用灰色脉冲块替代 MatrixLoader',
+            '不要用灰色脉冲块替代 LoadingCircle',
             '勿使用 DocumentRow / UploadZone / CardList 骨架（未接入）',
           ]}
         >

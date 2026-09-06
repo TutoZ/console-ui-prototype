@@ -11,10 +11,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import {
   ArrowUp,
-  BookOpen,
-  Cpu,
   GitBranch,
   History,
+  Layers,
+  Library,
   Paperclip,
   Pencil,
   Search,
@@ -560,7 +560,7 @@ export const PlatformHomePage: React.FC = () => {
                 {mode === 'employee'
                   ? selectedSkills.map((sk) => (
                       <span key={sk.id} className={INDEX_CHIP} title={sk.name}>
-                        <Cpu size={12} className="text-neutral-500 shrink-0" />
+                        <Layers size={12} className="text-neutral-500 shrink-0" />
                         <span className="truncate min-w-0">{sk.name}</span>
                         <button
                           type="button"
@@ -575,7 +575,7 @@ export const PlatformHomePage: React.FC = () => {
                   : null}
                 {selectedKbs.map((kb) => (
                   <span key={kb.id} className={INDEX_CHIP} title={kb.name}>
-                    <BookOpen size={12} className="text-neutral-500 shrink-0" />
+                    <Library size={12} className="text-neutral-500 shrink-0" />
                     <span className="truncate min-w-0">{kb.name}</span>
                     <button
                       type="button"
@@ -621,7 +621,7 @@ export const PlatformHomePage: React.FC = () => {
                         : 'border-transparent bg-transparent text-neutral-600 hover:bg-neutral-50 hover:border-neutral-200 hover:text-neutral-800',
                     )}
                   >
-                    {mode === 'employee' ? <Cpu size={14} /> : <BookOpen size={14} />}
+                    {mode === 'employee' ? <Layers size={14} /> : <Library size={14} />}
                     {mode === 'employee' ? '索引资源' : '索引知识'}
                     {indexedTotal > 0 ? (
                       <span className="text-[11px] tabular-nums text-neutral-500">

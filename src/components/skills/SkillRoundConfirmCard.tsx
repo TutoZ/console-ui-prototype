@@ -8,9 +8,10 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, FileText, Pencil, Plus, Trash2 } from '@/lib/icons';
+import { FileText, Pencil, Plus, Trash2 } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import { confirmStatusBadgeClass, SKILL_AOP_PRIMARY_BTN } from '@/lib/ui';
+import { showAppToast } from '@/lib/appToast';
 
 export type SkillConfirmFieldKey =
   | 'cnName'
@@ -114,10 +115,6 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
     onItemsChange?.(next);
   };
 
-  const toggle = (id: string) => {
-    commitRows(rows.map((row) => (row.id === id ? { ...row, checked: !row.checked } : row)));
-  };
-
   const addCustom = () => {
     const next = newLabel.trim();
     if (!next) return;
@@ -170,6 +167,14 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
     const next = !batchMode;
     setBatchMode(next);
     onBatchModeChange?.(next);
+  };
+
+  const deleteSelectedRows = () => {
+    if (!batchMode || editingIdSet.size === 0) return;
+    commitRows(rows.filter((row) => !editingIdSet.has(row.id)));
+    // 清空输入框芯片，仍留在批量编辑模式
+    onBatchModeChange?.(false);
+    showAppToast('删除成功', 'success');
   };
 
   return (
@@ -252,35 +257,14 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
                         {ordinal}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <label
-                            className={cn(
-                              'flex items-center gap-1.5 min-w-0',
-                              confirmed ? '' : 'cursor-pointer',
-                            )}
-                          >
-                            <button
-                              type="button"
-                              disabled={confirmed}
-                              onClick={() => toggle(row.id)}
-                              className={cn(
-                                'w-3 h-3 rounded-[3px] border flex items-center justify-center shrink-0',
-                                row.checked
-                                  ? 'bg-neutral-800 border-neutral-800 text-white'
-                                  : 'bg-white border-neutral-300',
-                              )}
-                              aria-pressed={row.checked}
-                            >
-                              {row.checked ? <Check size={8} /> : null}
-                            </button>
-                            {row.fieldLabel ? (
-                              <span className="text-[11px] font-semibold text-neutral-500 leading-4 truncate">
-                                {row.fieldLabel}
-                              </span>
-                            ) : null}
-                          </label>
-                        </div>
-                        <div className="pl-[18px] mt-0.5">
+                        {row.fieldLabel ? (
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-[11px] font-semibold text-neutral-500 leading-4 truncate">
+                              {row.fieldLabel}
+                            </span>
+                          </div>
+                        ) : null}
+                        <div className={cn(row.fieldLabel ? 'mt-0.5' : undefined)}>
                           {isInline ? (
                             <div className="space-y-1.5">
                               <textarea
@@ -344,7 +328,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
                         </div>
                       </div>
                     </div>
-                    {!isInline && (hovered || (batchMode && !selected)) && !confirmed ? (
+                    {!isInline && (hovered || batchMode) && !confirmed ? (
                       <div className="flex items-center gap-1 shrink-0">
                         {!batchMode ? (
                           <button
@@ -359,9 +343,14 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
                         ) : null}
                         <button
                           type="button"
-                          onClick={() => commitRows(rows.filter((item) => item.id !== row.id))}
+                          onClick={() => {
+                            commitRows(rows.filter((item) => item.id !== row.id));
+                            if (selected) onEditItem?.(row, index);
+                            showAppToast('删除成功', 'success');
+                          }}
                           className="text-neutral-400 hover:text-rose-500 cursor-pointer p-0.5"
                           aria-label="删除"
+                          title="删除此要点"
                         >
                           <Trash2 size={12} />
                         </button>
@@ -427,19 +416,41 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
               重新设置要求
             </button>
             {onEditItem ? (
-              <button
-                type="button"
-                onClick={toggleBatchMode}
-                aria-pressed={batchMode}
-                className={cn(
-                  'h-7 px-3 rounded border text-[13px] cursor-pointer transition',
-                  batchMode
-                    ? 'border-neutral-800 bg-neutral-800 text-white'
-                    : 'border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50',
-                )}
-              >
-                {batchMode ? '退出批量编辑' : '批量编辑'}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={toggleBatchMode}
+                  aria-pressed={batchMode}
+                  className={cn(
+                    'h-7 px-3 rounded border text-[13px] cursor-pointer transition',
+                    batchMode
+                      ? 'border-neutral-800 bg-neutral-800 text-white'
+                      : 'border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50',
+                  )}
+                >
+                  {batchMode ? '退出批量编辑' : '批量编辑'}
+                </button>
+                {batchMode ? (
+                  <button
+                    type="button"
+                    disabled={editingIdSet.size === 0}
+                    onClick={deleteSelectedRows}
+                    className={cn(
+                      'h-7 px-3 rounded border text-[13px] cursor-pointer transition',
+                      editingIdSet.size === 0
+                        ? 'border-neutral-200 bg-neutral-50 text-neutral-400 cursor-not-allowed'
+                        : 'border-rose-200 bg-white text-rose-600 hover:bg-rose-50',
+                    )}
+                    title={
+                      editingIdSet.size === 0
+                        ? '先点选要删除的要点'
+                        : `删除已选 ${editingIdSet.size} 条`
+                    }
+                  >
+                    删除{editingIdSet.size > 0 ? ` · ${editingIdSet.size}` : ''}
+                  </button>
+                ) : null}
+              </>
             ) : null}
           </div>
         )}

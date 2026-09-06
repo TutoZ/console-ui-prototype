@@ -10,26 +10,10 @@ import type { ToastType } from '@/lib/ui';
 import { cn } from '@/lib/utils';
 
 const PRESETS: { label: string; type: ToastType; message: string }[] = [
-  {
-    label: '成功',
-    type: 'success',
-    message: '培训已存档，可以开始试岗对话了',
-  },
-  {
-    label: '错误',
-    type: 'error',
-    message: '请先填写必填项后再保存',
-  },
-  {
-    label: '警告',
-    type: 'warning',
-    message: '尚有未保存的更改，离开前请先存档',
-  },
-  {
-    label: '提示',
-    type: 'info',
-    message: '已按当前筛选条件刷新看板数据',
-  },
+  { label: '成功', type: 'success', message: '已保存' },
+  { label: '错误', type: 'error', message: '已删除' },
+  { label: '警告', type: 'warning', message: '尚未存档' },
+  { label: '提示', type: 'info', message: '已复制' },
 ];
 
 const TYPE_BTN: Record<ToastType, string> = {

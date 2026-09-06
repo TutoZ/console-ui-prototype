@@ -25,12 +25,13 @@ import {
   SkillStudioWorkspace,
   type SkillStudioPublishPayload,
 } from './skills/SkillStudioWorkspace';
-import { BTN_INK, CARD, CARD_HOVER, SEARCH_FIELD, badgeClass } from '@/lib/ui';
+import { BTN_DANGER, BTN_INK, BTN_SOFT, CARD, CARD_HOVER, SEARCH_FIELD, badgeClass } from '@/lib/ui';
 import { OnlinePageHeader } from './common/OnlinePageLayout';
 import { cn } from '@/lib/utils';
 import { SKILL_PAGE_COPY } from '@/lib/platformTerminology';
 import { ContentBusy } from './common/ContentBusy';
 import { MatrixLoader } from './common/MatrixLoader';
+import { Modal } from './common/Modal';
 import { useMockLatency } from '@/lib/useMockLatency';
 import { useInlineAction } from '@/lib/useInlineAction';
 import type { Skill } from '../types';
@@ -104,7 +105,6 @@ function SkillCardAction({
   onDelete: () => void;
 }) {
   const subscribe = useInlineAction(onSubscribe, { profile: 'save' });
-  const unsubscribe = useInlineAction(onUnsubscribe, { profile: 'save', resetAfterMs: 0 });
 
   if (skillTab === 'market') {
     if (skill.type === 'subscribed' || subscribe.phase === 'done') {
@@ -138,17 +138,12 @@ function SkillCardAction({
       <button
         type="button"
         className={cn(SKILL_CARD_BTN_OUTLINE, 'w-full')}
-        disabled={unsubscribe.busy}
         onClick={(e) => {
           e.stopPropagation();
-          void unsubscribe.run();
+          onUnsubscribe();
         }}
       >
-        {unsubscribe.busy ? (
-          <MatrixLoader size={14} className="h-3.5 w-3.5" title="处理中" />
-        ) : (
-          SKILL_PAGE_COPY.unsubscribe
-        )}
+        {SKILL_PAGE_COPY.unsubscribe}
       </button>
     );
   }
@@ -156,7 +151,14 @@ function SkillCardAction({
   return (
     <div className="flex items-center gap-1.5 w-full min-w-0">
       {skill.type === 'mine' ? (
-        <button type="button" className={SKILL_CARD_BTN_DANGER} onClick={onDelete}>
+        <button
+          type="button"
+          className={SKILL_CARD_BTN_DANGER}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+        >
           {SKILL_PAGE_COPY.deleteMine}
         </button>
       ) : null}
@@ -167,11 +169,17 @@ function SkillCardAction({
   );
 }
 
-function SkillAppliedAgentTags({ names }: { names: string[] }) {
+function SkillAppliedAgentTags({
+  names,
+  className,
+}: {
+  names: string[];
+  className?: string;
+}) {
   if (names.length === 0) return null;
 
   return (
-    <div className="mt-2 flex flex-wrap gap-1">
+    <div className={cn('flex flex-wrap gap-1', className)}>
       {names.map((name) => (
         <span
           key={name}
@@ -202,6 +210,10 @@ export const SkillPage: React.FC = () => {
   const [createMode, setCreateMode] = useState<'interactive' | 'zip'>('interactive');
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [createSeedPrompt, setCreateSeedPrompt] = useState<string | null>(null);
+  const [boundConfirm, setBoundConfirm] = useState<{
+    skill: Skill;
+    kind: 'delete' | 'unsubscribe';
+  } | null>(null);
   const createMenuCloseTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const openCreateMenu = () => {
@@ -264,14 +276,41 @@ export const SkillPage: React.FC = () => {
   };
 
   const handleDelete = (skill: Skill) => {
-    const bound = hiredAgents.filter((a) => a.skills.includes(skill.id)).length;
-    if (bound > 0) {
-      showToast(SKILL_PAGE_COPY.deleteBlocked);
+    const boundNames = skillAgentNames.get(skill.id) ?? [];
+    if (boundNames.length > 0) {
+      setBoundConfirm({ skill, kind: 'delete' });
       return;
     }
     deleteSkill(skill.id);
-    showToast(`已删除「${skill.name}」`);
+    showToast(SKILL_PAGE_COPY.deleteSuccess, 'error');
   };
+
+  const handleUnsubscribe = (skill: Skill) => {
+    const boundNames = skillAgentNames.get(skill.id) ?? [];
+    if (boundNames.length > 0) {
+      setBoundConfirm({ skill, kind: 'unsubscribe' });
+      return;
+    }
+    unsubscribeSkill(skill.id);
+    showToast(SKILL_PAGE_COPY.unsubscribeSuccess);
+  };
+
+  const confirmBoundAction = () => {
+    if (!boundConfirm) return;
+    const { skill, kind } = boundConfirm;
+    if (kind === 'delete') {
+      deleteSkill(skill.id);
+      showToast(SKILL_PAGE_COPY.deleteSuccess, 'error');
+    } else {
+      unsubscribeSkill(skill.id);
+      showToast(SKILL_PAGE_COPY.unsubscribeSuccess);
+    }
+    setBoundConfirm(null);
+  };
+
+  const boundConfirmNames = boundConfirm
+    ? skillAgentNames.get(boundConfirm.skill.id) ?? []
+    : [];
 
   const openCreate = (mode: 'interactive' | 'zip') => {
     setCreateMode(mode);
@@ -472,7 +511,10 @@ export const SkillPage: React.FC = () => {
                 </p>
 
                 {!(skillTab === 'market' && s.type === 'subscribed') ? (
-                  <SkillAppliedAgentTags names={skillAgentNames.get(s.id) ?? []} />
+                  <SkillAppliedAgentTags
+                    names={skillAgentNames.get(s.id) ?? []}
+                    className="mt-2"
+                  />
                 ) : null}
 
                 <div className="mt-auto pt-2.5 border-t border-neutral-100/80 relative min-h-7">
@@ -502,9 +544,7 @@ export const SkillPage: React.FC = () => {
                       onSubscribe={() => {
                         subscribeSkill(s.id);
                       }}
-                      onUnsubscribe={() => {
-                        unsubscribeSkill(s.id);
-                      }}
+                      onUnsubscribe={() => handleUnsubscribe(s)}
                       onDelete={() => handleDelete(s)}
                     />
                   </div>
@@ -526,6 +566,43 @@ export const SkillPage: React.FC = () => {
           />
         </div>
       ) : null}
+
+      <Modal
+        open={Boolean(boundConfirm)}
+        onClose={() => setBoundConfirm(null)}
+        title={
+          boundConfirm?.kind === 'unsubscribe'
+            ? SKILL_PAGE_COPY.unsubscribeConfirmTitle
+            : SKILL_PAGE_COPY.deleteConfirmTitle
+        }
+        description={
+          boundConfirm?.kind === 'unsubscribe'
+            ? SKILL_PAGE_COPY.unsubscribeConfirmDesc
+            : SKILL_PAGE_COPY.deleteConfirmDesc
+        }
+        footer={
+          <>
+            <button
+              type="button"
+              className={BTN_SOFT}
+              onClick={() => setBoundConfirm(null)}
+            >
+              {SKILL_PAGE_COPY.deleteCancel}
+            </button>
+            <button
+              type="button"
+              className={BTN_DANGER}
+              onClick={confirmBoundAction}
+            >
+              {boundConfirm?.kind === 'unsubscribe'
+                ? SKILL_PAGE_COPY.unsubscribeConfirmAction
+                : SKILL_PAGE_COPY.deleteConfirmAction}
+            </button>
+          </>
+        }
+      >
+        {boundConfirm ? <SkillAppliedAgentTags names={boundConfirmNames} /> : null}
+      </Modal>
     </div>
   );
 };
