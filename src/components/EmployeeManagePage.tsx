@@ -1134,6 +1134,8 @@ export const EmployeeManagePage: React.FC = () => {
     };
     const usesChannelDispatch =
       family === 'customer_service' || family === 'hotline' || family === 'other';
+    /** 在线客服一级导航（员工培训列表）保留上下岗；首页卡片只做跳转，不展示上下岗 */
+    const showDutyToggle = isTrainingPage && supportsDutyToggle(agent);
     const openDispatch = () => {
       if (usesChannelDispatch) {
         openAgentWorkspace(agent.id, 'channels', undefined, { startBuildTour: false });
@@ -1183,12 +1185,22 @@ export const EmployeeManagePage: React.FC = () => {
         jobFamilyLabel={JOB_FAMILY_FULL_LABELS[category]}
         primaryActionLabel={primaryLabel}
         onPrimaryAction={onPrimary}
-        onDispatchTask={openDispatch}
+        onDispatchTask={showDutyToggle ? undefined : openDispatch}
         dispatchActionLabel={usesChannelDispatch ? '派出渠道' : '派发任务'}
-        showGoOnlineButton={false}
+        showGoOnlineButton={showDutyToggle}
+        onGoOnline={
+          showDutyToggle ? () => toggleStatus(agent.id, agent.status) : undefined
+        }
         moreMenu={
           isTrainingPage ? (
           <div className={cardStyles.moreMenu}>
+            <button
+              type="button"
+              className={cardStyles.moreItem}
+              onClick={openDispatch}
+            >
+              {usesChannelDispatch ? '派出渠道' : '派发任务'}
+            </button>
             <button
               type="button"
               className={cardStyles.moreItem}

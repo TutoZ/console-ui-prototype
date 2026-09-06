@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 技能表单字段 + 「改写」：点击后在下方展开指令输入，提交后写回字段。
+ * 技能表单字段 + 「改写」：悬浮叠在输入框上（不占文案位），点击后在下方浮层输入指令并写回。
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
@@ -324,7 +324,12 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
-            className={cn(sharedInputClass, 'px-2.5 py-2 leading-relaxed', maxLength && 'pb-7 pr-14')}
+            className={cn(
+              sharedInputClass,
+              'px-2.5 py-2 leading-relaxed',
+              /* 仅给字数角标留底边，改写按钮悬浮叠层不占文案位 */
+              maxLength && 'pb-7',
+            )}
           />
         ) : (
           <input
@@ -335,14 +340,20 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
-            className={cn(sharedInputClass, 'h-8 px-2.5', mono ? 'font-mono' : undefined, maxLength && 'pr-14')}
+            className={cn(
+              sharedInputClass,
+              'h-8 px-2.5',
+              mono ? 'font-mono' : undefined,
+              /* 仅给字数角标留右内边距，改写悬浮不额外占位 */
+              maxLength && 'pr-9',
+            )}
           />
         )}
         {maxLength ? (
           <span
             className={cn(
               'pointer-events-none absolute text-[9px] font-mono tabular-nums text-neutral-300/70',
-              multiline ? 'bottom-2.5 right-3' : 'right-3 top-1/2 -translate-y-1/2',
+              multiline ? 'bottom-2.5 right-2.5' : 'right-2.5 top-1/2 -translate-y-1/2',
               value.length >= maxLength && 'text-amber-500/80',
             )}
           >
@@ -362,11 +373,11 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
             }
           }}
           className={cn(
-            'absolute inline-flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold transition cursor-pointer border',
-            multiline ? 'right-2 top-2' : 'right-2 top-1/2 -translate-y-1/2',
+            'absolute z-[1] inline-flex items-center gap-1 h-6 px-2 rounded-md text-[10px] font-semibold transition cursor-pointer border shadow-sm',
+            multiline ? 'right-1.5 top-1.5' : 'right-1.5 top-1/2 -translate-y-1/2',
             isOpen
               ? 'bg-neutral-800 text-white border-neutral-800 opacity-100'
-              : 'bg-white text-neutral-500 border-neutral-200 hover:text-neutral-800 hover:border-neutral-300 opacity-0',
+              : 'bg-white/95 text-neutral-500 border-neutral-200 hover:text-neutral-800 hover:border-neutral-300 opacity-0 backdrop-blur-[2px]',
             !isOpen && 'group-hover:opacity-100 group-focus-within:opacity-100',
             !isOpen && 'pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto',
             (disabled || isRewriting) && 'opacity-50 cursor-not-allowed pointer-events-none',

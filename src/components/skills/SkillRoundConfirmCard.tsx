@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * 一轮拆解后的确认节点 — 对齐 Figma 4839:27361「确认信息」
- * 编辑：点铅笔后在下方对话输入框改写，本卡用序号索引高亮对应行
+ * - 铅笔：原位编辑要点
+ * - 批量编辑：多选要点 → 以小卡片带入下方输入框，交由大模型改写
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, FileText, Pencil, Plus, Trash2 } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import { confirmStatusBadgeClass, SKILL_AOP_PRIMARY_BTN } from '@/lib/ui';
@@ -39,27 +40,37 @@ type SkillRoundConfirmCardProps = {
   title?: string;
   items: SkillConfirmItem[];
   confirmed?: boolean;
-  /** 当前在下方输入框编辑的要点 id */
-  editingItemId?: string | null;
+  /** 批量编辑：已选中、将带到输入框的要点 id */
+  editingItemIds?: string[];
   onConfirm: (items: SkillConfirmItem[]) => void;
   /** 重新设置要求：将当前要点回填到下方输入框供二次编辑 */
   onReset: (items: SkillConfirmItem[]) => void;
-  /** 请求在下方输入框编辑某条（带 1-based 序号） */
+  /**
+   * 批量编辑模式下点选/取消要点（带 1-based 序号）。
+   * 父级据此在输入框上方展示小卡片。
+   */
   onEditItem?: (item: SkillConfirmItem, index: number) => void;
+  /** 批量编辑开关变化；关闭时父级应清空已选芯片 */
+  onBatchModeChange?: (active: boolean) => void;
   /** 本地增删勾选时同步到父级消息 */
   onItemsChange?: (items: SkillConfirmItem[]) => void;
   /** 从对话流移除本张确认卡 */
   onDelete?: () => void;
 };
 
+function rowBodyText(row: SkillConfirmItem): string {
+  return row.fieldLabel ? row.value || row.label : row.label;
+}
+
 export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   title = '请确认技能草案要点',
   items,
   confirmed = false,
-  editingItemId = null,
+  editingItemIds = [],
   onConfirm,
   onReset,
   onEditItem,
+  onBatchModeChange,
   onItemsChange,
   onDelete,
 }) => {
@@ -68,10 +79,24 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   const [adding, setAdding] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [batchMode, setBatchMode] = useState(false);
+  const [inlineEditId, setInlineEditId] = useState<string | null>(null);
+  const [inlineDraft, setInlineDraft] = useState('');
+  const inlineRef = useRef<HTMLTextAreaElement>(null);
+  const editingIdSet = useMemo(() => new Set(editingItemIds), [editingItemIds]);
 
   useEffect(() => {
     setRows(items);
   }, [items]);
+
+  useEffect(() => {
+    if (!inlineEditId) return;
+    inlineRef.current?.focus();
+    const el = inlineRef.current;
+    if (!el) return;
+    el.selectionStart = el.value.length;
+    el.selectionEnd = el.value.length;
+  }, [inlineEditId]);
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
@@ -104,6 +129,49 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
     setAdding(false);
   };
 
+  const startInlineEdit = (row: SkillConfirmItem) => {
+    if (confirmed) return;
+    setBatchMode(false);
+    onBatchModeChange?.(false);
+    setInlineEditId(row.id);
+    setInlineDraft(rowBodyText(row));
+    setExpandedIds((prev) => new Set(prev).add(row.id));
+  };
+
+  const commitInlineEdit = () => {
+    if (!inlineEditId) return;
+    const nextText = inlineDraft.trim();
+    commitRows(
+      rows.map((row) => {
+        if (row.id !== inlineEditId) return row;
+        if (!nextText) return row;
+        if (row.fieldLabel) {
+          return {
+            ...row,
+            value: nextText,
+            label: `${row.fieldLabel}：${nextText.slice(0, 120)}`,
+          };
+        }
+        return { ...row, label: nextText, value: nextText };
+      }),
+    );
+    setInlineEditId(null);
+    setInlineDraft('');
+  };
+
+  const cancelInlineEdit = () => {
+    setInlineEditId(null);
+    setInlineDraft('');
+  };
+
+  const toggleBatchMode = () => {
+    if (confirmed || !onEditItem) return;
+    cancelInlineEdit();
+    const next = !batchMode;
+    setBatchMode(next);
+    onBatchModeChange?.(next);
+  };
+
   return (
     <div className="rounded-lg border border-neutral-200 bg-neutral-50 overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2">
@@ -112,6 +180,9 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
           <span className="text-[13px] font-semibold text-neutral-600 leading-5">确认信息</span>
           {confirmed ? (
             <span className={confirmStatusBadgeClass('confirmed')}>已确认</span>
+          ) : null}
+          {batchMode && !confirmed ? (
+            <span className="text-[11px] font-medium text-neutral-500">多选要点后发送改写</span>
           ) : null}
         </div>
         {!confirmed && onDelete ? (
@@ -133,30 +204,46 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
           <div className="space-y-1">
             {rows.map((row, index) => {
               const hovered = hoveredId === row.id;
-              const editing = editingItemId === row.id;
+              const selected = editingIdSet.has(row.id);
               const ordinal = index + 1;
-              const bodyText = row.fieldLabel ? row.value || row.label : row.label;
-              const clamped = needsClamp(bodyText) && !expandedIds.has(row.id) && !editing;
+              const bodyText = rowBodyText(row);
+              const isInline = inlineEditId === row.id;
+              const clamped = needsClamp(bodyText) && !expandedIds.has(row.id) && !isInline;
               return (
                 <div
                   key={row.id}
+                  role={batchMode && !confirmed ? 'button' : undefined}
+                  tabIndex={batchMode && !confirmed ? 0 : undefined}
                   className={cn(
                     'rounded px-1.5 py-1.5 -mx-0.5 border border-transparent',
-                    editing
+                    selected
                       ? 'bg-neutral-100 ring-1 ring-neutral-800 border-neutral-200'
-                      : hovered
+                      : hovered || isInline
                         ? 'bg-neutral-50 border-neutral-100'
                         : 'border-neutral-100/80',
+                    batchMode && !confirmed && 'cursor-pointer',
                   )}
                   onMouseEnter={() => setHoveredId(row.id)}
                   onMouseLeave={() => setHoveredId((id) => (id === row.id ? null : id))}
+                  onClick={(event) => {
+                    if (confirmed || !batchMode || !onEditItem || isInline) return;
+                    const target = event.target as HTMLElement;
+                    if (target.closest('button, label, a, input, textarea')) return;
+                    onEditItem(row, index);
+                  }}
+                  onKeyDown={(event) => {
+                    if (confirmed || !batchMode || !onEditItem || isInline) return;
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    onEditItem(row, index);
+                  }}
                 >
                   <div className="flex items-start justify-between gap-1.5">
                     <div className="flex items-start gap-1.5 min-w-0 flex-1">
                       <span
                         className={cn(
                           'w-4 h-4 rounded text-[10px] font-semibold tabular-nums flex items-center justify-center shrink-0 mt-0.5',
-                          editing
+                          selected
                             ? 'bg-neutral-800 text-white'
                             : 'bg-neutral-100 text-neutral-500',
                         )}
@@ -194,41 +281,82 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
                           </label>
                         </div>
                         <div className="pl-[18px] mt-0.5">
-                          <p
-                            className={cn(
-                              'text-[13px] leading-5 whitespace-pre-wrap break-words',
-                              clamped && 'line-clamp-2',
-                              editing ? 'text-neutral-900 font-medium' : 'text-neutral-700',
-                            )}
-                          >
-                            {bodyText}
-                          </p>
-                          {needsClamp(bodyText) && !editing ? (
-                            <button
-                              type="button"
-                              onClick={() => toggleExpanded(row.id)}
-                              className="mt-0.5 text-[11px] font-medium text-neutral-500 hover:text-neutral-800 cursor-pointer"
-                            >
-                              {expandedIds.has(row.id) ? '收起' : '展开'}
-                            </button>
-                          ) : null}
+                          {isInline ? (
+                            <div className="space-y-1.5">
+                              <textarea
+                                ref={inlineRef}
+                                value={inlineDraft}
+                                rows={Math.min(6, Math.max(2, inlineDraft.split('\n').length))}
+                                onChange={(e) => setInlineDraft(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    cancelInlineEdit();
+                                  }
+                                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                                    e.preventDefault();
+                                    commitInlineEdit();
+                                  }
+                                }}
+                                className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-[13px] leading-5 text-neutral-800 outline-none focus:border-neutral-300 resize-y min-h-[52px]"
+                                aria-label={`原位编辑要点 ${ordinal}`}
+                              />
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={commitInlineEdit}
+                                  className="h-6 px-2 rounded-md bg-neutral-800 text-white text-[11px] font-medium cursor-pointer"
+                                >
+                                  保存
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelInlineEdit}
+                                  className="h-6 px-2 rounded-md border border-neutral-200 bg-white text-[11px] text-neutral-600 cursor-pointer"
+                                >
+                                  取消
+                                </button>
+                                <span className="text-[10px] text-neutral-400">⌘/Ctrl + Enter 保存</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <p
+                                className={cn(
+                                  'text-[13px] leading-5 whitespace-pre-wrap break-words',
+                                  clamped && 'line-clamp-2',
+                                  selected ? 'text-neutral-900 font-medium' : 'text-neutral-700',
+                                )}
+                              >
+                                {bodyText}
+                              </p>
+                              {needsClamp(bodyText) ? (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleExpanded(row.id)}
+                                  className="mt-0.5 text-[11px] font-medium text-neutral-500 hover:text-neutral-800 cursor-pointer"
+                                >
+                                  {expandedIds.has(row.id) ? '收起' : '展开'}
+                                </button>
+                              ) : null}
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
-                    {(hovered || editing) && !confirmed ? (
+                    {!isInline && (hovered || (batchMode && !selected)) && !confirmed ? (
                       <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => onEditItem?.(row, index)}
-                          className={cn(
-                            'cursor-pointer p-0.5',
-                            editing ? 'text-neutral-800' : 'text-neutral-400 hover:text-neutral-700',
-                          )}
-                          aria-label={`编辑要点 ${ordinal}`}
-                          title="在下方输入框编辑"
-                        >
-                          <Pencil size={12} />
-                        </button>
+                        {!batchMode ? (
+                          <button
+                            type="button"
+                            onClick={() => startInlineEdit(row)}
+                            className="cursor-pointer p-0.5 text-neutral-400 hover:text-neutral-700"
+                            aria-label={`编辑要点 ${ordinal}`}
+                            title="原位编辑"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => commitRows(rows.filter((item) => item.id !== row.id))}
@@ -283,7 +411,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
         </div>
 
         {confirmed ? null : (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => onConfirm(rows)}
@@ -298,6 +426,21 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
             >
               重新设置要求
             </button>
+            {onEditItem ? (
+              <button
+                type="button"
+                onClick={toggleBatchMode}
+                aria-pressed={batchMode}
+                className={cn(
+                  'h-7 px-3 rounded border text-[13px] cursor-pointer transition',
+                  batchMode
+                    ? 'border-neutral-800 bg-neutral-800 text-white'
+                    : 'border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50',
+                )}
+              >
+                {batchMode ? '退出批量编辑' : '批量编辑'}
+              </button>
+            ) : null}
           </div>
         )}
       </div>

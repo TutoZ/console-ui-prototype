@@ -252,7 +252,8 @@ export const SkillPage: React.FC = () => {
   const pagedFiltered = paginateItems(filtered, page, LIST_PAGE_SIZE);
 
   const handlePublishSkill = (payload: SkillStudioPublishPayload) => {
-    // BuildSkillModal 已通过 AppContext 写入；此处只做列表提示与关闭
+    // 保存草稿：工作台内 Toast 已提示，留在本页；正式发布才关闭
+    if (payload.draftOnly) return;
     showToast(
       payload.versionNote
         ? `${payload.name} · ${payload.versionNote}`
@@ -444,7 +445,7 @@ export const SkillPage: React.FC = () => {
             {pagedFiltered.map((s) => (
               <article
                 key={s.id}
-                className={cn(CARD, CARD_HOVER, 'group relative flex flex-col p-3.5')}
+                className={cn(CARD, CARD_HOVER, 'group relative flex h-full flex-col p-3.5')}
               >
                 <div className="flex items-start gap-2 min-w-0">
                   <SkillListIcon skill={s} />
@@ -474,7 +475,7 @@ export const SkillPage: React.FC = () => {
                   <SkillAppliedAgentTags names={skillAgentNames.get(s.id) ?? []} />
                 ) : null}
 
-                <div className="mt-2.5 pt-2 border-t border-neutral-100/80 relative min-h-7">
+                <div className="mt-auto pt-2.5 border-t border-neutral-100/80 relative min-h-7">
                   <p
                     className="text-[11px] text-neutral-400 truncate leading-7 pr-1"
                     title={`${s.author} · ${s.updatedAt}`}

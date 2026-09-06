@@ -9,7 +9,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
-import { ArrowUp, BookOpen, Cpu, GitBranch, Paperclip, Users, X } from '@/lib/icons';
+import {
+  ArrowUp,
+  BookOpen,
+  Cpu,
+  GitBranch,
+  History,
+  Paperclip,
+  Pencil,
+  Search,
+  Trash2,
+  Users,
+  X,
+} from '@/lib/icons';
 import { FIELD, NAV_ACTIVE_GRADIENT_BG, NAV_ACTIVE_GRADIENT_TEXT } from '@/lib/ui';
 import { cn } from '@/lib/utils';
 import { SKILL_PAGE_COPY } from '@/lib/platformTerminology';
@@ -23,6 +35,13 @@ import {
 const MAX_LEN = 1000;
 
 type CreateMode = 'employee' | 'skill';
+
+type HomeSession = {
+  id: string;
+  title: string;
+  mode: CreateMode;
+  prompt: string;
+};
 
 const SKILL_CHIPS = [
   '延保进度查询',
@@ -60,6 +79,33 @@ const INDEX_CHIP =
 const MODE_SWITCH_EASE = [0.25, 0.1, 0.25, 1] as const;
 const MODE_PILL_SPRING = { type: 'spring' as const, stiffness: 380, damping: 32 };
 
+const SEED_SESSIONS: HomeSession[] = [
+  {
+    id: 's1',
+    title: '食安险理赔专员',
+    mode: 'employee',
+    prompt: '帮我创建一个「食安险理赔专员」数字员工',
+  },
+  {
+    id: 's2',
+    title: '在线客服接待',
+    mode: 'employee',
+    prompt: '帮我创建一个「在线客服接待」数字员工',
+  },
+];
+
+function sessionTitleFromPrompt(text: string, mode: CreateMode): string {
+  const trimmed = text.trim().replace(/\s+/g, ' ');
+  const quoted = trimmed.match(/[「『"“](.+?)[」』"”]/);
+  if (quoted?.[1]) return quoted[1].slice(0, 28);
+  const prefix =
+    mode === 'skill'
+      ? /^(帮我)?(做一个|创建)?(一个)?/
+      : /^(帮我)?(创建一个|创建)?(一个)?/;
+  const stripped = trimmed.replace(prefix, '').replace(/数字员工|技能/g, '').trim();
+  return (stripped || trimmed).slice(0, 28);
+}
+
 export const PlatformHomePage: React.FC = () => {
   const { showToast, skills, knowledgeBases } = useApp();
   const [mode, setMode] = useState<CreateMode>('employee');
@@ -76,8 +122,14 @@ export const PlatformHomePage: React.FC = () => {
   const [indexTab, setIndexTab] = useState<'skill' | 'kb'>('skill');
   const [indexQuery, setIndexQuery] = useState('');
   const [ghostTipIndex, setGhostTipIndex] = useState(0);
+  const [sessions, setSessions] = useState<HomeSession[]>(SEED_SESSIONS);
+  const [sessionQuery, setSessionQuery] = useState('');
+  const [sessionSidebarOpen, setSessionSidebarOpen] = useState(true);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const indexPanelRef = useRef<HTMLDivElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -99,9 +151,21 @@ export const PlatformHomePage: React.FC = () => {
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [indexOpen]);
 
+  useEffect(() => {
+    if (!renamingId) return;
+    renameInputRef.current?.focus();
+    renameInputRef.current?.select();
+  }, [renamingId]);
+
   const canSubmit = prompt.trim().length > 0;
   const chips = mode === 'skill' ? SKILL_CHIPS : EMPLOYEE_CHIPS;
   const headline = HEADLINE[mode];
+
+  const filteredSessions = useMemo(() => {
+    const q = sessionQuery.trim().toLowerCase();
+    if (!q) return sessions;
+    return sessions.filter((s) => s.title.toLowerCase().includes(q) || s.prompt.toLowerCase().includes(q));
+  }, [sessions, sessionQuery]);
 
   const indexableSkills = useMemo(
     () =>
@@ -174,6 +238,7 @@ export const PlatformHomePage: React.FC = () => {
   };
 
   const handleSkillPublished = (payload: SkillStudioPublishPayload) => {
+    if (payload.draftOnly) return;
     showToast(
       payload.versionNote
         ? `${payload.name} · ${payload.versionNote}`
@@ -187,9 +252,66 @@ export const PlatformHomePage: React.FC = () => {
       ? indexedSkillIds.length + indexedKbIds.length
       : indexedKbIds.length;
 
+  const pushSession = (text: string, nextMode: CreateMode) => {
+    const session: HomeSession = {
+      id: `s_${Date.now()}`,
+      title: sessionTitleFromPrompt(text, nextMode),
+      mode: nextMode,
+      prompt: text,
+    };
+    setSessions((prev) => [session, ...prev.filter((s) => s.prompt !== text)]);
+  };
+
+  const openSession = (session: HomeSession) => {
+    setMode(session.mode);
+    setRenamingId(null);
+    setPrompt('');
+    setIndexOpen(false);
+    setIndexedSkillIds([]);
+    setIndexedKbIds([]);
+
+    if (session.mode === 'skill') {
+      setIncubationOpen(false);
+      setIncubationSkillIds([]);
+      setIncubationKbIds([]);
+      setSkillSeed(session.prompt);
+      setSkillStudioOpen(true);
+      return;
+    }
+
+    setSkillStudioOpen(false);
+    setSkillSeed(null);
+    setIncubationSeed(session.prompt);
+    setIncubationSkillIds([]);
+    setIncubationKbIds([]);
+    setIncubationOpen(true);
+  };
+
+  const startRename = (session: HomeSession) => {
+    setRenamingId(session.id);
+    setRenameDraft(session.title);
+  };
+
+  const commitRename = () => {
+    if (!renamingId) return;
+    const next = renameDraft.trim();
+    if (next) {
+      setSessions((prev) =>
+        prev.map((s) => (s.id === renamingId ? { ...s, title: next.slice(0, 40) } : s)),
+      );
+    }
+    setRenamingId(null);
+  };
+
+  const deleteSession = (id: string) => {
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+    if (renamingId === id) setRenamingId(null);
+  };
+
   const handleSubmit = () => {
     if (!canSubmit) return;
     const text = prompt.trim();
+    pushSession(text, mode);
 
     if (mode === 'skill') {
       setSkillSeed(text);
@@ -211,7 +333,132 @@ export const PlatformHomePage: React.FC = () => {
   };
 
   return (
-    <div className="relative flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-white">
+    <div className="relative flex flex-1 min-h-0 overflow-hidden bg-white">
+      {/* 最近会话：展开为侧栏；收起仅「最近会话」+图标，无边线 */}
+      {sessionSidebarOpen ? (
+        <aside
+          className="relative z-[2] flex h-full w-[248px] shrink-0 flex-col border-r border-neutral-100 bg-white"
+          aria-label="最近会话"
+        >
+          <div className="flex h-11 shrink-0 items-center justify-between gap-2 px-3">
+            <h2 className="text-[14px] font-medium text-neutral-700">最近会话</h2>
+            <button
+              type="button"
+              onClick={() => setSessionSidebarOpen(false)}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-50 hover:text-neutral-800 cursor-pointer transition"
+              aria-label="收起会话列表"
+              title="收起"
+            >
+              <History size={16} strokeWidth={1.75} />
+            </button>
+          </div>
+
+          <div className="px-3 pb-2">
+            <div className="relative">
+              <Search
+                size={14}
+                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400"
+              />
+              <input
+                type="search"
+                value={sessionQuery}
+                onChange={(e) => setSessionQuery(e.target.value)}
+                placeholder="搜索会话"
+                className={cn(
+                  FIELD,
+                  'h-8 pl-8 text-[12px] bg-neutral-50/80 border-neutral-200/60 rounded-lg',
+                )}
+                aria-label="搜索会话"
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-2 pb-3">
+            {filteredSessions.length === 0 ? (
+              <p className="px-2 py-6 text-center text-[12px] text-neutral-400">
+                {sessionQuery.trim() ? '没有匹配的会话' : '暂无会话，创建后会出现在这里'}
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-0.5">
+                {filteredSessions.map((session) => {
+                  const renaming = renamingId === session.id;
+                  return (
+                    <li key={session.id}>
+                      <div className="group relative flex items-center gap-1 rounded-lg px-2.5 py-2 transition hover:bg-neutral-50">
+                        {renaming ? (
+                          <input
+                            ref={renameInputRef}
+                            value={renameDraft}
+                            onChange={(e) => setRenameDraft(e.target.value.slice(0, 40))}
+                            onBlur={commitRename}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                commitRename();
+                              }
+                              if (e.key === 'Escape') {
+                                e.preventDefault();
+                                setRenamingId(null);
+                              }
+                            }}
+                            className="min-w-0 flex-1 h-6 rounded-md border border-neutral-200 bg-white px-1.5 text-[13px] text-neutral-800 outline-none focus:border-neutral-300"
+                            aria-label="重命名会话"
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => openSession(session)}
+                            className="min-w-0 flex-1 text-left cursor-pointer"
+                          >
+                            <span className="block truncate text-[13px] leading-5 text-neutral-700 group-hover:text-neutral-900">
+                              {session.title}
+                            </span>
+                          </button>
+                        )}
+                        {!renaming ? (
+                          <div className="flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+                            <button
+                              type="button"
+                              onClick={() => startRename(session)}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-md text-neutral-400 hover:bg-white hover:text-neutral-700 cursor-pointer"
+                              aria-label={`重命名 ${session.title}`}
+                              title="重命名"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteSession(session.id)}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-md text-neutral-400 hover:bg-white hover:text-red-600 cursor-pointer"
+                              aria-label={`删除 ${session.title}`}
+                              title="删除"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </aside>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setSessionSidebarOpen(true)}
+          className="absolute left-4 top-3 z-[3] inline-flex items-center gap-1.5 text-[14px] font-medium text-neutral-700 hover:text-neutral-900 cursor-pointer"
+          aria-label="展开最近会话"
+          title="展开最近会话"
+        >
+          <span>最近会话</span>
+          <History size={16} strokeWidth={1.75} className="text-neutral-600" />
+        </button>
+      )}
+
+      <div className="relative flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-white">
       {/* 柔光：大模糊 + 长淡出，避免椭圆硬边 */}
       <div
         aria-hidden
@@ -585,9 +832,10 @@ export const PlatformHomePage: React.FC = () => {
           showToast={showToast}
           initialMode="interactive"
           initialPrompt={skillSeed}
-          closeLabel="返回智能创建"
+          closeLabel="返回 Agent Builder"
         />
       ) : null}
+      </div>
     </div>
   );
 };

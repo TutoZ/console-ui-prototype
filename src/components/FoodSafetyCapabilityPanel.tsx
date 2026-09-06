@@ -14,6 +14,8 @@ import {
   ChevronRight,
   Compass,
   GitBranch,
+  FileText,
+  Folder,
   Library,
   Lock,
   MousePointer2,
@@ -425,33 +427,28 @@ function KnowledgeSkillCallStrip({
   );
 }
 
-/** 顶部 Agent Loop：感知→推理→行动→观察 循环动效（与下方详情同屏但不抢左右焦点） */
-function useAgentLoopCycle(active: boolean, durationMs: number, targetRounds: number) {
-  const rounds = Math.max(1, targetRounds);
-  const [tick, setTick] = useState(0);
+/** 顶部 Agent Loop：独立持续循环（与下方 Thought / Finder / Browser 解耦） */
+function useAgentLoopCycle(active: boolean, stepMs = 850) {
+  const [phaseIdx, setPhaseIdx] = useState(-1);
+  const [round, setRound] = useState(0);
 
   useEffect(() => {
-    if (!active) {
-      setTick(rounds * 4);
-      return;
-    }
-    setTick(1);
-    const totalSteps = rounds * 4;
-    const stepMs = Math.max(700, Math.floor(durationMs / totalSteps));
-    const timers: number[] = [];
-    for (let i = 2; i <= totalSteps; i += 1) {
-      timers.push(window.setTimeout(() => setTick(i), stepMs * (i - 1)));
-    }
-    return () => timers.forEach((t) => window.clearTimeout(t));
-  }, [active, durationMs, rounds]);
+    if (!active) return;
 
-  if (tick <= 0) {
-    return { phaseIdx: -1, round: 0, totalRounds: rounds };
-  }
-  const safeTick = Math.min(tick, rounds * 4);
-  const phaseIdx = (safeTick - 1) % 4;
-  const round = Math.min(rounds, Math.ceil(safeTick / 4));
-  return { phaseIdx, round, totalRounds: rounds };
+    setPhaseIdx(0);
+    setRound(1);
+    const id = window.setInterval(() => {
+      setPhaseIdx((prev) => {
+        const next = (prev + 1) % 4;
+        if (next === 0) setRound((r) => r + 1);
+        return next;
+      });
+    }, stepMs);
+
+    return () => window.clearInterval(id);
+  }, [active, stepMs]);
+
+  return { phaseIdx, round };
 }
 
 function AgentLoopStrip({
@@ -464,66 +461,69 @@ function AgentLoopStrip({
   const nodes = stage.nodes;
   if (nodes.length === 0 && stage.mode !== 'browser') return null;
 
-  const targetRounds = Math.max(2, Math.min(4, Math.max(nodes.length, 2)));
-  const cycle = useAgentLoopCycle(Boolean(running), stage.durationMs, targetRounds);
+  const cycle = useAgentLoopCycle(Boolean(running));
 
   return (
-    <div className="shrink-0 py-2.5">
-      <div className={LOOP_CONTENT_FRAME}>
-        <div className="flex items-center gap-2 min-w-0 mb-1.5">
-          <span
-            className={cn(
-              'inline-flex items-center gap-1 text-[10px] font-semibold tracking-[0.12em]',
-              SKILL_AOP_GRADIENT_TEXT,
-            )}
-          >
-            <Bot size={12} className={running ? 'animate-pulse' : undefined} />
-            AGENT LOOP
-          </span>
-        </div>
+    <div className="shrink-0 py-2.5 px-5 sm:px-7">
+      <div className="flex items-center gap-2 min-w-0 mb-1.5">
+        <span
+          className={cn(
+            'inline-flex items-center gap-1 text-[10px] font-semibold tracking-[0.12em]',
+            SKILL_AOP_GRADIENT_TEXT,
+          )}
+        >
+          <Bot size={12} className={running ? 'animate-pulse' : undefined} />
+          AGENT LOOP
+        </span>
+        <span className="text-[10px] text-neutral-400 tabular-nums">
+          {running
+            ? `持续循环 · 第 ${Math.max(1, cycle.round)} 轮`
+            : cycle.round > 0
+              ? `已运行 ${cycle.round} 轮`
+              : '待命'}
+        </span>
+      </div>
 
-        <div className="w-full flex items-center gap-1">
-          {CYCLE_PHASES.map((p, i) => {
-            const on = running && cycle.phaseIdx === i;
-            const passedInRound = cycle.phaseIdx >= 0 && i < cycle.phaseIdx;
-            const crossedRounds = cycle.round > 1;
-            const showPassed =
-              !on && ((!running && cycle.round > 0) || passedInRound || (crossedRounds && !on));
+      <div className="w-full flex items-center gap-1">
+        {CYCLE_PHASES.map((p, i) => {
+          const on = running && cycle.phaseIdx === i;
+          const passedInRound = running && cycle.phaseIdx >= 0 && i < cycle.phaseIdx;
+          const showPassed = !on && ((!running && cycle.round > 0) || passedInRound);
 
-            return (
-              <React.Fragment key={p.key}>
-                {i > 0 ? (
-                  <div
-                    className={cn(
-                      'h-[2px] w-2 sm:w-3 shrink-0 transition-colors duration-300',
-                      on || showPassed ? 'bg-[#1565BF]' : 'bg-neutral-200',
-                    )}
+          return (
+            <React.Fragment key={p.key}>
+              {i > 0 ? (
+                <div
+                  className={cn(
+                    'h-[2px] w-2 sm:w-3 shrink-0 transition-colors duration-300',
+                    on || showPassed ? 'bg-[#1565BF]' : 'bg-neutral-200',
+                  )}
+                  aria-hidden
+                />
+              ) : null}
+              <div
+                className={cn(
+                  'flex-1 min-w-0 inline-flex items-center justify-center gap-0.5 rounded-md border px-1.5 py-1.5 text-[10px] sm:text-[11px] font-semibold transition-all duration-300',
+                  on &&
+                    'border-[#1565BF]/40 bg-[rgba(21,101,191,0.08)] text-[#1565BF] shadow-[0_0_0_2px_rgba(21,101,191,0.12)] scale-[1.02]',
+                  !on && showPassed && 'border-[#1565BF]/25 bg-[rgba(21,101,191,0.04)] text-[#1565BF]/80',
+                  !on && !showPassed && 'border-neutral-200 bg-white text-neutral-400',
+                )}
+              >
+                {on ? (
+                  <span
+                    className="shrink-0 w-1.5 h-1.5 rounded-full bg-[#1565BF] animate-pulse"
                     aria-hidden
                   />
                 ) : null}
-                <div
-                  className={cn(
-                    'flex-1 min-w-0 inline-flex items-center justify-center gap-0.5 rounded-md border px-1.5 py-1 text-[10px] font-semibold transition-all duration-300',
-                    on && 'border-[#1565BF]/40 bg-[rgba(21,101,191,0.08)] text-[#1565BF]',
-                    !on && showPassed && 'border-[#1565BF]/25 bg-[rgba(21,101,191,0.04)] text-[#1565BF]/80',
-                    !on && !showPassed && 'border-neutral-200 bg-white text-neutral-400',
-                  )}
-                >
-                  {on ? (
-                    <span
-                      className="shrink-0 w-1.5 h-1.5 rounded-full bg-[#1565BF] animate-pulse"
-                      aria-hidden
-                    />
-                  ) : null}
-                  {!on && showPassed ? (
-                    <span className="shrink-0 w-1 h-1 rounded-full bg-[#1565BF]/70" aria-hidden />
-                  ) : null}
-                  <span className="truncate">{p.label}</span>
-                </div>
-              </React.Fragment>
-            );
-          })}
-        </div>
+                {!on && showPassed ? (
+                  <span className="shrink-0 w-1 h-1 rounded-full bg-[#1565BF]/70" aria-hidden />
+                ) : null}
+                <span className="truncate">{p.label}</span>
+              </div>
+            </React.Fragment>
+          );
+        })}
       </div>
     </div>
   );
@@ -1037,7 +1037,484 @@ function BrowserUseDemo({
   );
 }
 
-/** Agent Loop 主面板：Thought + Trace，清晰可读 */
+type BrowseEntry = {
+  id: string;
+  name: string;
+  kind: 'folder' | 'file';
+  hit?: boolean;
+  score?: string;
+  preview?: string;
+};
+
+function buildKnowledgeEntries(kbName: string): {
+  breadcrumb: string[];
+  query: string;
+  entries: BrowseEntry[];
+  hitPreview: string;
+} {
+  const hitDoc =
+    kbName.includes('意图')
+      ? '转人工意图标签_V2.yml'
+      : kbName.includes('症状')
+        ? '症状-场景映射表.md'
+        : kbName.includes('理赔')
+          ? '食品安全责任险理赔指引_V3.2.pdf'
+          : kbName.includes('理算')
+            ? '理算规则-FS-Amount.md'
+            : kbName.includes('致病')
+              ? '致病非致病判定规则.md'
+              : `${kbName}_核心文档.md`;
+
+  const query =
+    kbName.includes('意图')
+      ? '转人工 请求人工 意图标签'
+      : kbName.includes('症状')
+        ? '外卖后不适 呕吐 症状场景'
+        : kbName.includes('理赔')
+          ? '食安险 理赔流程 材料 时效'
+          : kbName.includes('理算')
+            ? '理算规则 金额核定 FS-Amount'
+            : `${kbName} 关键条款`;
+
+  const hitPreview =
+    kbName.includes('意图')
+      ? '标签「转人工」置信阈值 ≥ 0.90；命中后优先走承接策略，非直接派单。'
+      : kbName.includes('理赔')
+        ? '食物中毒类理赔适用条款第4.2条。餐品送达后 36 小时内建议就医，需诊断证明、病历和医疗票据等材料。'
+        : kbName.includes('理算')
+          ? 'FS-Amount：赔付金额 = min(实际损失, 保额剩余) − 免赔额；超额需人工复核。'
+          : `来自「${kbName}」的高相关片段，用于本轮回答与策略判断。`;
+
+  return {
+    breadcrumb: ['员工挂载库', '知识库', kbName],
+    query,
+    hitPreview,
+    entries: [
+      { id: 'f1', name: '00_目录索引.md', kind: 'file' },
+      { id: 'f2', name: 'SOP', kind: 'folder' },
+      { id: 'f3', name: hitDoc, kind: 'file', hit: true, score: '0.91', preview: hitPreview },
+      { id: 'f4', name: 'FAQ补充包.md', kind: 'file' },
+      { id: 'f5', name: '历史案例摘要.json', kind: 'file' },
+      { id: 'f6', name: '_embeddings', kind: 'folder' },
+    ],
+  };
+}
+
+function buildSkillEntries(skillName: string, meta?: string): {
+  breadcrumb: string[];
+  query: string;
+  entries: BrowseEntry[];
+  hitPreview: string;
+} {
+  return {
+    breadcrumb: ['员工挂载库', '技能', skillName],
+    query: skillName,
+    hitPreview: `读取 SKILL.md 执行说明${meta ? `（${meta}）` : ''}，按技能步骤与边界约束完成本轮动作。`,
+    entries: [
+      { id: 's1', name: 'SKILL.md', kind: 'file', hit: true, score: meta ?? 'loaded', preview: '技能目标、触发条件、执行步骤与输出约束。' },
+      { id: 's2', name: 'scripts', kind: 'folder' },
+      { id: 's3', name: 'references', kind: 'folder' },
+      { id: 's4', name: 'metadata.yaml', kind: 'file' },
+    ],
+  };
+}
+
+function buildProcessEntries(name: string): {
+  breadcrumb: string[];
+  query: string;
+  entries: BrowseEntry[];
+  hitPreview: string;
+} {
+  return {
+    breadcrumb: ['员工挂载库', '流程', name],
+    query: name,
+    hitPreview: `定位流程节点「${name}」，读取分支条件后继续决策。`,
+    entries: [
+      { id: 'p1', name: '流程总览.md', kind: 'file' },
+      { id: 'p2', name: `${name}.md`, kind: 'file', hit: true, score: 'match' },
+      { id: 'p3', name: '分支条件.yml', kind: 'file' },
+    ],
+  };
+}
+
+/**
+ * 对齐真实 Agent 路径的可视化（Finder / Browser Use 找文件夹）：
+ * 知识库：挂载库 → 进入知识库目录 → 问题改写检索词 → 扫文档命中 → 打开片段
+ * 技能：挂载库 → 技能目录 → 打开技能包 → 读取 SKILL.md
+ */
+function KnowledgeBrowseDemo({
+  target,
+  active,
+}: {
+  target: LoopNodeRef | null;
+  active: boolean;
+}) {
+  const isKnowledge = target?.kind === 'knowledge';
+  const isSkill = target?.kind === 'skill';
+  const pack = useMemo(() => {
+    if (!target) return null;
+    if (target.kind === 'knowledge') return buildKnowledgeEntries(target.name);
+    if (target.kind === 'skill') return buildSkillEntries(target.name, target.meta);
+    return buildProcessEntries(target.name);
+  }, [target]);
+
+  const [subPhase, setSubPhase] = useState(0);
+  const [cursor, setCursor] = useState({ x: 22, y: 28, visible: false, clicking: false });
+  const [scanIdx, setScanIdx] = useState(-1);
+  const deskRef = useRef<HTMLDivElement>(null);
+  const folderRef = useRef<HTMLButtonElement>(null);
+  const hitRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setSubPhase(0);
+    setScanIdx(-1);
+    setCursor({ x: 22, y: 28, visible: false, clicking: false });
+    if (!target || !active || !pack) return;
+
+    const timers = [
+      window.setTimeout(() => setSubPhase(1), 80), // 打开资源管理器 / 挂载库
+      window.setTimeout(() => setSubPhase(2), 520), // 进入目标文件夹
+      window.setTimeout(() => setSubPhase(3), 980), // 改写/定位检索词
+      window.setTimeout(() => setSubPhase(4), 1500), // 扫文件
+      window.setTimeout(() => setSubPhase(5), 2200), // 点击命中
+      window.setTimeout(() => setSubPhase(6), 2800), // 打开预览
+    ];
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [target?.name, target?.kind, target?.meta, active, pack]);
+
+  useEffect(() => {
+    if (subPhase !== 4 || !pack) {
+      if (subPhase < 4) setScanIdx(-1);
+      return;
+    }
+    let i = 0;
+    setScanIdx(0);
+    const id = window.setInterval(() => {
+      i += 1;
+      if (i >= pack.entries.length) {
+        window.clearInterval(id);
+        return;
+      }
+      setScanIdx(i);
+    }, 160);
+    return () => window.clearInterval(id);
+  }, [subPhase, pack]);
+
+  useEffect(() => {
+    if (!active || !target || !pack) {
+      setCursor((c) => ({ ...c, visible: false }));
+      return;
+    }
+    const root = deskRef.current;
+    const moveTo = (el: HTMLElement | null, fallback: { x: number; y: number }, click?: boolean) => {
+      if (!root || !el) {
+        setCursor({ ...fallback, visible: true, clicking: Boolean(click) });
+        return;
+      }
+      const rootBox = root.getBoundingClientRect();
+      const box = el.getBoundingClientRect();
+      const x = ((box.left + box.width * 0.55 - rootBox.left) / rootBox.width) * 100;
+      const y = ((box.top + box.height * 0.5 - rootBox.top) / rootBox.height) * 100;
+      setCursor({
+        x: Math.min(90, Math.max(6, x)),
+        y: Math.min(88, Math.max(8, y)),
+        visible: true,
+        clicking: Boolean(click),
+      });
+    };
+
+    if (subPhase === 1) {
+      moveTo(folderRef.current, { x: 18, y: 42 });
+      return;
+    }
+    if (subPhase === 2) {
+      moveTo(folderRef.current, { x: 18, y: 42 }, true);
+      const t = window.setTimeout(() => setCursor((c) => ({ ...c, clicking: false })), 320);
+      return () => window.clearTimeout(t);
+    }
+    if (subPhase === 3) {
+      moveTo(searchRef.current, { x: 55, y: 16 });
+      return;
+    }
+    if (subPhase === 4) {
+      setCursor({ x: 58, y: 36 + Math.min(scanIdx, 4) * 8, visible: true, clicking: false });
+      return;
+    }
+    if (subPhase >= 5) {
+      moveTo(hitRef.current, { x: 62, y: 52 }, subPhase === 5);
+      if (subPhase === 5) {
+        const t = window.setTimeout(() => setCursor((c) => ({ ...c, clicking: false })), 360);
+        return () => window.clearTimeout(t);
+      }
+    }
+  }, [subPhase, active, target, pack, scanIdx]);
+
+  const statusLabel =
+    !target || !active
+      ? '待命'
+      : subPhase <= 1
+        ? '打开挂载库'
+        : subPhase === 2
+          ? isKnowledge
+            ? '进入知识库文件夹'
+            : isSkill
+              ? '进入技能包文件夹'
+              : '进入流程目录'
+          : subPhase === 3
+            ? isKnowledge
+              ? '改写检索词'
+              : '定位技能包'
+            : subPhase === 4
+              ? isKnowledge
+                ? '向量检索扫文件…'
+                : '浏览技能包文件…'
+              : subPhase === 5
+                ? '打开命中文件'
+                : isKnowledge
+                  ? '读取知识片段'
+                  : '读取 SKILL.md';
+
+  const typedQuery =
+    pack && subPhase >= 3
+      ? pack.query.slice(0, Math.min(pack.query.length, 6 + (subPhase - 2) * 8))
+      : '';
+
+  return (
+    <div className="h-full min-h-0 flex flex-col p-2 sm:p-3">
+      <div
+        className={cn(
+          'flex-1 min-h-0 flex flex-col rounded-[10px] border border-neutral-300/90 bg-[#c8c8c8] overflow-hidden shadow-[0_12px_36px_rgba(0,0,0,0.12)] transition-all duration-300',
+          target && active ? 'opacity-100 scale-100' : 'opacity-90',
+        )}
+      >
+        {/* Finder 标题栏 */}
+        <div className="shrink-0 bg-[#e8e8e8] border-b border-neutral-300/90">
+          <div className="flex items-center gap-2 px-2.5 pt-2 pb-1.5">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
+            </div>
+            <div className="flex-1 min-w-0 text-center">
+              <span className="text-[11px] font-semibold text-neutral-700 truncate">
+                {!target
+                  ? '员工挂载资源'
+                  : isSkill
+                    ? '技能包资源管理器'
+                    : isKnowledge
+                      ? '知识库资源管理器'
+                      : '流程资源管理器'}
+              </span>
+            </div>
+            <span className="text-[10px] text-neutral-500 tabular-nums shrink-0 max-w-[7rem] truncate">
+              {statusLabel}
+            </span>
+          </div>
+          {/* 路径面包屑：像进文件夹 */}
+          <div className="px-2.5 pb-2">
+            <div className="h-7 rounded-md bg-white/90 border border-neutral-300/80 px-2 flex items-center gap-1 overflow-hidden">
+              <Folder size={12} className="text-[#1565BF] shrink-0" />
+              {(pack?.breadcrumb ?? ['员工挂载库']).map((seg, i, arr) => (
+                <React.Fragment key={`${seg}-${i}`}>
+                  {i > 0 ? (
+                    <ChevronRight size={11} className="text-neutral-300 shrink-0" />
+                  ) : null}
+                  <span
+                    className={cn(
+                      'text-[11px] truncate',
+                      i === arr.length - 1 && subPhase >= 2
+                        ? 'text-neutral-900 font-semibold'
+                        : 'text-neutral-500',
+                      subPhase < 2 && i > 0 && 'opacity-40',
+                    )}
+                  >
+                    {seg}
+                  </span>
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div ref={deskRef} className="flex-1 min-h-0 bg-[#f5f5f7] relative overflow-hidden flex">
+          {/* 鼠标 */}
+          <div
+            className={cn(
+              'pointer-events-none absolute z-30 transition-all duration-500 ease-out',
+              cursor.visible ? 'opacity-100' : 'opacity-0',
+              cursor.clicking && 'scale-90',
+            )}
+            style={{ left: `${cursor.x}%`, top: `${cursor.y}%` }}
+            aria-hidden
+          >
+            <MousePointer2
+              size={18}
+              className="text-neutral-900 drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)]"
+              strokeWidth={1.8}
+            />
+            {cursor.clicking ? (
+              <span className="absolute left-1 top-1 w-4 h-4 rounded-full border-2 border-sky-400 animate-ping opacity-70" />
+            ) : null}
+            {subPhase >= 5 && target ? (
+              <span className="absolute left-4 top-5 whitespace-nowrap rounded bg-neutral-900/85 text-white text-[10px] font-medium px-1.5 py-0.5 shadow">
+                {subPhase >= 6 ? (isKnowledge ? '读取片段' : '读取 SKILL.md') : '双击打开'}
+              </span>
+            ) : null}
+          </div>
+
+          {!target || !pack ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4 text-center">
+              <Folder size={28} className="text-neutral-300" />
+              <p className="text-[12px] text-neutral-400 leading-relaxed">
+                Agent 调知识 / 技能时
+                <br />
+                会像在电脑里打开挂载文件夹查找
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* 左侧：挂载库侧栏 */}
+              <aside className="w-[88px] sm:w-[100px] shrink-0 border-r border-neutral-200/90 bg-[#ececef] py-2 px-1.5 space-y-0.5">
+                <p className="px-1.5 text-[9px] font-semibold tracking-wider text-neutral-400 mb-1">
+                  FAVORITES
+                </p>
+                {(
+                  [
+                    { id: 'kb', label: '知识库', on: isKnowledge || (!isSkill && target.kind !== 'process') },
+                    { id: 'sk', label: '技能', on: isSkill },
+                    { id: 'flow', label: '流程', on: target.kind === 'process' },
+                  ] as const
+                ).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    ref={item.on ? folderRef : undefined}
+                    className={cn(
+                      'w-full flex items-center gap-1 rounded-md px-1.5 py-1 text-left transition-colors',
+                      item.on && subPhase >= 1
+                        ? 'bg-[#1565BF]/15 text-[#1565BF]'
+                        : 'text-neutral-600',
+                      subPhase === 1 && item.on && 'ring-1 ring-[#1565BF]/40',
+                    )}
+                  >
+                    <Folder size={12} className="shrink-0" />
+                    <span className="text-[10px] font-medium truncate">{item.label}</span>
+                  </button>
+                ))}
+              </aside>
+
+              {/* 右侧：文件夹内容 */}
+              <div className="flex-1 min-w-0 flex flex-col min-h-0">
+                {/* 检索条：知识库 = RAG 改写词；技能 = 包名定位 */}
+                <div ref={searchRef} className="shrink-0 px-2 py-1.5 border-b border-neutral-200/80 bg-white/80">
+                  <div className="h-7 rounded-md border border-neutral-200 bg-neutral-50 px-2 flex items-center gap-1.5">
+                    <Search size={12} className="text-neutral-400 shrink-0" />
+                    <span className="text-[11px] text-neutral-800 truncate flex-1 min-w-0 font-mono">
+                      {subPhase < 3
+                        ? isKnowledge
+                          ? '等待问题改写…'
+                          : '定位技能包…'
+                        : typedQuery}
+                      {active && subPhase === 3 ? (
+                        <span className="inline-block w-0.5 h-3 ml-0.5 align-middle bg-[#1565BF] animate-pulse" />
+                      ) : null}
+                    </span>
+                    {subPhase === 4 ? (
+                      <span className="w-3 h-3 rounded-full border-2 border-neutral-200 border-t-[#1565BF] animate-spin shrink-0" />
+                    ) : null}
+                  </div>
+                  {subPhase >= 3 && isKnowledge ? (
+                    <p className="mt-1 text-[9px] text-neutral-400 px-0.5">
+                      RAG：口语问题 → 检索关键词 → 向量扫库
+                    </p>
+                  ) : null}
+                  {subPhase >= 3 && isSkill ? (
+                    <p className="mt-1 text-[9px] text-neutral-400 px-0.5">
+                      路由：意图匹配技能 → 打开技能包目录 → 读 SKILL.md
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="flex-1 min-h-0 overflow-y-auto px-1.5 py-1.5 space-y-0.5">
+                  {pack.entries.map((entry, idx) => {
+                    const scanning = subPhase === 4 && scanIdx === idx;
+                    const scanned = subPhase === 4 && scanIdx > idx;
+                    const selected = subPhase >= 5 && entry.hit;
+                    const dim = subPhase < 2;
+                    return (
+                      <button
+                        key={entry.id}
+                        type="button"
+                        ref={entry.hit ? hitRef : undefined}
+                        className={cn(
+                          'w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-left transition-all duration-150',
+                          selected && 'bg-[rgba(21,101,191,0.12)] ring-1 ring-[#1565BF]/40',
+                          scanning && 'bg-amber-50 ring-1 ring-amber-200/80',
+                          scanned && !entry.hit && 'opacity-45',
+                          dim && 'opacity-35',
+                        )}
+                      >
+                        {entry.kind === 'folder' ? (
+                          <Folder size={14} className="shrink-0 text-amber-500" />
+                        ) : (
+                          <FileText
+                            size={14}
+                            className={cn(
+                              'shrink-0',
+                              selected ? 'text-[#1565BF]' : 'text-neutral-400',
+                            )}
+                          />
+                        )}
+                        <span
+                          className={cn(
+                            'min-w-0 flex-1 text-[11px] truncate',
+                            selected ? 'text-neutral-900 font-semibold' : 'text-neutral-700',
+                          )}
+                        >
+                          {entry.name}
+                        </span>
+                        {scanning ? (
+                          <span className="text-[9px] text-amber-700 shrink-0">扫描</span>
+                        ) : null}
+                        {selected && entry.score ? (
+                          <span className="shrink-0 text-[9px] font-semibold tabular-nums text-[#1565BF]">
+                            {isKnowledge ? `相似 ${entry.score}` : entry.score}
+                          </span>
+                        ) : null}
+                        {selected && subPhase >= 6 ? (
+                          <Check size={12} className="shrink-0 text-emerald-600" strokeWidth={2.5} />
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {subPhase >= 6 && pack ? (
+                  <div className="shrink-0 border-t border-neutral-200 bg-white px-2.5 py-2">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="text-[10px] font-semibold text-neutral-500">
+                        {isKnowledge ? '命中片段' : isSkill ? '已加载技能说明' : '已定位流程'}
+                      </p>
+                      {target.meta ? (
+                        <span className="text-[10px] tabular-nums text-neutral-400">{target.meta}</span>
+                      ) : null}
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-neutral-800 line-clamp-3">
+                      {pack.hitPreview}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Agent Loop 主面板：左 Thought → 右 Finder（串行：先打完思考，再进库动画） */
 function AgentLoopThinkPanel({
   stage,
   phase,
@@ -1053,11 +1530,45 @@ function AgentLoopThinkPanel({
   const activeNode: LoopDemoNode | null = currentIdx >= 0 ? nodes[currentIdx] : null;
   const doneAll = !running && revealed >= nodes.length && nodes.length > 0;
 
+  const browseTarget = useMemo(() => {
+    const refs = activeNode?.refs ?? [];
+    const preferred =
+      refs.find((r) => r.kind === 'knowledge') ??
+      refs.find((r) => r.kind === 'skill') ??
+      refs.find((r) => r.kind === 'process') ??
+      null;
+    if (preferred) return preferred;
+    if (doneAll) {
+      for (let i = nodes.length - 1; i >= 0; i -= 1) {
+        const hit = (nodes[i].refs ?? []).find(
+          (r) => r.kind === 'knowledge' || r.kind === 'skill' || r.kind === 'process',
+        );
+        if (hit) return hit;
+      }
+    }
+    return null;
+  }, [activeNode, doneAll, nodes]);
+
+  const hasBrowseRefs = Boolean(
+    activeNode &&
+      (activeNode.refs ?? []).some(
+        (r) => r.kind === 'knowledge' || r.kind === 'skill' || r.kind === 'process',
+      ),
+  );
+
   const [thoughtShown, setThoughtShown] = useState('');
+  const [thoughtDone, setThoughtDone] = useState(false);
+  /** Thought 出答案后停顿，再调用系统（进库 / 技能），禁止立刻连着播 */
+  const [systemReady, setSystemReady] = useState(false);
+
   useEffect(() => {
     const full = activeNode?.thought ?? '';
+    setThoughtDone(false);
+    setSystemReady(false);
     if (!full) {
       setThoughtShown(doneAll ? '循环收敛，输出回复' : '');
+      setThoughtDone(Boolean(doneAll || !running));
+      setSystemReady(Boolean(doneAll || !running));
       return;
     }
     setThoughtShown('');
@@ -1065,129 +1576,128 @@ function AgentLoopThinkPanel({
     const id = window.setInterval(() => {
       i += 1;
       setThoughtShown(full.slice(0, i));
-      if (i >= full.length) window.clearInterval(id);
+      if (i >= full.length) {
+        window.clearInterval(id);
+        setThoughtDone(true);
+      }
     }, 22);
     return () => window.clearInterval(id);
-  }, [activeNode?.thought, activeNode?.action, doneAll, stage.turnId]);
+  }, [activeNode?.thought, activeNode?.action, doneAll, stage.turnId, running]);
+
+  useEffect(() => {
+    if (!running || !thoughtDone || !hasBrowseRefs) {
+      if (!running) setSystemReady(false);
+      return;
+    }
+    setSystemReady(false);
+    const t = window.setTimeout(() => setSystemReady(true), 1200);
+    return () => window.clearTimeout(t);
+  }, [running, thoughtDone, hasBrowseRefs, activeNode?.action, stage.turnId]);
+
+  /** 串行：Thought 打完 → 停顿看答案 → 再启动右侧进库 */
+  const browseActive = Boolean(running && systemReady && hasBrowseRefs);
+  const waitingToCallSystem = Boolean(running && thoughtDone && !systemReady && hasBrowseRefs);
+  const showBrowseIdle = !browseActive && !doneAll;
+  const focusRight = browseActive || doneAll;
 
   return (
     <div className="relative h-full overflow-hidden">
-      <div className={cn('relative h-full flex flex-col py-4 min-h-0 overflow-hidden', LOOP_CONTENT_FRAME)}>
-        <div className="shrink-0 mb-4">
+      <div className="relative h-full flex flex-col py-3 sm:py-4 min-h-0 overflow-hidden px-3 sm:px-4">
+        <div className="shrink-0 mb-3 px-1">
           <h2
             className={cn(
-              'text-[24px] sm:text-[28px] font-semibold tracking-[-0.03em] leading-tight truncate',
+              'text-[22px] sm:text-[26px] font-semibold tracking-[-0.03em] leading-tight truncate',
               SKILL_AOP_GRADIENT_TEXT,
             )}
           >
             {stage.title}
           </h2>
+          {activeNode?.action ? (
+            <p className="mt-1 text-[12px] font-medium text-neutral-500 truncate">
+              当前步骤 · {activeNode.action}
+            </p>
+          ) : null}
         </div>
 
-        <div className="shrink-0 mb-4 pb-4 border-b border-neutral-200/80">
-          <div className="flex items-start gap-2.5 min-w-0">
-            <Activity size={16} strokeWidth={2} className="shrink-0 mt-0.5 text-[#1565BF]" />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[11px] font-semibold tracking-[0.08em] text-[#1565BF]">
-                  THOUGHT
-                </span>
-                {activeNode ? (
-                  <span className="text-[12px] text-neutral-400">· {activeNode.action}</span>
-                ) : null}
+        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.15fr)] gap-3 overflow-hidden">
+          {/* 左：仅 Thought；进库阶段降噪，避免双区同时抢注意力 */}
+          <div
+            className={cn(
+              'min-h-0 flex flex-col rounded-[12px] border border-neutral-200/80 bg-white/90 overflow-hidden transition-opacity duration-300',
+              focusRight && running ? 'opacity-45' : 'opacity-100',
+            )}
+          >
+            <div className="flex-1 min-h-0 px-3 py-3 overflow-y-auto">
+              <div className="flex items-start gap-2 min-w-0 h-full">
+                <Activity size={15} strokeWidth={2} className="shrink-0 mt-0.5 text-[#1565BF]" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-[11px] font-semibold tracking-[0.08em] text-[#1565BF]">
+                      THOUGHT
+                    </span>
+                    {running && !thoughtDone ? (
+                      <span
+                        className="block w-3 h-3 rounded-full border-2 border-[#1565BF]/20 border-t-[#1565BF] animate-spin"
+                        aria-hidden
+                      />
+                    ) : doneAll || (thoughtDone && !browseActive && !waitingToCallSystem) ? (
+                      <Check size={13} className="text-emerald-600" strokeWidth={2.5} />
+                    ) : null}
+                  </div>
+                  <p className="text-[14px] sm:text-[15px] leading-relaxed text-neutral-800">
+                    {thoughtShown || (running ? '…' : '等待输入')}
+                    {running && !thoughtDone && thoughtShown ? (
+                      <span className="inline-block w-0.5 h-[14px] ml-0.5 align-middle bg-[#1565BF] animate-pulse" />
+                    ) : null}
+                  </p>
+                  {waitingToCallSystem ? (
+                    <p className="mt-2 text-[11px] font-medium text-neutral-500">
+                      已得出结论 · 稍后调用系统…
+                    </p>
+                  ) : null}
+                  {running && systemReady && hasBrowseRefs ? (
+                    <p className="mt-2 text-[11px] font-medium text-[#1565BF]">
+                      开始进库查找…
+                    </p>
+                  ) : null}
+                </div>
               </div>
-              <p className="text-[15px] leading-snug text-neutral-800">
-                {thoughtShown || (running ? '…' : '等待输入')}
-                {running &&
-                thoughtShown &&
-                activeNode?.thought &&
-                thoughtShown.length < activeNode.thought.length ? (
-                  <span className="inline-block w-0.5 h-[14px] ml-0.5 align-middle bg-[#1565BF] animate-pulse" />
-                ) : null}
-              </p>
+            </div>
+          </div>
+
+          {/* 右：仅在 Thought 结束后播放 Finder 动画 */}
+          <div
+            className={cn(
+              'min-h-0 min-w-0 rounded-[12px] border border-neutral-200/80 bg-white/70 overflow-hidden flex flex-col transition-opacity duration-300',
+              showBrowseIdle ? 'opacity-50' : 'opacity-100',
+            )}
+          >
+            <div className="shrink-0 px-3 py-2 border-b border-neutral-200/70 flex items-center gap-2">
+              <span className="text-[11px] font-semibold tracking-[0.08em] text-neutral-400">
+                FINDER
+              </span>
+              <span className="text-[12px] text-neutral-600 truncate">
+                {waitingToCallSystem
+                  ? '等待调用系统…'
+                  : !thoughtDone && running
+                    ? '等待思考结束…'
+                    : browseTarget
+                      ? browseTarget.kind === 'knowledge'
+                        ? '进知识库找文档'
+                        : browseTarget.kind === 'skill'
+                          ? '进技能包读 SKILL.md'
+                          : '进流程目录定位'
+                      : '待命 · 挂载库'}
+              </span>
+            </div>
+            <div className="flex-1 min-h-0">
+              <KnowledgeBrowseDemo
+                target={browseTarget}
+                active={browseActive || (doneAll && Boolean(browseTarget))}
+              />
             </div>
           </div>
         </div>
-
-        <ul className="flex-1 min-h-0 space-y-0 overflow-y-auto no-scrollbar content-start divide-y divide-neutral-100">
-          {nodes.map((node, idx) => {
-            const active = idx === currentIdx;
-            const done = idx < revealed && !active;
-            const pending = idx >= revealed;
-            const knowledgeNames = (node.refs ?? [])
-              .filter((r) => r.kind === 'knowledge')
-              .map((r) => r.name);
-            const skillNames = (node.refs ?? [])
-              .filter((r) => r.kind === 'skill')
-              .map((r) => r.name);
-            return (
-              <li
-                key={`${node.action}-${node.label}`}
-                className={cn(
-                  'relative px-1 py-3 transition-colors duration-300',
-                  active && 'bg-[rgba(21,101,191,0.04)] rounded-lg',
-                  pending && 'opacity-40',
-                )}
-              >
-                <div className="flex items-start gap-2.5 min-w-0">
-                  <span
-                    className={cn(
-                      'mt-0.5 w-6 h-6 inline-flex items-center justify-center shrink-0',
-                      active && 'text-[#1565BF]',
-                      done && 'text-emerald-600',
-                      pending && 'text-neutral-300',
-                    )}
-                  >
-                    {done ? (
-                      <Check size={14} strokeWidth={2.5} />
-                    ) : active ? (
-                      <span
-                        className="block w-3.5 h-3.5 rounded-full border-2 border-[#1565BF]/20 border-t-[#1565BF] animate-spin"
-                        aria-hidden
-                      />
-                    ) : (
-                      <LoopToneIcon tone={node.tone} size={14} />
-                    )}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline gap-2 min-w-0 flex-wrap">
-                      <span
-                        className={cn(
-                          'text-[11px] font-semibold shrink-0',
-                          active ? 'text-[#1565BF]' : 'text-neutral-400',
-                        )}
-                      >
-                        {loopToneMeta(node.tone).badge}
-                      </span>
-                      <span className="text-[15px] font-semibold text-neutral-900">
-                        {node.action}
-                      </span>
-                      <span className="text-[13px] text-neutral-500">{node.label}</span>
-                      {active ? (
-                        <span className="text-[11px] font-medium text-[#1565BF]/80">执行中</span>
-                      ) : null}
-                    </div>
-                    {pending ? (
-                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-neutral-400">
-                        {knowledgeNames.length ? (
-                          <span>知识库 · {knowledgeNames.join('、')}</span>
-                        ) : null}
-                        {skillNames.length ? (
-                          <span>技能 · {skillNames.join('、')}</span>
-                        ) : null}
-                        {!knowledgeNames.length && !skillNames.length ? (
-                          <span>待执行</span>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <TraceAssetHits refs={node.refs} active={false} />
-                    )}
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
       </div>
     </div>
   );
@@ -1275,8 +1785,11 @@ function CareDemo({
 }) {
   return (
     <div className="relative h-full overflow-hidden">
-      <div className="relative h-full flex flex-col items-center justify-center px-10 text-center">
+      <div className="relative h-full flex flex-col items-center justify-center px-10 text-center gap-3">
         <CapabilityStageHeadline challenge={accent} coreValue={plain} compact />
+        <p className="text-[13px] text-neutral-500 max-w-[22rem] leading-relaxed">
+          礼貌收尾，并保留后续咨询入口——服务结束，关系不断。
+        </p>
       </div>
     </div>
   );

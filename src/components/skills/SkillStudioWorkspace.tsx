@@ -21,6 +21,8 @@ export type SkillStudioPublishPayload = {
   source: NonNullable<Skill['source']>;
   skillId?: string;
   versionNote?: string;
+  /** 仅保存草稿：留在工作台，不关闭页面 */
+  draftOnly?: boolean;
 };
 
 export interface SkillStudioWorkspaceProps {
@@ -52,9 +54,10 @@ export const SkillStudioWorkspace: React.FC<SkillStudioWorkspaceProps> = ({
       initialPrompt={initialPrompt}
       closeLabel={closeLabel}
       onPublished={(skill) => {
+        const isDraftOnly = skill.status === 'draft';
         const note =
           (skill as Skill & { versionNote?: string }).versionNote ||
-          (skill.status === 'draft' ? '保存草稿' : 'AOP 工作台发布');
+          (isDraftOnly ? '保存草稿' : 'AOP 工作台发布');
         onPublish({
           name: skill.name,
           description: skill.description,
@@ -64,6 +67,7 @@ export const SkillStudioWorkspace: React.FC<SkillStudioWorkspaceProps> = ({
           source: skill.source || (initialMode === 'zip' ? 'upload' : 'nl'),
           skillId: skill.id,
           versionNote: note,
+          draftOnly: isDraftOnly,
         });
       }}
     />

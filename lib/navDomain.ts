@@ -141,7 +141,7 @@ export type SubNavItem = {
 export const HOME_SUB_NAV: SubNavItem[] = [
   {
     id: 'nav_platform_home',
-    title: '智能创建',
+    title: 'Agent Builder',
     tab: 'platformHome',
     icon: 'solar:stars-minimalistic-linear',
     description: '一句话创建数字员工与技能',

@@ -8,7 +8,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { ArrowLeft, ArrowUp, Wifi, MousePointer2, Play, Pause } from '@/lib/icons';
+import { ArrowLeft, ArrowUp, Wifi, MousePointer2, Play, Pause, Volume2, VolumeX } from '@/lib/icons';
 import { defaultOpeningLineForAgent } from '@/lib/agentDefaultCopy';
 import { mockAgentChatReply } from '../lib/mockAgentChatReply';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -32,7 +32,29 @@ import {
   matchFoodSafetyDemoTurn,
   type FoodSafetyDemoTurn,
 } from '@/lib/foodSafetyDemoScript';
+import {
+  NARRATION_INTRO_FADE_MS,
+  NARRATION_INTRO_HOLD_MS,
+  NARRATION_INTRO_LEAD_MS,
+  type NarrationSegmentId,
+} from '@/lib/foodSafetyNarrationScript';
+import {
+  ensureNarrationAudible,
+  isNarrationPaused,
+  pauseNarrationVoice,
+  requestNarrationSegment,
+  resumeNarrationVoice,
+  setNarrationMuted,
+  stopNarrationVoice,
+  subscribeNarrationCue,
+  unlockNarrationVoice,
+  whenNarrationIdle,
+  type NarrationCueView,
+} from '@/lib/foodSafetyNarrationVoice';
 import { FoodSafetyCapabilityPanel } from './FoodSafetyCapabilityPanel';
+
+/** Strict Mode 双挂载时避免 stop+重开首句 */
+let narrationBootGeneration = 0;
 
 type ChatMsg = {
   id: string;
@@ -153,10 +175,13 @@ export const CustomerExperiencePage: React.FC = () => {
   const [orderClickPulse, setOrderClickPulse] = useState(false);
   const [orderPointerOn, setOrderPointerOn] = useState(false);
   const [orderPointerSettled, setOrderPointerSettled] = useState(false);
-  /** 进页开场：京小灵文案 5s 后淡出，再显示手机与能力卡 */
+  /** 全屏开场：配音同步播出，念完再淡入主界面 */
   const [introPhase, setIntroPhase] = useState<'show' | 'fade' | 'done'>('show');
-  /** 自动连播演示（可暂停） */
-  const [demoAutoplay, setDemoAutoplay] = useState(false);
+  /** 进入页面后自动连播整段演示 */
+  const [demoAutoplay, setDemoAutoplay] = useState(true);
+  /** 开场配音结束并进入主界面后，再自动开第一幕 */
+  const [recordingBootstrapped, setRecordingBootstrapped] = useState(false);
+  const [bootKey, setBootKey] = useState(0);
   const paneBusy = useMockLatency(experienceAgentId, 'workspaceOpen');
   const chatEndRef = useRef<HTMLDivElement>(null);
   const orderCardRef = useRef<HTMLDivElement>(null);
@@ -172,19 +197,125 @@ export const CustomerExperiencePage: React.FC = () => {
   } | null>(null);
 
   const DEMO_FAST_THINK_MS = 320;
-  /** 发送后 → 开卡、卡结束 → 下轮输入，各留白 2s */
-  const DEMO_GAP_MS = 2000;
-  /** 自动播放：每幕 idle 后等待多久再进下一幕 */
-  const AUTOPLAY_STEP_DELAY_MS = 800;
+  /** 幕间几乎无留白，靠配音串行衔接 */
+  const DEMO_GAP_MS = 120;
+  /** 自动连播：配音空档后立刻进下一幕 */
+  const AUTOPLAY_STEP_DELAY_MS = 80;
+
+  const [subtitleText, setSubtitleText] = useState('');
+  const [voiceMuted, setVoiceMuted] = useState(false);
+  const lastNarrationSegmentRef = useRef<NarrationSegmentId | null>(null);
 
   useEffect(() => {
-    const fadeAt = window.setTimeout(() => setIntroPhase('fade'), 5000);
-    const doneAt = window.setTimeout(() => setIntroPhase('done'), 5600);
+    return subscribeNarrationCue((cue: NarrationCueView | null) => {
+      setSubtitleText(cue?.text ?? '');
+    });
+  }, []);
+
+  /** 进页：全屏开场 + 配音 → 念完交叉淡入主界面 → 自动开演示 */
+  useEffect(() => {
+    if (!agent) return;
+    let cancelled = false;
+    let fadeTimer: number | null = null;
+    let leadTimer: number | null = null;
+    let finished = false;
+    let cancelIdle: (() => void) | null = null;
+    const token = ++narrationBootGeneration;
+
+    setIntroPhase('show');
+    setRecordingBootstrapped(false);
+    setDemoAutoplay(true);
+    unlockNarrationVoice();
+    lastNarrationSegmentRef.current = 'intro';
+
+    const finishIntro = () => {
+      if (cancelled || finished) return;
+      // 用户暂停时不切场，等继续播完再交叉淡入
+      if (isNarrationPaused()) return;
+      finished = true;
+      // 先挂上主界面再淡出开场，避免中间闪空帧
+      setRecordingBootstrapped(true);
+      setIntroPhase('fade');
+      fadeTimer = window.setTimeout(() => {
+        if (cancelled) return;
+        setIntroPhase('done');
+      }, NARRATION_INTRO_FADE_MS);
+    };
+
+    // 先空两秒再开读，避免一进页就出声
+    leadTimer = window.setTimeout(() => {
+      if (cancelled) return;
+      // Strict Mode 双挂载时不 stop+重开，避免首句叠播
+      requestNarrationSegment('intro', { force: true });
+      cancelIdle = whenNarrationIdle(finishIntro);
+    }, NARRATION_INTRO_LEAD_MS);
+
+    const fallback = window.setTimeout(() => {
+      if (cancelled || finished || isNarrationPaused()) return;
+      finishIntro();
+    }, NARRATION_INTRO_LEAD_MS + NARRATION_INTRO_HOLD_MS + 500);
+
     return () => {
-      window.clearTimeout(fadeAt);
-      window.clearTimeout(doneAt);
+      cancelled = true;
+      cancelIdle?.();
+      if (leadTimer != null) window.clearTimeout(leadTimer);
+      window.clearTimeout(fallback);
+      if (fadeTimer != null) window.clearTimeout(fadeTimer);
+      // 延后停声：Strict Mode 立刻重挂时可接管同一段，不重播首句
+      queueMicrotask(() => {
+        if (narrationBootGeneration === token) {
+          stopNarrationVoice();
+        }
+      });
+    };
+  }, [agent?.id, bootKey]);
+
+  useEffect(() => {
+    if (introPhase === 'show' || introPhase === 'fade') {
+      // 开场期间只维持 intro，绝不重请求（避免首句重播）
+      return;
+    }
+    let next: NarrationSegmentId | null = null;
+    if (capabilityRunning && capabilityTurnId === 'act1') {
+      next = 'act1';
+    } else if (capabilityRunning && capabilityTurnId === 'act2') {
+      next = 'act2';
+    } else if (capabilityRunning && capabilityTurnId === 'act3') {
+      next = 'act3';
+    } else if (demoPhase === 'typing' && demoCursor === 0) {
+      next = 'pre_act1';
+    } else {
+      next = lastNarrationSegmentRef.current;
+    }
+
+    if (next && next !== lastNarrationSegmentRef.current) {
+      lastNarrationSegmentRef.current = next;
+      requestNarrationSegment(next);
+    }
+  }, [
+    introPhase,
+    capabilityRunning,
+    capabilityTurnId,
+    demoPhase,
+    demoCursor,
+  ]);
+
+  useEffect(() => {
+    const onFirstGesture = () => {
+      // 只解锁/补声，禁止 force 重开整段（否则首句念两遍）
+      ensureNarrationAudible();
+    };
+    window.addEventListener('pointerdown', onFirstGesture, { once: true });
+    window.addEventListener('keydown', onFirstGesture, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', onFirstGesture);
+      window.removeEventListener('keydown', onFirstGesture);
     };
   }, []);
+
+  useEffect(() => {
+    setNarrationMuted(voiceMuted);
+  }, [voiceMuted]);
 
   const clearDemoTimers = () => {
     if (replyTimerRef.current) {
@@ -249,7 +380,8 @@ export const CustomerExperiencePage: React.FC = () => {
     setOrderClickPulse(false);
     setOrderPointerOn(false);
     setOrderPointerSettled(false);
-    setDemoAutoplay(false);
+    // 进页 / 换员工后保持自动连播，除非用户主动暂停
+    setDemoAutoplay(true);
   }, [agent?.id]);
 
   useEffect(() => {
@@ -328,11 +460,15 @@ export const CustomerExperiencePage: React.FC = () => {
     };
 
     const startCapability = () => {
-      if (extras?.turnId) {
-        setCapabilityTurnId(extras.turnId);
-        setCapabilityRunning(true);
-      }
-      replyTimerRef.current = window.setTimeout(deliverReply, thinkMs);
+      const run = () => {
+        if (extras?.turnId) {
+          setCapabilityTurnId(extras.turnId);
+          setCapabilityRunning(true);
+        }
+        replyTimerRef.current = window.setTimeout(deliverReply, thinkMs);
+      };
+      // 上一句（如 pre_act）必须读完，再开本幕能力配音，避免掐字
+      whenNarrationIdle(run);
     };
 
     // 用户发送后先留白，再仅启动右侧能力演示；演示结束后再落左侧回复
@@ -476,6 +612,13 @@ export const CustomerExperiencePage: React.FC = () => {
     setOrderClickPulse(false);
     setOrderPointerOn(false);
     setOrderPointerSettled(false);
+    lastNarrationSegmentRef.current = null;
+    stopNarrationVoice();
+    setSubtitleText('');
+    setIntroPhase('show');
+    setRecordingBootstrapped(false);
+    setDemoAutoplay(true);
+    setBootKey((k) => k + 1);
   };
 
   /** 收束当前进行中的打字 / 点击 / 回复 / 成效，返回应收束后的 cursor */
@@ -700,15 +843,19 @@ export const CustomerExperiencePage: React.FC = () => {
   };
 
   const handlePreviousStep = () => {
-    if (!agent || introPhase !== 'done') return;
+    if (!agent || introPhase === 'show') return;
     if (demoCursor <= 0 && demoPhase === 'idle' && !spinning && !capabilityRunning) return;
+    ensureNarrationAudible();
     setDemoAutoplay(false);
+    pauseNarrationVoice();
     rebuildDemoToCursor(demoCursor - 1);
   };
 
   const handleDemoControlClick = () => {
-    if (!agent || introPhase !== 'done') return;
+    if (!agent || introPhase === 'show') return;
+    ensureNarrationAudible();
     setDemoAutoplay(false);
+    pauseNarrationVoice();
     if (demoCursor >= FOOD_SAFETY_DEMO_STEP_COUNT) {
       resetDemoSession();
       return;
@@ -718,12 +865,10 @@ export const CustomerExperiencePage: React.FC = () => {
       demoPhase !== 'idle' || spinning || capabilityRunning || Boolean(pendingReplyRef.current);
 
     if (busy) {
-      // 再点一次：跳过当前动画并收束，等下一次点击再进下一幕
       settleCurrentDemoStep();
       return;
     }
 
-    // 首次点击：按正常节奏播放（打字机 + 完整思考 / TRACE）
     playDemoStepAt(demoCursor, { fast: false });
   };
 
@@ -738,7 +883,9 @@ export const CustomerExperiencePage: React.FC = () => {
     : demoBusy
       ? '跳过'
       : `下一步 ${demoCursor + 1}/${FOOD_SAFETY_DEMO_STEP_COUNT}`;
-  const introActive = introPhase !== 'done';
+  const showIntroOverlay = introPhase === 'show' || introPhase === 'fade';
+  const showMainStage = introPhase === 'fade' || introPhase === 'done';
+  const capabilityPanelRunning = capabilityRunning && demoAutoplay;
 
   playDemoStepAtRef.current = playDemoStepAt;
 
@@ -747,19 +894,26 @@ export const CustomerExperiencePage: React.FC = () => {
       window.clearTimeout(autoPlayTimerRef.current);
       autoPlayTimerRef.current = null;
     }
-    if (!demoAutoplay || introActive || !agent) return;
+    if (!demoAutoplay || !recordingBootstrapped || introPhase === 'show' || !agent) return;
     if (demoCursor >= FOOD_SAFETY_DEMO_STEP_COUNT) {
       setDemoAutoplay(false);
       return;
     }
     if (demoBusy) return;
 
-    autoPlayTimerRef.current = window.setTimeout(() => {
-      autoPlayTimerRef.current = null;
-      playDemoStepAtRef.current(demoCursor, { fast: false });
-    }, AUTOPLAY_STEP_DELAY_MS);
+    let cancelled = false;
+    const cancelIdle = whenNarrationIdle(() => {
+      if (cancelled || !demoAutoplay) return;
+      autoPlayTimerRef.current = window.setTimeout(() => {
+        autoPlayTimerRef.current = null;
+        if (cancelled) return;
+        playDemoStepAtRef.current(demoCursor, { fast: false });
+      }, AUTOPLAY_STEP_DELAY_MS);
+    });
 
     return () => {
+      cancelled = true;
+      cancelIdle();
       if (autoPlayTimerRef.current) {
         window.clearTimeout(autoPlayTimerRef.current);
         autoPlayTimerRef.current = null;
@@ -767,23 +921,56 @@ export const CustomerExperiencePage: React.FC = () => {
     };
   }, [
     demoAutoplay,
-    introActive,
+    recordingBootstrapped,
+    introPhase,
     agent,
     demoCursor,
     demoBusy,
     demoFinished,
   ]);
 
+  const resumePausedDemoClock = () => {
+    if (pendingReplyRef.current) {
+      if (!capabilityRunning && capabilityTurnId) {
+        setCapabilityRunning(true);
+      }
+      if (replyTimerRef.current) window.clearTimeout(replyTimerRef.current);
+      const turn = capabilityTurnId
+        ? FOOD_SAFETY_DEMO_TURNS.find((t) => t.id === capabilityTurnId)
+        : undefined;
+      const remainMs = Math.max(1800, Math.min(turn?.thinkMs ?? 4000, 6000));
+      replyTimerRef.current = window.setTimeout(() => {
+        flushPendingAgentReply();
+        replyTimerRef.current = null;
+      }, remainMs);
+      return;
+    }
+    if (demoPhase === 'typing' || demoPhase === 'clicking') {
+      playDemoStepAtRef.current(demoCursor, { fast: false });
+    }
+  };
+
   const handleToggleAutoplay = () => {
-    if (!agent || introActive) return;
+    if (!agent) return;
     if (demoAutoplay) {
       setDemoAutoplay(false);
+      clearDemoTimers();
+      pauseNarrationVoice();
       return;
     }
     if (demoFinished) {
       resetDemoSession();
+      return;
     }
+    ensureNarrationAudible();
     setDemoAutoplay(true);
+    resumeNarrationVoice();
+    resumePausedDemoClock();
+  };
+
+  const handleToggleVoice = () => {
+    ensureNarrationAudible();
+    setVoiceMuted((v) => !v);
   };
 
   if (!agent) {
@@ -810,6 +997,20 @@ export const CustomerExperiencePage: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={handleToggleVoice}
+            className={cn(
+              'inline-flex items-center gap-1.5 h-8 px-3 text-[12px] rounded-lg border font-medium transition cursor-pointer shadow-[0_1px_0_rgba(0,0,0,0.04)]',
+              voiceMuted
+                ? 'border-neutral-200/90 bg-white/90 text-neutral-500 hover:bg-white'
+                : 'border-[#1565BF]/35 bg-[rgba(21,101,191,0.08)] text-[#1565BF] hover:bg-[rgba(21,101,191,0.12)]',
+            )}
+            title={voiceMuted ? '开启讲解配音' : '关闭讲解配音'}
+          >
+            {voiceMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+            {voiceMuted ? '配音关' : '配音'}
+          </button>
+          <button
+            type="button"
             onClick={handlePreviousStep}
             disabled={!canGoPrevious}
             className={cn(
@@ -822,15 +1023,13 @@ export const CustomerExperiencePage: React.FC = () => {
           <button
             type="button"
             onClick={handleToggleAutoplay}
-            disabled={introActive}
             className={cn(
               'inline-flex items-center gap-1.5 h-8 px-3 text-[12px] rounded-lg border font-medium transition cursor-pointer shadow-[0_1px_0_rgba(0,0,0,0.04)]',
               demoAutoplay
                 ? 'border-[#1565BF]/35 bg-[rgba(21,101,191,0.08)] text-[#1565BF] hover:bg-[rgba(21,101,191,0.12)]'
                 : 'border-neutral-200/90 bg-white/90 text-neutral-700 hover:bg-white',
-              introActive && 'opacity-40 cursor-not-allowed',
             )}
-            title={demoAutoplay ? '暂停自动播放' : '自动播放演示'}
+            title={demoAutoplay ? '暂停讲解与自动播放' : '继续讲解与自动播放'}
           >
             {demoAutoplay ? <Pause size={14} /> : <Play size={14} />}
             {demoAutoplay ? '暂停' : '播放'}
@@ -838,14 +1037,14 @@ export const CustomerExperiencePage: React.FC = () => {
           <button
             type="button"
             onClick={handleDemoControlClick}
-            disabled={introActive}
+            disabled={introPhase === 'show'}
             className={cn(
               SKILL_AOP_PRIMARY_BTN,
               'h-8 px-3 text-[12px] shadow-[0_1px_0_rgba(0,0,0,0.05)]',
-              introActive && 'opacity-40 cursor-not-allowed',
+              introPhase === 'show' && 'opacity-40 cursor-not-allowed',
             )}
             title={
-              introActive
+              introPhase === 'show'
                 ? '开场介绍中'
                 : demoFinished
                   ? '清空对话并重头演示'
@@ -859,25 +1058,14 @@ export const CustomerExperiencePage: React.FC = () => {
         </div>
       </div>
 
-      {/* 内容区：开场全屏文案 → 左右分栏 */}
+      {/* 内容区：开场全屏文案 → 左右分栏；字幕浮在页面底部，不占布局高度 */}
       <div
-        className="flex-1 min-h-0 overflow-hidden bg-[#F5FAFF] bg-no-repeat bg-top bg-cover"
+        className="relative flex-1 min-h-0 overflow-hidden bg-[#F5FAFF] bg-no-repeat bg-top bg-cover"
         style={{ backgroundImage: "url('/assets/customer-experience-bg.png')" }}
       >
-        {introActive ? (
-          <div
-            className={cn(
-              'h-full flex items-center justify-center px-16 pb-8 transition-opacity duration-500',
-              introPhase === 'fade' ? 'opacity-0' : 'opacity-100',
-            )}
-          >
-            <p className="food-safety-hero-caption text-[36px] sm:text-[48px] leading-none tracking-[-0.02em] select-text whitespace-nowrap">
-              <span className="food-safety-hero-caption-accent">京小灵</span>
-              <span className="food-safety-hero-caption-plain">客服数字员工</span>
-            </p>
-          </div>
-        ) : (
-          <div className="h-full min-h-0 grid grid-cols-[340px_minmax(0,1fr)] gap-8 px-16 pb-8 overflow-hidden animate-in fade-in duration-500">
+        {/* 主界面：开场淡出前就挂上，避免中间闪空 */}
+        {showMainStage ? (
+          <div className="h-full min-h-0 grid grid-cols-[340px_minmax(0,1fr)] gap-8 px-16 pb-5 overflow-hidden">
             {/* 左侧：手机固定宽高位 */}
             <div className="min-h-0 w-[340px] flex items-center justify-center overflow-hidden">
               <div
@@ -948,8 +1136,7 @@ export const CustomerExperiencePage: React.FC = () => {
                                 {FOOD_SAFETY_DEMO_ORDER.product}
                               </p>
                               <p className="mt-0.5 text-[11px] text-neutral-500 tabular-nums">
-                                {FOOD_SAFETY_DEMO_ORDER.orderNoMasked} ·{' '}
-                                {FOOD_SAFETY_DEMO_ORDER.status} · 应付 {FOOD_SAFETY_DEMO_ORDER.amount}
+                                {FOOD_SAFETY_DEMO_ORDER.orderNoMasked} · 实付待系统核验
                               </p>
                             </button>
                             {orderPointerOn ? (
@@ -989,7 +1176,14 @@ export const CustomerExperiencePage: React.FC = () => {
 
               <div className="shrink-0 bg-white/95 backdrop-blur-md border-t border-neutral-200/70 px-2.5 pt-2 pb-[calc(10px+env(safe-area-inset-bottom,0px))]">
                 <div className="flex items-end gap-2">
-                  <div className="flex-1 min-w-0 rounded-[20px] bg-neutral-100 px-3.5 py-2.5">
+                  <div
+                    className={cn(
+                      'flex-1 min-w-0 rounded-[20px] px-3.5 py-2.5 transition-[background-color,box-shadow,border-color] duration-300',
+                      demoPhase === 'typing'
+                        ? 'food-safety-composer-guide bg-[rgba(21,101,191,0.08)]'
+                        : 'bg-neutral-100',
+                    )}
+                  >
                     <textarea
                       ref={composerRef}
                       rows={1}
@@ -1004,7 +1198,10 @@ export const CustomerExperiencePage: React.FC = () => {
                       }}
                       disabled={spinning}
                       placeholder="发消息…（Shift+回车换行）"
-                      className="w-full min-h-[20px] max-h-[120px] bg-transparent text-[15px] leading-[20px] outline-none resize-none overflow-y-auto placeholder:text-neutral-400 text-neutral-900 disabled:opacity-60 break-words whitespace-pre-wrap"
+                      className={cn(
+                        'w-full min-h-[20px] max-h-[120px] bg-transparent text-[15px] leading-[20px] outline-none resize-none overflow-y-auto placeholder:text-neutral-400 disabled:opacity-60 break-words whitespace-pre-wrap',
+                        demoPhase === 'typing' ? 'text-[#1565BF] caret-[#1565BF]' : 'text-neutral-900',
+                      )}
                     />
                   </div>
                   <button
@@ -1029,12 +1226,43 @@ export const CustomerExperiencePage: React.FC = () => {
               <div className="h-[min(700px,100%)] w-full min-h-0 overflow-hidden">
                 <FoodSafetyCapabilityPanel
                   activeTurnId={capabilityTurnId}
-                  running={capabilityRunning}
+                  running={capabilityPanelRunning}
                 />
               </div>
             </div>
           </div>
-        )}
+        ) : null}
+
+        {/* 开场层：叠在主界面之上淡出，避免闪空 */}
+        {showIntroOverlay ? (
+          <div
+            className={cn(
+              'absolute inset-0 z-20 flex items-center justify-center px-16 pb-8 bg-[#F5FAFF] bg-no-repeat bg-top bg-cover transition-opacity duration-500 ease-out',
+              introPhase === 'fade' ? 'opacity-0 pointer-events-none' : 'opacity-100',
+            )}
+            style={{ backgroundImage: "url('/assets/customer-experience-bg.png')" }}
+          >
+            <p className="food-safety-hero-caption text-[36px] sm:text-[48px] leading-none tracking-[-0.02em] select-text whitespace-nowrap">
+              <span className="food-safety-hero-caption-accent">食安险</span>
+              <span className="food-safety-hero-caption-plain">数字员工</span>
+            </p>
+          </div>
+        ) : null}
+
+        {subtitleText ? (
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-5 sm:bottom-8 z-30 flex items-center justify-center px-4"
+            role="status"
+            aria-live="polite"
+          >
+            <p
+              key={subtitleText}
+              className="food-safety-narration-subtitle text-[24px] sm:text-[28px] md:text-[30px] leading-none tracking-wide text-center animate-in fade-in duration-300"
+            >
+              {subtitleText}
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );

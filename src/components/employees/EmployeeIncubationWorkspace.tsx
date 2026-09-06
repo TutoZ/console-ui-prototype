@@ -684,9 +684,12 @@ export function EmployeeIncubationWorkspace({
   const [chipSelections, setChipSelections] = useState<HelpChip[]>([]);
   const [confirmEdit, setConfirmEdit] = useState<{
     msgId: string;
-    itemId: string;
-    itemIndex: number;
-    hint: string;
+    items: Array<{
+      itemId: string;
+      itemIndex: number;
+      hint: string;
+      value: string;
+    }>;
   } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const seededRef = useRef(false);
@@ -781,33 +784,15 @@ export function EmployeeIncubationWorkspace({
   }, [messages, thinking, thinkSteps]);
 
   const runUserTurn = async (raw: string) => {
-    const text = raw.trim();
+    let text = raw.trim();
     if (!text || thinking) return;
 
     if (confirmEdit) {
-      const { msgId, itemId } = confirmEdit;
-      setMessages((prev) =>
-        prev.map((m) => {
-          if (m.id !== msgId || m.kind !== 'confirm' || m.confirmed) return m;
-          return {
-            ...m,
-            items: m.items.map((it) =>
-              it.id === itemId
-                ? {
-                    ...it,
-                    value: text.slice(0, 400),
-                    label: `${it.fieldLabel || '要点'}：${text.slice(0, 80)}`,
-                  }
-                : it,
-            ),
-          };
-        }),
-      );
+      const summary = confirmEdit.items
+        .map((item) => `${item.itemIndex + 1}. ${item.hint}：${item.value || '（空）'}`)
+        .join('\n');
+      text = `请按我的要求改写以下确认要点，并更新草案：\n${summary}\n\n修改要求：${text}`;
       setConfirmEdit(null);
-      setInput('');
-      setChipSelections([]);
-      showToast('已更新确认要点，请点击确认写入右侧');
-      return;
     }
 
     const userMsg: ChatMsg = { id: uid('m'), kind: 'user', text, time: nowTime() };
@@ -955,7 +940,7 @@ export function EmployeeIncubationWorkspace({
         activeTabId="build"
         onTabChange={() => {}}
         onBack={onClose}
-        backLabel="返回智能创建"
+        backLabel="返回 Agent Builder"
         actions={
           <button
             type="button"
@@ -1046,8 +1031,10 @@ export function EmployeeIncubationWorkspace({
                       title={m.title}
                       items={m.items}
                       confirmed={m.confirmed}
-                      editingItemId={
-                        confirmEdit?.msgId === m.id ? confirmEdit.itemId : null
+                      editingItemIds={
+                        confirmEdit?.msgId === m.id
+                          ? confirmEdit.items.map((item) => item.itemId)
+                          : []
                       }
                       onConfirm={(items) => handleConfirm(m.id, items)}
                       onReset={(items) => {
@@ -1062,14 +1049,36 @@ export function EmployeeIncubationWorkspace({
                       }}
                       onEditItem={(item, itemIndex) => {
                         setChipSelections([]);
-                        setConfirmEdit({
-                          msgId: m.id,
+                        const hint = item.fieldLabel || `要点 ${itemIndex + 1}`;
+                        const value = (
+                          item.value || item.label.replace(/^[^：:]+[：:]\s*/, '')
+                        ).trim();
+                        const nextItem = {
                           itemId: item.id,
                           itemIndex,
-                          hint: item.fieldLabel || `要点 ${itemIndex + 1}`,
+                          hint,
+                          value,
+                        };
+                        setConfirmEdit((prev) => {
+                          if (prev?.msgId === m.id) {
+                            const exists = prev.items.some((row) => row.itemId === item.id);
+                            const nextItems = exists
+                              ? prev.items.filter((row) => row.itemId !== item.id)
+                              : [...prev.items, nextItem].sort(
+                                  (a, b) => a.itemIndex - b.itemIndex,
+                                );
+                            return nextItems.length === 0
+                              ? null
+                              : { msgId: m.id, items: nextItems };
+                          }
+                          return { msgId: m.id, items: [nextItem] };
                         });
-                        setInput(item.value || item.label.replace(/^[^：:]+[：:]\s*/, ''));
                         inputRef.current?.focus();
+                      }}
+                      onBatchModeChange={(active) => {
+                        if (!active && confirmEdit?.msgId === m.id) {
+                          setConfirmEdit(null);
+                        }
                       }}
                       onItemsChange={(items) => {
                         setMessages((prev) =>
@@ -1119,23 +1128,35 @@ export function EmployeeIncubationWorkspace({
 
             <div className="skill-ai-composer skill-ai-composer--dock p-3">
               {confirmEdit ? (
-                <div className="flex items-center gap-2 pb-2 mb-1 border-b border-neutral-100">
-                  <span className="inline-flex items-center gap-1.5 h-7 pl-1.5 pr-2 rounded-md bg-neutral-100 border border-neutral-200 text-[12px] text-neutral-800 max-w-full">
-                    <span className="w-5 h-5 rounded bg-neutral-800 text-white text-[11px] font-semibold tabular-nums flex items-center justify-center shrink-0">
-                      {confirmEdit.itemIndex + 1}
-                    </span>
-                    <span className="truncate">编辑要点 · {confirmEdit.hint}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setConfirmEdit(null);
-                        setInput('');
-                      }}
-                      className="ml-0.5 text-neutral-400 hover:text-neutral-800 cursor-pointer shrink-0"
+                <div className="flex flex-wrap items-center gap-1.5 pb-2 mb-1 border-b border-neutral-100">
+                  {confirmEdit.items.map((item) => (
+                    <span
+                      key={item.itemId}
+                      className="inline-flex items-center gap-1.5 h-7 pl-1.5 pr-2 rounded-md bg-neutral-100 border border-neutral-200 text-[12px] text-neutral-800 max-w-full"
+                      title={item.value}
                     >
-                      <X size={12} />
-                    </button>
-                  </span>
+                      <span className="w-5 h-5 rounded bg-neutral-800 text-white text-[11px] font-semibold tabular-nums flex items-center justify-center shrink-0">
+                        {item.itemIndex + 1}
+                      </span>
+                      <span className="truncate">编辑要点 · {item.hint}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConfirmEdit((prev) => {
+                            if (!prev) return null;
+                            const nextItems = prev.items.filter((row) => row.itemId !== item.itemId);
+                            return nextItems.length === 0
+                              ? null
+                              : { ...prev, items: nextItems };
+                          });
+                        }}
+                        className="ml-0.5 text-neutral-400 hover:text-neutral-800 cursor-pointer shrink-0"
+                        aria-label={`移除 ${item.hint}`}
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
                 </div>
               ) : null}
 
@@ -1150,7 +1171,6 @@ export function EmployeeIncubationWorkspace({
                   if (e.key === 'Escape' && confirmEdit) {
                     e.preventDefault();
                     setConfirmEdit(null);
-                    setInput('');
                     return;
                   }
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -1159,9 +1179,13 @@ export function EmployeeIncubationWorkspace({
                   }
                 }}
                 placeholder={
-                  formReady
-                    ? '继续补充规则，或点上方「AI 帮写」快捷填充…'
-                    : '请描述数字员工的岗位职责与服务场景…'
+                  confirmEdit
+                    ? confirmEdit.items.length > 1
+                      ? `说明如何改写已选 ${confirmEdit.items.length} 条要点，发送后由 AI 更新…`
+                      : `说明如何改写「${confirmEdit.items[0].hint}」，发送后由 AI 更新…`
+                    : formReady
+                      ? '继续补充规则，或点上方「AI 帮写」快捷填充…'
+                      : '请描述数字员工的岗位职责与服务场景…'
                 }
                 className="w-full min-h-[72px] max-h-36 bg-transparent text-[14px] leading-[21px] outline-none resize-none text-neutral-800 placeholder:text-neutral-400"
               />
@@ -1183,7 +1207,7 @@ export function EmployeeIncubationWorkspace({
                     disabled={!canSend}
                     onClick={() => void runUserTurn(input)}
                     className="w-8 h-8 rounded-lg bg-neutral-900 hover:bg-neutral-800 disabled:bg-neutral-200 text-white transition flex items-center justify-center cursor-pointer disabled:cursor-not-allowed"
-                    title={confirmEdit ? '更新要点' : '发送'}
+                    title={confirmEdit ? '发给 AI 改写' : '发送'}
                   >
                     {thinking ? (
                       <Loader2 size={14} className="animate-spin" />

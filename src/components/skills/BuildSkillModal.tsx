@@ -546,6 +546,11 @@ export const BuildSkillModal: React.FC<BuildSkillModalProps> = ({
 
   // Form interactive edit states
   const [isFormDirty, setIsFormDirty] = useState(false);
+  /** 相对上次「保存草稿」是否有未落盘改动；干净时顶栏按钮置灰 */
+  const [isDraftDirty, setIsDraftDirty] = useState(() => !draftSkillId);
+  /** 本会话内已绑定的草稿 id（首次保存新建后不再重复建技能） */
+  const [boundDraftSkillId, setBoundDraftSkillId] = useState<string | null>(draftSkillId ?? null);
+  const allowDraftDirtyTrackRef = useRef(false);
   const [isUpdatingForm, setIsUpdatingForm] = useState(false); // Task 3: AI update state
   const [lastSyncedState, setLastSyncedState] = useState<any>(null);
   const [historyState, setHistoryState] = useState<any>(null);
@@ -1085,13 +1090,16 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
   thinkPlanStepsRef.current = thinkPlanSteps;
   /** 用户是否已在确认坞确认过草案（用于阶段条与下一步引导）。编辑已有技能时视为已确认 */
   const [draftConfirmed, setDraftConfirmed] = useState(() => Boolean(draftSkillId));
-  /** 确认卡要点：在下方输入框编辑中 */
+  /** 确认卡要点：在下方输入框编辑中（可多选叠加） */
   const [confirmEditTarget, setConfirmEditTarget] = useState<{
     msgIndex: number;
-    itemId: string;
-    itemIndex: number;
-    hint: string;
-    fieldKey?: SkillConfirmFieldKey;
+    items: Array<{
+      itemId: string;
+      itemIndex: number;
+      hint: string;
+      fieldKey?: SkillConfirmFieldKey;
+      value: string;
+    }>;
   } | null>(null);
   /** 用户消息：在气泡内联编辑 */
   const [editingUserMsgIndex, setEditingUserMsgIndex] = useState<number | null>(null);
@@ -1685,6 +1693,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
   /** 发布版本弹窗（对齐设计稿，替代黑屏「自动校验与修复」） */
   const [showPublishVersionModal, setShowPublishVersionModal] = useState(false);
   const [publishVersionNote, setPublishVersionNote] = useState('');
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const publishVersionNoteRef = React.useRef('');
 
   const logEndRef = React.useRef<HTMLDivElement | null>(null);
@@ -2050,6 +2059,41 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     ]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, draftSkillId]);
+
+  useEffect(() => {
+    if (draftSkillId) setBoundDraftSkillId(draftSkillId);
+  }, [draftSkillId]);
+
+  useEffect(() => {
+    if (!open) {
+      allowDraftDirtyTrackRef.current = false;
+      setBoundDraftSkillId(draftSkillId ?? null);
+      setIsDraftDirty(!draftSkillId);
+      return;
+    }
+    if (draftSkillId) {
+      // 等草稿快照灌入后再开始脏检测，避免载入过程误点亮「保存草稿」
+      allowDraftDirtyTrackRef.current = false;
+      const timer = window.setTimeout(() => {
+        setIsDraftDirty(false);
+        setIsFormDirty(false);
+        allowDraftDirtyTrackRef.current = true;
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
+    allowDraftDirtyTrackRef.current = true;
+    setIsDraftDirty(true);
+  }, [open, draftSkillId]);
+
+  useEffect(() => {
+    if (!allowDraftDirtyTrackRef.current) return;
+    if (isFormDirty) setIsDraftDirty(true);
+  }, [isFormDirty]);
+
+  useEffect(() => {
+    if (!allowDraftDirtyTrackRef.current) return;
+    setIsDraftDirty(true);
+  }, [chatMessages.length]);
 
   const handleRollbackLastRound = () => {
     if (!historyState) return;
@@ -2727,7 +2771,12 @@ ${usageExamples || '暂无调用示例'}
         : confirmEditTarget
           ? chatInput
           : buildComposerOutboundText(chatInput, composerChipSelections);
-    if (!textToSend.trim()) return;
+    if (!textToSend.trim()) {
+      if (confirmEditTarget && forcedText === undefined) {
+        showToast('请输入修改内容');
+      }
+      return;
+    }
 
     const isResetRequirementsSend =
       composerResetMode && forcedText === undefined && !confirmEditTarget;
@@ -2754,43 +2803,17 @@ ${usageExamples || '暂无调用示例'}
       );
     }
 
-    /** 确认卡编辑模式：写回对应要点与右侧表单，不进入对话轮次 */
+    /** 批量编辑：已选要点以芯片带入输入框，交由大模型按用户要求改写 */
     if (confirmEditTarget && forcedText === undefined) {
-      const nextValue = textToSend.trim();
-      const { msgIndex, itemId, fieldKey } = confirmEditTarget;
-      setChatMessages((prev) =>
-        prev.map((m, idx) => {
-          if (idx !== msgIndex || m.sender !== 'skill_confirm') return m;
-          try {
-            const payload = JSON.parse(m.content) as {
-              items?: SkillConfirmItem[];
-              confirmed?: boolean;
-            };
-            const items = (payload.items ?? []).map((it) => {
-              if (it.id !== itemId) return it;
-              const fieldLabel = it.fieldLabel;
-              return {
-                ...it,
-                value: nextValue,
-                label: fieldLabel ? `${fieldLabel}：${nextValue}` : nextValue,
-              };
-            });
-            return { ...m, content: JSON.stringify({ ...payload, items }) };
-          } catch {
-            return m;
-          }
-        }),
-      );
-      if (fieldKey) {
-        // 仅静默写回表单，不切换右侧分区、不滚动，保持对话与确认卡当前位置
-        applyConfirmValueToForm(fieldKey, nextValue, { openSection: false, scroll: false });
-      }
+      const instruction = textToSend.trim();
+      const { items: selectedItems } = confirmEditTarget;
+      const summary = selectedItems
+        .map((item) => `${item.itemIndex + 1}. ${item.hint}：${item.value || '（空）'}`)
+        .join('\n');
+      const outbound = `请按我的要求改写以下确认要点，并更新草案：\n${summary}\n\n修改要求：${instruction}`;
       setConfirmEditTarget(null);
       setChatInput('');
-      setComposerChipSelections([]);
-      setComposerResetMode(false);
-      showToast(`已更新表单「${confirmEditTarget.hint}」`);
-      return;
+      return handleSendChatMessage(outbound);
     }
 
     if (isAiThinking) {
@@ -3501,9 +3524,10 @@ ${usageExamples || '暂无调用示例'}
     const actualKind = skillKind === 'pure_doc' ? 'kb' : 'tool';
     const hasScripts = selectedScripts.length > 0;
     const hasKBs = selectedKBs.length > 0;
+    const targetId = boundDraftSkillId || draftSkillId || null;
 
-    if (draftSkillId) {
-      updateSkill(draftSkillId, {
+    if (targetId) {
+      updateSkill(targetId, {
         name: finalCnName,
         description: descStr,
         status: 'draft',
@@ -3512,160 +3536,164 @@ ${usageExamples || '暂无调用示例'}
         hasKBs,
         draftData: draftData
       });
-      showToast(`✨ 专属技能「${finalCnName}」草稿更新成功！`);
-      const sk = skills.find((s) => s.id === draftSkillId);
+      const sk = skills.find((s) => s.id === targetId);
       if (sk) onPublished?.({ ...sk, name: finalCnName, description: descStr, status: 'draft', draftData });
+      setBoundDraftSkillId(targetId);
     } else {
       const newSkill = createSkill(finalCnName, descStr, 'mine', actualKind, hasScripts, hasKBs);
       updateSkill(newSkill.id, {
         status: 'draft',
         draftData: draftData
       });
-      showToast(`✨ 专属技能「${finalCnName}」已成功保存为草稿！`);
+      setBoundDraftSkillId(newSkill.id);
       onPublished?.({ ...newSkill, status: 'draft', draftData });
     }
-    onClose();
+    setIsFormDirty(false);
+    setIsDraftDirty(false);
+    showToast('已保存到「我的技能」');
   };
 
-  // Run auto fix sub-sequence
+  // Run auto fix sub-sequence（合计约 10s，与顶栏「发布中」加载态同步）
   const runAutoFixSequence = () => {
     const addLog = (msg: string) => {
-      setRepairLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+      setRepairLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
     };
 
+    const stillRunning = () => isVerifyingRef.current;
+
     addLog('🚀 正在启动云侧智能集成编译器与安全分析引擎...');
-    
-    // Safety check: ensure timeout didn't already trigger
-    if (!isVerifyingRef.current) return;
 
-    // Sub-check 1: SKILL.md Structure
-    setTimeout(() => {
-      if (!isVerifyingRef.current) return;
-      setRepairSkillMd('checking');
-      addLog('🔍 [1/3] 正在对生成的 SKILL.md Markdown 结构与词法规范进行深度诊断...');
-
-      setTimeout(() => {
-        if (!isVerifyingRef.current) return;
-        setRepairSkillMd('fixing');
-        setRepairAttemptsSkillMd(1);
-        addLog('⚠️ 警告：发现 SKILL.md 文件中 metadata 头部属性和标准 schema 出现轻微词法偏差。');
-        addLog('🤖 AI Co-pilot 正在自动校准 YAML 属性格式并执行语法微调 (第 1/3 次自动修复)...');
-
-        setTimeout(() => {
-          if (!isVerifyingRef.current) return;
+    const steps: Array<{ at: number; run: () => void }> = [
+      {
+        at: 800,
+        run: () => {
+          setRepairSkillMd('checking');
+          addLog('🔍 [1/3] 正在对生成的 SKILL.md Markdown 结构与词法规范进行深度诊断...');
+        },
+      },
+      {
+        at: 2200,
+        run: () => {
+          setRepairSkillMd('fixing');
+          setRepairAttemptsSkillMd(1);
+          addLog('⚠️ 警告：发现 SKILL.md 文件中 metadata 头部属性和标准 schema 出现轻微词法偏差。');
+          addLog('🤖 AI Co-pilot 正在自动校准 YAML 属性格式并执行语法微调 (第 1/3 次自动修复)...');
+        },
+      },
+      {
+        at: 3600,
+        run: () => {
           setRepairSkillMd('success');
           addLog('✅ 自动修复通过！SKILL.md 标准规范语法已格式化并成功对齐。');
+          setRepairPackageStruct('checking');
+          addLog('🔍 [2/3] 正在扫描技能包的物理链路依赖、绑定文件及 TS 自动化脚本连通性...');
+        },
+      },
+      {
+        at: 5200,
+        run: () => {
+          setRepairPackageStruct('success');
+          addLog('✅ 校验通过：引用资源配置无回路，本地沙盒脚本已完成自动化测试插桩。');
+          setRepairSecurity('checking');
+          addLog('🔍 [3/3] 正在对技能执行步骤进行安全审计，评估敏感信息防越权与执行注入风险...');
+        },
+      },
+      {
+        at: 7000,
+        run: () => {
+          setRepairSecurity('fixing');
+          setRepairAttemptsSecurity(1);
+          addLog('⚠️ 警告：检测到执行流程步骤中存在两处语义模糊的描述，易发生意图误判。');
+          addLog('🤖 AI Co-pilot 正在生成标准的执行阻断门规，注入高安全性越权防护策略 (第 1/3 次)...');
+        },
+      },
+      {
+        at: 8800,
+        run: () => {
+          setRepairSecurity('success');
+          addLog('✅ 安全拦截规则注入成功！提示词逻辑边界加固率达到 100%。安全通过。');
+        },
+      },
+      {
+        at: 10000,
+        run: () => {
+          const finalCnName = cnName.trim() || enId.trim();
+          const descStr = triggerCond || '调用特定服务或工具，赋能数字员工运行更高级流控。';
+          const actualKind = skillKind === 'pure_doc' ? 'kb' : 'tool';
+          const hasScripts = selectedScripts.length > 0;
+          const hasKBs = selectedKBs.length > 0;
+          const targetId = boundDraftSkillId || draftSkillId || null;
 
-          // Sub-check 2: Skill Package Structure
-          setTimeout(() => {
-            if (!isVerifyingRef.current) return;
-            setRepairPackageStruct('checking');
-            addLog('🔍 [2/3] 正在扫描技能包的物理链路依赖、绑定文件及 TS 自动化脚本连通性...');
+          try {
+            if (enId.includes('error')) {
+              throw new Error('Service unavailable');
+            }
 
-            setTimeout(() => {
-              if (!isVerifyingRef.current) return;
-              setRepairPackageStruct('success');
-              addLog('✅ 校验通过：引用资源配置无回路，本地沙盒脚本已完成自动化测试插桩。');
+            if (targetId) {
+              updateSkill(targetId, {
+                name: finalCnName,
+                description: descStr,
+                status: 'published',
+                kind: actualKind,
+                hasScripts,
+                hasKBs,
+                enId: enId.trim(),
+                cnName: cnName.trim(),
+                draftData: undefined,
+              });
+              const sk = skills.find((s) => s.id === targetId);
+              if (sk) {
+                onPublished?.({
+                  ...sk,
+                  name: finalCnName,
+                  description: descStr,
+                  status: 'published',
+                  enId: enId.trim(),
+                  cnName: cnName.trim(),
+                  versionNote: publishVersionNoteRef.current,
+                } as Skill & { versionNote?: string });
+              }
+            } else {
+              const newSkill = createSkill(finalCnName, descStr, 'mine', actualKind, hasScripts, hasKBs);
+              updateSkill(newSkill.id, {
+                status: 'published',
+                enId: enId.trim(),
+                cnName: cnName.trim(),
+              });
+              onPublished?.({
+                ...newSkill,
+                status: 'published',
+                enId: enId.trim(),
+                cnName: cnName.trim(),
+                versionNote: publishVersionNoteRef.current,
+              } as Skill & { versionNote?: string });
+            }
 
-              // Sub-check 3: Security & Access Control Guard
-              setTimeout(() => {
-                if (!isVerifyingRef.current) return;
-                setRepairSecurity('checking');
-                addLog('🔍 [3/3] 正在对技能执行步骤进行安全审计，评估敏感信息防越权与执行注入风险...');
+            addLog('🎉 [成功] 静态资源包部署全网发布成功！新版技能已在分布式智能大脑节点激活上线！');
+            setVerifyStep(4);
+            setVerifyPhase('success');
+            setShowPublishVersionModal(false);
+            showToast(`✨ 恭喜！专属技能 ${finalCnName} 已经校验合格并成功在云侧部署生效！`);
+            if (verificationTimeoutRef.current) clearTimeout(verificationTimeoutRef.current);
+            window.setTimeout(() => {
+              setIsVerifying(false);
+              isVerifyingRef.current = false;
+              onClose();
+            }, 600);
+          } catch {
+            setVerifyPhase('deployment_failed');
+            addLog('❌ [部署失败] 无法连接到部署服务，请稍后重试。');
+          }
+        },
+      },
+    ];
 
-                setTimeout(() => {
-                  if (!isVerifyingRef.current) return;
-                  setRepairSecurity('fixing');
-                  setRepairAttemptsSecurity(1);
-                  addLog('⚠️ 警告：检测到执行流程步骤中存在两处语义模糊的描述，易发生意图误判。');
-                  addLog('🤖 AI Co-pilot 正在生成标准的执行阻断门规，注入高安全性越权防护策略 (第 1/3 次)...');
-
-                  setTimeout(() => {
-                    if (!isVerifyingRef.current) return;
-                    setRepairSecurity('success');
-                    addLog('✅ 安全拦截规则注入成功！提示词逻辑边界加固率达到 100%。安全通过。');
-
-                    // Final successful publish
-                    setTimeout(() => {
-                      if (!isVerifyingRef.current) return;
-                      const finalCnName = cnName.trim() || enId.trim();
-                      const descStr = triggerCond || '调用特定服务或工具，赋能数字员工运行更高级流控。';
-                      const actualKind = skillKind === 'pure_doc' ? 'kb' : 'tool';
-                      const hasScripts = selectedScripts.length > 0;
-                      const hasKBs = selectedKBs.length > 0;
-
-                      try {
-                        // Simulation: Fail if enId contains 'error'
-                        if (enId.includes('error')) {
-                          throw new Error('Service unavailable');
-                        }
-
-                        if (draftSkillId) {
-                          updateSkill(draftSkillId, {
-                            name: finalCnName,
-                            description: descStr,
-                            status: 'published',
-                            kind: actualKind,
-                            hasScripts,
-                            hasKBs,
-                            enId: enId.trim(),
-                            cnName: cnName.trim(),
-                            draftData: undefined
-                          });
-                          const sk = skills.find((s) => s.id === draftSkillId);
-                          if (sk) {
-                            onPublished?.({
-                              ...sk,
-                              name: finalCnName,
-                              description: descStr,
-                              status: 'published',
-                              enId: enId.trim(),
-                              cnName: cnName.trim(),
-                              versionNote: publishVersionNoteRef.current,
-                            } as Skill & { versionNote?: string });
-                          }
-                        } else {
-                          const newSkill = createSkill(finalCnName, descStr, 'mine', actualKind, hasScripts, hasKBs);
-                          updateSkill(newSkill.id, {
-                            status: 'published',
-                            enId: enId.trim(),
-                            cnName: cnName.trim(),
-                          });
-                          onPublished?.({
-                            ...newSkill,
-                            status: 'published',
-                            enId: enId.trim(),
-                            cnName: cnName.trim(),
-                            versionNote: publishVersionNoteRef.current,
-                          } as Skill & { versionNote?: string });
-                        }
-
-                        addLog('🎉 [成功] 静态资源包部署全网发布成功！新版技能已在分布式智能大脑节点激活上线！');
-                        setVerifyStep(4);
-                        setVerifyPhase('success');
-                        setShowPublishVersionModal(false);
-                        showToast(`✨ 恭喜！专属技能 ${finalCnName} 已经校验合格并成功在云侧部署生效！`);
-                        if (verificationTimeoutRef.current) clearTimeout(verificationTimeoutRef.current);
-                        setTimeout(() => {
-                          setIsVerifying(false);
-                          onClose();
-                        }, 600);
-                      } catch (err) {
-                        setVerifyPhase('deployment_failed');
-                        addLog('❌ [部署失败] 无法连接到部署服务，请稍后重试。');
-                      }
-                    }, 1200);
-
-                  }, 1800);
-                }, 1500);
-              }, 1200);
-
-            }, 1200);
-          }, 1200);
-
-        }, 1500);
-      }, 1200);
-    }, 1000);
+    steps.forEach(({ at, run }) => {
+      window.setTimeout(() => {
+        if (!stillRunning()) return;
+        run();
+      }, at);
+    });
   };
 
   const fourRoundsDone = [1, 2, 3, 4].every((s) => completedSteps.includes(s));
@@ -3694,6 +3722,8 @@ ${usageExamples || '暂无调用示例'}
     }
     publishVersionNoteRef.current = note;
     setShowPublishVersionModal(false);
+    // 同步置位，避免 setState 未刷入 ref 时校验序列被跳过；顶栏图标进入约 10s 加载态
+    isVerifyingRef.current = true;
     setIsVerifying(true);
     setVerifyStep(1);
     setVerifyPhase('auto_fix');
@@ -3768,10 +3798,12 @@ ${usageExamples || '暂无调用示例'}
   };
 
   const handleLeaveWorkbench = () => {
+    setShowLeaveConfirm(false);
     onClose();
   };
 
-  const handleTryClose = () => {
+  const handleConfirmLeave = () => {
+    setShowLeaveConfirm(false);
     // 智能创作入口：返回直接退出工作台，不再回落技能落地页（避免二次跳转）
     if (skillGoalReady && !closeLabel) {
       setSkillGoalReady(false);
@@ -3780,6 +3812,14 @@ ${usageExamples || '暂无调用示例'}
       setIsAiThinking(false);
       setSkillTestOpen(false);
       setSkillTestPinned(false);
+      return;
+    }
+    onClose();
+  };
+
+  const handleTryClose = () => {
+    if (skillGoalReady) {
+      setShowLeaveConfirm(true);
       return;
     }
     handleLeaveWorkbench();
@@ -4087,6 +4127,8 @@ ${usageExamples || '暂无调用示例'}
       <button
         type="button"
         onClick={handleSaveAsDraft}
+        disabled={!isDraftDirty}
+        title={isDraftDirty ? '保存到「我的技能」' : '已保存，修改后可再次保存'}
         className={outlineBtn}
       >
         保存草稿
@@ -4936,47 +4978,42 @@ return (
                         title={payload.title || '请确认本轮变更要点'}
                         items={payload.items ?? []}
                         confirmed={Boolean(payload.confirmed)}
-                        editingItemId={
-                          confirmEditTarget?.msgIndex === i ? confirmEditTarget.itemId : null
+                        editingItemIds={
+                          confirmEditTarget?.msgIndex === i
+                            ? confirmEditTarget.items.map((item) => item.itemId)
+                            : []
                         }
                         onEditItem={(item, itemIndex) => {
                           setComposerChipSelections([]);
                           setComposerResetMode(false);
                           const hint = item.fieldLabel || `要点 ${itemIndex + 1}`;
-                          setConfirmEditTarget({
-                            msgIndex: i,
+                          const value = (
+                            item.value || item.label.replace(/^[^：:]+[：:]\s*/, '')
+                          ).trim();
+                          const nextItem = {
                             itemId: item.id,
                             itemIndex,
                             hint,
                             fieldKey: item.fieldKey,
-                          });
-                          setChatInput(item.value || item.label.replace(/^[^：:]+[：:]\s*/, ''));
-                          if (item.fieldKey && Boolean(payload.confirmed)) {
-                            const sectionForField =
-                              item.fieldKey === 'actionChain' ||
-                              item.fieldKey === 'knowledgeContent' ||
-                              item.fieldKey === 'knowledgeDesc'
-                                ? 2
-                                : item.fieldKey === 'notAllowed' ||
-                                    item.fieldKey === 'contentRedLines' ||
-                                    item.fieldKey === 'fallback' ||
-                                    item.fieldKey === 'answerTone'
-                                  ? 3
-                                  : item.fieldKey === 'usageExamples' ||
-                                      item.fieldKey === 'customNotes'
-                                    ? 4
-                                    : 1;
-                            setRightCollapsed(false);
-                            openFormSection(sectionForField);
-                            requestAnimationFrame(() => {
-                              const el = document.getElementById(
-                                item.fieldKey === 'actionChain'
-                                  ? 'form-section-2'
-                                  : `field-${item.fieldKey}`,
-                              );
-                              el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            });
+                            value,
+                          };
+
+                          const prev = confirmEditTarget;
+                          let nextTarget: typeof confirmEditTarget = null;
+                          if (prev?.msgIndex === i) {
+                            const exists = prev.items.some((row) => row.itemId === item.id);
+                            const nextItems = exists
+                              ? prev.items.filter((row) => row.itemId !== item.id)
+                              : [...prev.items, nextItem].sort(
+                                  (a, b) => a.itemIndex - b.itemIndex,
+                                );
+                            nextTarget =
+                              nextItems.length === 0 ? null : { msgIndex: i, items: nextItems };
+                          } else {
+                            nextTarget = { msgIndex: i, items: [nextItem] };
                           }
+                          setConfirmEditTarget(nextTarget);
+
                           requestAnimationFrame(() => {
                             chatComposerTextareaRef.current?.focus();
                             chatComposerTextareaRef.current?.scrollIntoView({
@@ -4984,6 +5021,11 @@ return (
                               block: 'nearest',
                             });
                           });
+                        }}
+                        onBatchModeChange={(active) => {
+                          if (!active && confirmEditTarget?.msgIndex === i) {
+                            setConfirmEditTarget(null);
+                          }
                         }}
                         onItemsChange={(items) => {
                           setChatMessages((prev) =>
@@ -5324,26 +5366,37 @@ return (
                   </div>
                 ) : null}
                 {confirmEditTarget ? (
-                  <div className="flex items-center gap-2 pb-2 mb-1 border-b border-neutral-100">
-                    <span className="inline-flex items-center gap-1.5 h-7 pl-1.5 pr-2 rounded-md bg-neutral-100 border border-neutral-200 text-[12px] text-neutral-800 max-w-full">
-                      <span className="w-5 h-5 rounded bg-neutral-800 text-white text-[11px] font-semibold tabular-nums flex items-center justify-center shrink-0">
-                        {confirmEditTarget.itemIndex + 1}
-                      </span>
-                      <span className="truncate">
-                        编辑要点 · {confirmEditTarget.hint}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setConfirmEditTarget(null);
-                          setChatInput('');
-                        }}
-                        className="ml-0.5 text-neutral-400 hover:text-neutral-800 cursor-pointer shrink-0"
-                        aria-label="取消编辑"
+                  <div className="flex flex-wrap items-center gap-1.5 pb-2 mb-1 border-b border-neutral-100">
+                    {confirmEditTarget.items.map((item) => (
+                      <span
+                        key={item.itemId}
+                        className="inline-flex items-center gap-1.5 h-7 pl-1.5 pr-2 rounded-md bg-neutral-100 border border-neutral-200 text-[12px] text-neutral-800 max-w-full"
+                        title={item.value}
                       >
-                        <X size={12} />
-                      </button>
-                    </span>
+                        <span className="w-5 h-5 rounded bg-neutral-800 text-white text-[11px] font-semibold tabular-nums flex items-center justify-center shrink-0">
+                          {item.itemIndex + 1}
+                        </span>
+                        <span className="truncate">编辑要点 · {item.hint}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!confirmEditTarget) return;
+                            const nextItems = confirmEditTarget.items.filter(
+                              (row) => row.itemId !== item.itemId,
+                            );
+                            setConfirmEditTarget(
+                              nextItems.length === 0
+                                ? null
+                                : { ...confirmEditTarget, items: nextItems },
+                            );
+                          }}
+                          className="ml-0.5 text-neutral-400 hover:text-neutral-800 cursor-pointer shrink-0"
+                          aria-label={`移除 ${item.hint}`}
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
                   </div>
                 ) : null}
                 <textarea
@@ -5363,7 +5416,6 @@ return (
                     if (e.key === 'Escape' && confirmEditTarget) {
                       e.preventDefault();
                       setConfirmEditTarget(null);
-                      setChatInput('');
                       return;
                     }
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -5375,7 +5427,9 @@ return (
                     hasPendingClarify
                       ? '请先在上方「补充信息」卡片中提交或跳过…'
                       : confirmEditTarget
-                        ? `编辑第 ${confirmEditTarget.itemIndex + 1} 条要点，回车保存…`
+                        ? confirmEditTarget.items.length > 1
+                          ? `说明如何改写已选 ${confirmEditTarget.items.length} 条要点，发送后由 AI 更新…`
+                          : `说明如何改写「${confirmEditTarget.items[0].hint}」，发送后由 AI 更新…`
                           : composerResetMode
                           ? '可继续补充或修改各【要点】内容，回车发送…'
                           : draftConfirmed
@@ -5418,8 +5472,8 @@ return (
                         SKILL_AOP_SEND_BTN,
                         composerResetMode && 'px-3 gap-1.5 w-auto min-w-[2rem]',
                       )}
-                      title={composerResetMode ? '发送改写' : confirmEditTarget ? '保存要点' : '发送'}
-                      aria-label={composerResetMode ? '发送改写' : confirmEditTarget ? '保存要点' : '发送'}
+                      title={composerResetMode ? '发送改写' : confirmEditTarget ? '发给 AI 改写' : '发送'}
+                      aria-label={composerResetMode ? '发送改写' : confirmEditTarget ? '发给 AI 改写' : '发送'}
                     >
                       {composerResetMode ? (
                         <span className="text-[12px] font-medium leading-none">发送改写</span>
@@ -5794,6 +5848,7 @@ return (
                                   type="button"
                                   onClick={() => {
                                     handleSaveAsDraft();
+                                    onClose();
                                     setActiveTab('kb');
                                   }}
                                   className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-md transition flex items-center gap-1 shadow-xs shrink-0 cursor-pointer"
@@ -7115,6 +7170,31 @@ return (
             </div>
           </div>
         )}
+
+        <Modal
+          open={showLeaveConfirm}
+          onClose={() => setShowLeaveConfirm(false)}
+          overlayClassName="z-[260]"
+          maxWidth="max-w-sm"
+          title="确定返回？"
+          description="未保存的内容将丢失，可先点「保存草稿」"
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setShowLeaveConfirm(false)}
+                className={BTN_OUTLINE}
+              >
+                取消
+              </button>
+              <button type="button" onClick={handleConfirmLeave} className={BTN_INK}>
+                确定返回
+              </button>
+            </>
+          }
+        >
+          <span className="sr-only">返回确认</span>
+        </Modal>
 
         <Modal
           open={showTestModal}

@@ -154,6 +154,8 @@ import {
   GraduationCapIcon,
   HierarchySquare01Icon,
   ClipboardCheckIcon,
+  VolumeHighIcon,
+  VolumeOffIcon,
 } from '@hugeicons/core-free-icons';
 
 export { HugeiconsIcon };
@@ -364,6 +366,8 @@ export const Building = wrap(Building03Icon);
 export const GraduationCap = wrap(GraduationCapIcon);
 export const Hierarchy = wrap(HierarchySquare01Icon);
 export const ClipboardCheck = wrap(ClipboardCheckIcon);
+export const Volume2 = wrap(VolumeHighIcon);
+export const VolumeX = wrap(VolumeOffIcon);
 
 /** BuildSkillModal / lucide 兼容别名 */
 export const GripVertical = MoreVertical;
