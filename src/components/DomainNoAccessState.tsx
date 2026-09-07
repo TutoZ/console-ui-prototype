@@ -22,7 +22,7 @@ export const DomainNoAccessState: React.FC<DomainNoAccessStateProps> = ({
   submitted = false,
   onApply,
 }) => {
-  const title = submitted ? '开通申请已提交' : `暂无「${domainTitle}」权限`;
+  const title = submitted ? '开通申请已提交' : `暂无${domainTitle}权限`;
   const subtitle = submitted
     ? '顾问将尽快与您联系。在开通完成前，该业务域内容暂不可访问。'
     : '当前账号未开通该业务域。申请试用后，顾问将协助完成权限配置与数字员工上岗。';
@@ -32,9 +32,9 @@ export const DomainNoAccessState: React.FC<DomainNoAccessStateProps> = ({
     <div className="flex flex-1 min-h-0 w-full items-center justify-center">
       <div className={cn(homeStyles.emptyState, '!py-0')}>
         <img className={homeStyles.emptyImage} src={RELAY_HOME_ASSETS.employeesEmpty} alt="" />
-        <div className={homeStyles.emptyTextGroup}>
-          <div className={homeStyles.emptyTitle}>{title}</div>
-          <div className={cn(homeStyles.emptySubtitle, 'whitespace-normal text-center max-w-[420px]')}>
+        <div className={cn(homeStyles.emptyTextGroup, 'px-4')}>
+          <div className={cn(homeStyles.emptyTitle, 'text-center')}>{title}</div>
+          <div className={cn(homeStyles.emptySubtitle, 'text-center whitespace-nowrap')}>
             {subtitle}
           </div>
         </div>

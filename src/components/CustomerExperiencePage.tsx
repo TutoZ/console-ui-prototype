@@ -9,7 +9,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ArrowLeft, ArrowUp, Wifi, MousePointer2, Play, Pause, Volume2, VolumeX } from '@/lib/icons';
-import { defaultOpeningLineForAgent } from '@/lib/agentDefaultCopy';
 import { mockAgentChatReply } from '../lib/mockAgentChatReply';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AGENT_AVATAR_PRESETS } from '@/lib/agentAvatarDisplay';
@@ -25,10 +24,16 @@ import {
   SKILL_AOP_TINT_BORDER,
 } from '@/lib/ui';
 import {
+  FOOD_SAFETY_CAPABILITY_STAGES,
   FOOD_SAFETY_DEMO_ORDER,
   FOOD_SAFETY_DEMO_TURNS,
   FOOD_SAFETY_DEMO_STEP_COUNT,
+  FOOD_SAFETY_OPENING_LINE,
+  FOOD_SAFETY_ORDER_SELECT_LABEL,
+  getCapabilityLeadAtMs,
+  getFoodSafetyAgentBubbles,
   getFoodSafetyOrderSelectTurn,
+  getFoodSafetyOrderSelectUserTexts,
   matchFoodSafetyDemoTurn,
   type FoodSafetyDemoTurn,
 } from '@/lib/foodSafetyDemoScript';
@@ -158,8 +163,8 @@ export const CustomerExperiencePage: React.FC = () => {
   } = useApp();
 
   const agent = hiredAgents.find((a) => a.id === experienceAgentId);
-  const openingLine =
-    agent?.openingLine || (agent ? defaultOpeningLineForAgent(agent.name) : '');
+  const experienceAgentName = '外卖保险客服专员';
+  const openingLine = FOOD_SAFETY_OPENING_LINE;
 
   const [input, setInput] = useState('');
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
@@ -175,6 +180,8 @@ export const CustomerExperiencePage: React.FC = () => {
   const [orderClickPulse, setOrderClickPulse] = useState(false);
   const [orderPointerOn, setOrderPointerOn] = useState(false);
   const [orderPointerSettled, setOrderPointerSettled] = useState(false);
+  /** 右侧 pre 思维跑完后再显示左侧开场白 */
+  const [openingRevealed, setOpeningRevealed] = useState(false);
   /** 全屏开场：配音同步播出，念完再淡入主界面 */
   const [introPhase, setIntroPhase] = useState<'show' | 'fade' | 'done'>('show');
   /** 进入页面后自动连播整段演示 */
@@ -191,14 +198,15 @@ export const CustomerExperiencePage: React.FC = () => {
   const autoPlayTimerRef = useRef<number | null>(null);
   const playDemoStepAtRef = useRef<(cursor: number, opts?: { fast?: boolean }) => void>(() => {});
   const pendingReplyRef = useRef<{
-    text: string;
+    bubbles: Array<{ text: string; offerOrder?: boolean }>;
     turnId?: string;
-    offerOrder?: boolean;
   } | null>(null);
 
   const DEMO_FAST_THINK_MS = 320;
   /** 幕间几乎无留白，靠配音串行衔接 */
   const DEMO_GAP_MS = 120;
+  /** 多条员工气泡逐条弹出间隔 */
+  const AGENT_BUBBLE_STAGGER_MS = 1400;
   /** 自动连播：配音空档后立刻进下一幕 */
   const AUTOPLAY_STEP_DELAY_MS = 80;
 
@@ -271,12 +279,20 @@ export const CustomerExperiencePage: React.FC = () => {
   }, [agent?.id, bootKey]);
 
   useEffect(() => {
-    if (introPhase === 'show' || introPhase === 'fade') {
-      // 开场期间只维持 intro，绝不重请求（避免首句重播）
+    // 全屏开场只挡 intro；淡出后即可在思维链页播 pre_act1（自主规划/主动预测）
+    if (introPhase === 'show') {
       return;
     }
     let next: NarrationSegmentId | null = null;
-    if (capabilityRunning && capabilityTurnId === 'act1') {
+    if (
+      (capabilityRunning && capabilityTurnId === 'pre') ||
+      (introPhase !== 'show' &&
+        demoCursor === 0 &&
+        !completedTurnIds.has('act1') &&
+        (capabilityTurnId === 'pre' || capabilityTurnId == null))
+    ) {
+      next = 'pre_act1';
+    } else if (capabilityRunning && capabilityTurnId === 'act1') {
       next = 'act1';
     } else if (capabilityRunning && capabilityTurnId === 'act2') {
       next = 'act2';
@@ -298,7 +314,34 @@ export const CustomerExperiencePage: React.FC = () => {
     capabilityTurnId,
     demoPhase,
     demoCursor,
+    completedTurnIds,
   ]);
+
+  /** 开场淡出即进入思维链页，并开始播「自主规划 / 主动预测」（每个 boot 只播一次） */
+  const preStartedBootRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (introPhase === 'show') return;
+    if (demoCursor !== 0) return;
+    if (completedTurnIds.has('act1')) return;
+    // intro fade→done 会重跑 effect，禁止二次启动（否则思维链打字两遍）
+    if (preStartedBootRef.current === bootKey) return;
+    preStartedBootRef.current = bootKey;
+
+    setCapabilityTurnId('pre');
+    setCapabilityRunning(true);
+    setOpeningRevealed(false);
+
+    const preMs =
+      FOOD_SAFETY_CAPABILITY_STAGES.find((s) => s.turnId === 'pre')?.durationMs ?? 4272;
+    const stopTimer = window.setTimeout(() => {
+      setCapabilityRunning(false);
+      setOpeningRevealed(true);
+    }, preMs);
+
+    return () => window.clearTimeout(stopTimer);
+    // 用布尔依赖避免 introPhase fade→done 时清掉定时器并重播
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- boot 级只播一次 pre
+  }, [bootKey, introPhase === 'show', demoCursor !== 0]);
 
   useEffect(() => {
     const onFirstGesture = () => {
@@ -411,52 +454,93 @@ export const CustomerExperiencePage: React.FC = () => {
   };
 
   const scheduleAgentReply = (
-    agentText: string,
+    bubbles: Array<{ text: string; offerOrder?: boolean }>,
     thinkMs: number,
-    extras?: { offerOrder?: boolean; turnId?: string },
+    extras?: { turnId?: string },
     opts?: { fast?: boolean },
   ) => {
     const fast = Boolean(opts?.fast);
     const gapMs = fast ? 0 : DEMO_GAP_MS;
+    const staggerMs = fast ? 0 : AGENT_BUBBLE_STAGGER_MS;
 
-    // 串行节奏：左侧不在能力演示期间显示打字点，避免左右双焦点同时跳动
     setSpinning(false);
     setDemoPhase('waiting');
     pendingReplyRef.current = {
-      text: agentText,
+      bubbles: [...bubbles],
       turnId: extras?.turnId,
-      offerOrder: extras?.offerOrder,
     };
     if (replyTimerRef.current) window.clearTimeout(replyTimerRef.current);
 
-    const deliverReply = () => {
-      setMsgs((prev) => [
-        ...prev,
-        {
-          id: `agent_${Date.now()}`,
-          sender: 'agent',
-          text: agentText,
-          time: nowTime(),
-          offerOrder: extras?.offerOrder,
-        },
-      ]);
+    const finishTurn = () => {
       if (extras?.turnId) {
         setCompletedTurnIds((prev) => new Set(prev).add(extras.turnId!));
       }
       pendingReplyRef.current = null;
       setCapabilityRunning(false);
       setSpinning(false);
-
       if (gapMs <= 0) {
         setDemoPhase('idle');
         replyTimerRef.current = null;
         return;
       }
-      // 能力演示结束 → 左侧出回复 → 再留白 2s 进入下一幕
       replyTimerRef.current = window.setTimeout(() => {
         setDemoPhase('idle');
         replyTimerRef.current = null;
       }, gapMs);
+    };
+
+    /** 逐条弹出；若带选单，先出文案再单独弹出选单卡 */
+    const deliverQueue = (queue: Array<{ text: string; offerOrder?: boolean }>) => {
+      if (queue.length === 0) {
+        finishTurn();
+        return;
+      }
+      const [head, ...rest] = queue;
+      const id = `agent_${Date.now()}`;
+      const wantOrder = Boolean(head.offerOrder);
+
+      setMsgs((prev) => [
+        ...prev,
+        {
+          id,
+          sender: 'agent',
+          text: head.text,
+          time: nowTime(),
+          offerOrder: wantOrder && staggerMs <= 0,
+        },
+      ]);
+      pendingReplyRef.current = { bubbles: rest, turnId: extras?.turnId };
+
+      const afterText = () => {
+        if (wantOrder && staggerMs > 0) {
+          replyTimerRef.current = window.setTimeout(() => {
+            setMsgs((prev) =>
+              prev.map((m) => (m.id === id ? { ...m, offerOrder: true } : m)),
+            );
+            replyTimerRef.current = window.setTimeout(
+              () => deliverQueue(rest),
+              staggerMs,
+            );
+          }, staggerMs);
+          return;
+        }
+        deliverQueue(rest);
+      };
+
+      if (rest.length === 0 && !(wantOrder && staggerMs > 0)) {
+        finishTurn();
+        return;
+      }
+      if (rest.length === 0 && wantOrder && staggerMs > 0) {
+        replyTimerRef.current = window.setTimeout(() => {
+          setMsgs((prev) =>
+            prev.map((m) => (m.id === id ? { ...m, offerOrder: true } : m)),
+          );
+          finishTurn();
+        }, staggerMs);
+        return;
+      }
+      replyTimerRef.current = window.setTimeout(afterText, staggerMs || 16);
     };
 
     const startCapability = () => {
@@ -465,13 +549,39 @@ export const CustomerExperiencePage: React.FC = () => {
           setCapabilityTurnId(extras.turnId);
           setCapabilityRunning(true);
         }
-        replyTimerRef.current = window.setTimeout(deliverReply, thinkMs);
+
+        // 有安抚气泡时：右侧「先安抚」收束 → 左侧安抚；能力演示结束后再出规则/选单
+        if (!fast && bubbles.length > 1 && extras?.turnId && thinkMs > 1200) {
+          const leadAt = getCapabilityLeadAtMs(extras.turnId, thinkMs);
+          const rest = bubbles.slice(1);
+          replyTimerRef.current = window.setTimeout(() => {
+            setMsgs((prev) => [
+              ...prev,
+              {
+                id: `agent_${Date.now()}_lead`,
+                sender: 'agent',
+                text: bubbles[0].text,
+                time: nowTime(),
+                offerOrder: false,
+              },
+            ]);
+            pendingReplyRef.current = { bubbles: rest, turnId: extras.turnId };
+            replyTimerRef.current = window.setTimeout(() => {
+              setCapabilityRunning(false);
+              deliverQueue(rest);
+            }, Math.max(400, thinkMs - leadAt));
+          }, leadAt);
+          return;
+        }
+
+        replyTimerRef.current = window.setTimeout(() => {
+          setCapabilityRunning(false);
+          deliverQueue(bubbles);
+        }, thinkMs);
       };
-      // 上一句（如 pre_act）必须读完，再开本幕能力配音，避免掐字
       whenNarrationIdle(run);
     };
 
-    // 用户发送后先留白，再仅启动右侧能力演示；演示结束后再落左侧回复
     if (gapMs <= 0) {
       startCapability();
     } else {
@@ -487,16 +597,30 @@ export const CustomerExperiencePage: React.FC = () => {
       setDemoPhase('idle');
       return;
     }
-    setMsgs((prev) => [
-      ...prev,
-      {
-        id: `agent_${Date.now()}`,
-        sender: 'agent',
-        text: pending.text,
-        time: nowTime(),
-        offerOrder: pending.offerOrder,
-      },
-    ]);
+    const stamp = Date.now();
+    setMsgs((prev) => {
+      let next = [...prev];
+      pending.bubbles.forEach((b, i) => {
+        if (!b.text && b.offerOrder) {
+          // 跳过时：把选单挂到最近一条员工气泡
+          for (let j = next.length - 1; j >= 0; j -= 1) {
+            if (next[j].sender === 'agent') {
+              next[j] = { ...next[j], offerOrder: true };
+              break;
+            }
+          }
+          return;
+        }
+        next.push({
+          id: `agent_${stamp}_${i}`,
+          sender: 'agent',
+          text: b.text,
+          time: nowTime(),
+          offerOrder: b.offerOrder,
+        });
+      });
+      return next;
+    });
     if (pending.turnId) {
       setCompletedTurnIds((prev) => new Set(prev).add(pending.turnId!));
       setCapabilityTurnId(pending.turnId);
@@ -514,14 +638,28 @@ export const CustomerExperiencePage: React.FC = () => {
     pendingReplyRef.current = null;
     const nextMsgs: ChatMsg[] = [];
     if (!turn.agentOnly) {
-      nextMsgs.push({ id: `user_${Date.now()}`, sender: 'user', text: userText, time: nowTime() });
+      const userTexts = turn.isOrderSelect
+        ? getFoodSafetyOrderSelectUserTexts()
+        : [userText];
+      userTexts.forEach((text, i) => {
+        nextMsgs.push({
+          id: `user_${Date.now()}_${i}`,
+          sender: 'user',
+          text,
+          time: nowTime(),
+        });
+      });
     }
-    nextMsgs.push({
-      id: `agent_${Date.now() + 1}`,
-      sender: 'agent',
-      text: turn.agent,
-      time: nowTime(),
-      offerOrder: turn.offerOrder,
+    const stamp = Date.now() + 1;
+    getFoodSafetyAgentBubbles(turn).forEach((b, i) => {
+      if (!b.text && !b.offerOrder) return;
+      nextMsgs.push({
+        id: `agent_${stamp}_${i}`,
+        sender: 'agent',
+        text: b.text,
+        time: nowTime(),
+        offerOrder: b.offerOrder,
+      });
     });
     setMsgs((prev) => [...prev, ...nextMsgs]);
     setCompletedTurnIds((prev) => new Set(prev).add(turn.id));
@@ -542,35 +680,38 @@ export const CustomerExperiencePage: React.FC = () => {
     if (turn?.agentOnly) {
       setInput('');
       const thinkMs = opts?.fast ? DEMO_FAST_THINK_MS : turn.thinkMs;
-      scheduleAgentReply(
-        turn.agent,
-        thinkMs,
-        {
-          offerOrder: turn.offerOrder,
-          turnId: turn.id,
-        },
-        { fast: opts?.fast },
-      );
+      scheduleAgentReply(getFoodSafetyAgentBubbles(turn), thinkMs, { turnId: turn.id }, {
+        fast: opts?.fast,
+      });
       return;
     }
 
     setMsgs((prev) => [
       ...prev,
-      { id: `user_${Date.now()}`, sender: 'user', text: userText, time: nowTime() },
+      ...(turn?.isOrderSelect
+        ? getFoodSafetyOrderSelectUserTexts().map((text, i) => ({
+            id: `user_${Date.now()}_${i}`,
+            sender: 'user' as const,
+            text,
+            time: nowTime(),
+          }))
+        : [{ id: `user_${Date.now()}`, sender: 'user' as const, text: userText, time: nowTime() }]),
     ]);
     setInput('');
 
+    if (turn?.userOnly) {
+      setCompletedTurnIds((prev) => new Set(prev).add(turn.id));
+      setSpinning(false);
+      setCapabilityRunning(false);
+      setDemoPhase('idle');
+      return;
+    }
+
     if (turn) {
       const thinkMs = opts?.fast ? DEMO_FAST_THINK_MS : turn.thinkMs;
-      scheduleAgentReply(
-        turn.agent,
-        thinkMs,
-        {
-          offerOrder: turn.offerOrder,
-          turnId: turn.id,
-        },
-        { fast: opts?.fast },
-      );
+      scheduleAgentReply(getFoodSafetyAgentBubbles(turn), thinkMs, { turnId: turn.id }, {
+        fast: opts?.fast,
+      });
       return;
     }
 
@@ -578,7 +719,7 @@ export const CustomerExperiencePage: React.FC = () => {
     const thinkMs = opts?.fast
       ? DEMO_FAST_THINK_MS
       : Math.min(2200, Math.max(900, 600 + fallback.length * 18));
-    scheduleAgentReply(fallback, thinkMs, undefined, { fast: opts?.fast });
+    scheduleAgentReply([{ text: fallback }], thinkMs, undefined, { fast: opts?.fast });
   };
 
   const sendMessage = () => {
@@ -593,8 +734,7 @@ export const CustomerExperiencePage: React.FC = () => {
     const turn = getFoodSafetyOrderSelectTurn();
     if (completedTurnIds.has(turn.id)) return;
     setOrderPicked(true);
-    const label = `已选择订单：${FOOD_SAFETY_DEMO_ORDER.product}（${FOOD_SAFETY_DEMO_ORDER.orderNoMasked}）`;
-    pushTurnReply(label, turn);
+    pushTurnReply(FOOD_SAFETY_ORDER_SELECT_LABEL, turn);
   };
 
   const resetDemoSession = () => {
@@ -612,6 +752,7 @@ export const CustomerExperiencePage: React.FC = () => {
     setOrderClickPulse(false);
     setOrderPointerOn(false);
     setOrderPointerSettled(false);
+    setOpeningRevealed(false);
     lastNarrationSegmentRef.current = null;
     stopNarrationVoice();
     setSubtitleText('');
@@ -646,7 +787,7 @@ export const CustomerExperiencePage: React.FC = () => {
       const turn = FOOD_SAFETY_DEMO_TURNS[demoCursor];
       if (turn?.isOrderSelect) {
         if (!orderPicked) setOrderPicked(true);
-        const label = `已选择订单：${FOOD_SAFETY_DEMO_ORDER.product}（${FOOD_SAFETY_DEMO_ORDER.orderNoMasked}）`;
+        const label = FOOD_SAFETY_ORDER_SELECT_LABEL;
         commitTurnInstant(label, turn);
         nextCursor = demoCursor + 1;
       }
@@ -661,13 +802,14 @@ export const CustomerExperiencePage: React.FC = () => {
       return demoCursor;
     }
 
-    if (capabilityRunning && demoCursor >= FOOD_SAFETY_DEMO_TURNS.length) {
+    if (capabilityRunning) {
       setCapabilityRunning(false);
+      // 跳过 pre 自主规划时，同步露出左侧开场白
+      if (demoCursor === 0) setOpeningRevealed(true);
       setDemoPhase('idle');
       return demoCursor;
     }
 
-    setCapabilityRunning(false);
     setDemoPhase('idle');
     return demoCursor;
   };
@@ -690,7 +832,7 @@ export const CustomerExperiencePage: React.FC = () => {
       if (fast) {
         if (!completedTurnIds.has(turn.id)) {
           if (!orderPicked) setOrderPicked(true);
-          const label = `已选择订单：${FOOD_SAFETY_DEMO_ORDER.product}（${FOOD_SAFETY_DEMO_ORDER.orderNoMasked}）`;
+          const label = FOOD_SAFETY_ORDER_SELECT_LABEL;
           commitTurnInstant(label, turn);
         }
         setCapabilityTurnId(turn.id);
@@ -714,7 +856,7 @@ export const CustomerExperiencePage: React.FC = () => {
           setOrderPointerSettled(false);
           if (!orderPicked) {
             setOrderPicked(true);
-            const label = `已选择订单：${FOOD_SAFETY_DEMO_ORDER.product}（${FOOD_SAFETY_DEMO_ORDER.orderNoMasked}）`;
+            const label = FOOD_SAFETY_ORDER_SELECT_LABEL;
             pushTurnReply(label, turn);
           }
           setDemoCursor((c) => c + 1);
@@ -743,6 +885,38 @@ export const CustomerExperiencePage: React.FC = () => {
       setDemoPhase('waiting');
       pushTurnReply('', turn);
       setDemoCursor((c) => c + 1);
+      return;
+    }
+
+    if (turn.userOnly) {
+      const text = turn.user;
+      if (fast) {
+        if (!completedTurnIds.has(turn.id)) {
+          commitTurnInstant(text, turn);
+        }
+        setDemoCursor(cursor + 1);
+        setDemoPhase('idle');
+        return;
+      }
+      setDemoPhase('typing');
+      setInput('');
+      let i = 0;
+      const finishAndSend = () => {
+        setInput('');
+        pushTurnReply(text, turn);
+        setDemoCursor((c) => c + 1);
+        setDemoPhase('idle');
+      };
+      const tick = () => {
+        i += 1;
+        setInput(text.slice(0, i));
+        if (i >= text.length) {
+          typeTimerRef.current = window.setTimeout(finishAndSend, 220);
+          return;
+        }
+        typeTimerRef.current = window.setTimeout(tick, 32 + Math.floor(Math.random() * 18));
+      };
+      tick();
       return;
     }
 
@@ -779,10 +953,10 @@ export const CustomerExperiencePage: React.FC = () => {
       i += 1;
       setInput(text.slice(0, i));
       if (i >= text.length) {
-        typeTimerRef.current = window.setTimeout(finishAndSend, 520);
+        typeTimerRef.current = window.setTimeout(finishAndSend, 260);
         return;
       }
-      typeTimerRef.current = window.setTimeout(tick, 82 + Math.floor(Math.random() * 40));
+      typeTimerRef.current = window.setTimeout(tick, 32 + Math.floor(Math.random() * 18));
     };
     tick();
   };
@@ -800,6 +974,7 @@ export const CustomerExperiencePage: React.FC = () => {
 
     const capped = Math.max(0, Math.min(targetCursor, FOOD_SAFETY_DEMO_STEP_COUNT));
     setDemoCursor(capped);
+    setOpeningRevealed(capped > 0);
 
     const dialogueDone = Math.min(capped, FOOD_SAFETY_DEMO_TURNS.length);
     const nextMsgs: ChatMsg[] = [];
@@ -809,23 +984,27 @@ export const CustomerExperiencePage: React.FC = () => {
     for (let i = 0; i < dialogueDone; i += 1) {
       const turn = FOOD_SAFETY_DEMO_TURNS[i];
       if (!turn.agentOnly) {
-        const userText = turn.isOrderSelect
-          ? `已选择订单：${FOOD_SAFETY_DEMO_ORDER.product}（${FOOD_SAFETY_DEMO_ORDER.orderNoMasked}）`
-          : turn.user;
+        const userTexts = turn.isOrderSelect
+          ? getFoodSafetyOrderSelectUserTexts()
+          : [turn.user];
         if (turn.isOrderSelect) picked = true;
-        nextMsgs.push({
-          id: `user_back_${i}`,
-          sender: 'user',
-          text: userText,
-          time: nowTime(),
+        userTexts.forEach((text, j) => {
+          nextMsgs.push({
+            id: `user_back_${i}_${j}`,
+            sender: 'user',
+            text,
+            time: nowTime(),
+          });
         });
       }
-      nextMsgs.push({
-        id: `agent_back_${i}`,
-        sender: 'agent',
-        text: turn.agent,
-        time: nowTime(),
-        offerOrder: turn.offerOrder,
+      getFoodSafetyAgentBubbles(turn).forEach((b, j) => {
+        nextMsgs.push({
+          id: `agent_back_${i}_${j}`,
+          sender: 'agent',
+          text: b.text,
+          time: nowTime(),
+          offerOrder: b.offerOrder,
+        });
       });
       nextIds.add(turn.id);
     }
@@ -885,7 +1064,10 @@ export const CustomerExperiencePage: React.FC = () => {
       : `下一步 ${demoCursor + 1}/${FOOD_SAFETY_DEMO_STEP_COUNT}`;
   const showIntroOverlay = introPhase === 'show' || introPhase === 'fade';
   const showMainStage = introPhase === 'fade' || introPhase === 'done';
-  const capabilityPanelRunning = capabilityRunning && demoAutoplay;
+  const capabilityPanelTurnId =
+    capabilityTurnId ??
+    (showMainStage && demoCursor === 0 && !completedTurnIds.has('act1') ? 'pre' : null);
+  const capabilityPanelRunning = Boolean(capabilityRunning);
 
   playDemoStepAtRef.current = playDemoStepAt;
 
@@ -897,6 +1079,10 @@ export const CustomerExperiencePage: React.FC = () => {
     if (!demoAutoplay || !recordingBootstrapped || introPhase === 'show' || !agent) return;
     if (demoCursor >= FOOD_SAFETY_DEMO_STEP_COUNT) {
       setDemoAutoplay(false);
+      return;
+    }
+    // 先播完右侧「自主规划」并露出左侧开场白，再打用户进线
+    if (demoCursor === 0 && (!openingRevealed || capabilityRunning || introPhase === 'fade')) {
       return;
     }
     if (demoBusy) return;
@@ -927,6 +1113,9 @@ export const CustomerExperiencePage: React.FC = () => {
     demoCursor,
     demoBusy,
     demoFinished,
+    capabilityRunning,
+    capabilityTurnId,
+    openingRevealed,
   ]);
 
   const resumePausedDemoClock = () => {
@@ -1087,7 +1276,7 @@ export const CustomerExperiencePage: React.FC = () => {
                   <ExperienceAgentAvatar />
                   <div className="flex-1 min-w-0">
                     <h1 className="text-[15px] font-semibold text-neutral-900 tracking-tight truncate leading-tight">
-                      {agent.name}
+                      {experienceAgentName}
                     </h1>
                     <p className="text-[11px] text-neutral-500 truncate">在线 · 数字员工</p>
                   </div>
@@ -1096,10 +1285,12 @@ export const CustomerExperiencePage: React.FC = () => {
 
               <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 custom-scrollbar min-h-0 bg-white">
                 <ContentBusy busy={paneBusy} size="slot" minHeight={120}>
-                  <div className="flex justify-start gap-2 items-start">
-                    <ExperienceAgentAvatar />
-                    <div className={cn(AGENT_CHAT_BUBBLE, 'max-w-[78%]')}>{openingLine}</div>
-                  </div>
+                  {openingRevealed ? (
+                    <div className="flex justify-start gap-2 items-start">
+                      <ExperienceAgentAvatar />
+                      <div className={cn(AGENT_CHAT_BUBBLE, 'max-w-[78%]')}>{openingLine}</div>
+                    </div>
+                  ) : null}
 
                   {msgs.map((m) => {
                     if (m.sender === 'user') {
@@ -1117,29 +1308,37 @@ export const CustomerExperiencePage: React.FC = () => {
                           <div className={cn(AGENT_CHAT_BUBBLE, 'max-w-[78%]')}>{m.text}</div>
                         </div>
 
-                        {m.offerOrder && !orderPicked && (
+                        {m.offerOrder && (
                           <div ref={orderCardRef} className="pl-9 max-w-[88%] relative">
                             <button
                               type="button"
                               onClick={handleSelectOrder}
-                              disabled={spinning || demoPhase === 'clicking'}
+                              disabled={orderPicked || spinning || demoPhase === 'clicking'}
                               className={cn(
                                 PANEL,
-                                'relative w-full text-left px-3 py-2.5 rounded-[13px] hover:border-neutral-300 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-white',
+                                'relative w-full text-left px-3 py-2.5 rounded-[13px] transition-all duration-200 bg-white',
+                                orderPicked
+                                  ? 'border-neutral-200 cursor-default opacity-100'
+                                  : 'hover:border-neutral-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
                                 orderClickPulse &&
                                   'scale-[0.97] border-[#1565BF] ring-2 ring-[rgba(21,101,191,0.35)] bg-[rgba(21,101,191,0.06)]',
-                                orderPointerOn && !orderClickPulse && 'border-neutral-300 shadow-md',
+                                orderPointerOn && !orderClickPulse && !orderPicked && 'border-neutral-300 shadow-md',
                               )}
                             >
-                              <p className="text-[11px] font-semibold text-[#1565BF]">选择订单</p>
+                              <p className="text-[11px] font-semibold text-[#1565BF]">
+                                {orderPicked ? '已选择订单' : '选择订单'}
+                              </p>
                               <p className="mt-1 text-[14px] font-medium text-neutral-900">
                                 {FOOD_SAFETY_DEMO_ORDER.product}
                               </p>
                               <p className="mt-0.5 text-[11px] text-neutral-500 tabular-nums">
-                                {FOOD_SAFETY_DEMO_ORDER.orderNoMasked} · 实付待系统核验
+                                {FOOD_SAFETY_DEMO_ORDER.orderNoMasked}
+                                {orderPicked
+                                  ? ` · 实付 ${FOOD_SAFETY_DEMO_ORDER.amount}`
+                                  : ' · 实付待系统核验'}
                               </p>
                             </button>
-                            {orderPointerOn ? (
+                            {!orderPicked && orderPointerOn ? (
                               <div
                                 className={cn(
                                   'pointer-events-none absolute z-20 transition-all duration-[700ms] ease-out',
@@ -1225,7 +1424,7 @@ export const CustomerExperiencePage: React.FC = () => {
             <div className="min-h-0 min-w-0 flex items-center justify-center overflow-hidden">
               <div className="h-[min(700px,100%)] w-full min-h-0 overflow-hidden">
                 <FoodSafetyCapabilityPanel
-                  activeTurnId={capabilityTurnId}
+                  activeTurnId={capabilityPanelTurnId}
                   running={capabilityPanelRunning}
                 />
               </div>
@@ -1243,7 +1442,7 @@ export const CustomerExperiencePage: React.FC = () => {
             style={{ backgroundImage: "url('/assets/customer-experience-bg.png')" }}
           >
             <p className="food-safety-hero-caption text-[36px] sm:text-[48px] leading-none tracking-[-0.02em] select-text whitespace-nowrap">
-              <span className="food-safety-hero-caption-accent">食安险</span>
+              <span className="food-safety-hero-caption-accent">客服</span>
               <span className="food-safety-hero-caption-plain">数字员工</span>
             </p>
           </div>

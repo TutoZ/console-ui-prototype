@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * 多轮对话底部「AI 帮写」快捷建议 — 按上下文动态生成若干回答方向；
- * 点选后回填输入框，用户可再补充、编辑或删除后发送。
+ * 点选后立刻发送完整草稿，由 AI 补全并弹出确认卡。
  */
 
 export type SkillReplyPeChip = {
   id: string;
   /** 芯片展示文案（简短方向） */
   label: string;
-  /** 点芯片时回填到输入框的完整草稿，由用户确认后再发送 */
+  /** 点芯片时发送给 AI 的完整草稿 */
   send: string;
 };
 

@@ -33,8 +33,9 @@ type DomainAccessLeadModalProps = {
 
 function mapDomainScenario(domainTitle: string): string | undefined {
   if (domainTitle.includes('电话销售') || domainTitle.includes('电销')) return 'telesales';
+  if (domainTitle.includes('电话催收') || domainTitle.includes('催收')) return 'acquisition';
   if (domainTitle.includes('客服') || domainTitle.includes('在线')) return 'customer_service';
-  if (domainTitle.includes('外呼') || domainTitle.includes('催收')) return 'acquisition';
+  if (domainTitle.includes('外呼')) return 'acquisition';
   return undefined;
 }
 
@@ -65,7 +66,7 @@ export const DomainAccessLeadModal: React.FC<DomainAccessLeadModalProps> = ({
     <ApplicationLeadModal
       open={open}
       onClose={onClose}
-      title={`开通「${domainTitle}」权限`}
+      title={`开通${domainTitle}权限`}
       description="当前账号暂无该业务域权限。留下联系方式后，顾问将协助开通试用。"
       submitLabel="提交开通申请"
       successTitle="申请已提交"

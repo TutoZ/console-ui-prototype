@@ -47,6 +47,7 @@ import { AGENT_AVATAR_PRESETS, agentAvatarForCard, agentAvatarForEditor } from '
 import { ONBOARDING_TOAST_STEP1, ONBOARDING_TOAST_STEP3, ONBOARDING_TOAST_STEP4, ONBOARDING_TOAST_COMPLETE } from '@/lib/onboardingCopy';
 import { EMPLOYEE_RESOURCE_TERMS, LIFECYCLE_TERMS, DISMISS_EMPLOYEE_COPY, EMPLOYEE_PAGE_COPY, ORG_COPY, SEARCH_COPY, MASTER_TEMPLATE_TERMS, QC_TERMS, NAV_TERMS } from '@/lib/platformTerminology';
 import { OnboardingConfigPanel } from './onboarding/OnboardingConfigPanel';
+import { OnboardingCapabilityTestPanel } from './onboarding/OnboardingCapabilityTestPanel';
 import {
   OnboardingQcConfigPanel,
 } from './onboarding/OnboardingQcConfigPanel';
@@ -84,50 +85,17 @@ import { ChatReplySkeleton, WorkLogSkeleton } from './common/LoadingSkeletons';
 import { ContentBusy } from './common/ContentBusy';
 import { useMockLatency } from '@/lib/useMockLatency';
 import { pickMockLatencyMs } from '@/lib/mockLatency';
-import { buildAgentReplyPlan, planToThoughtSteps } from '../lib/agentReplyPlan';
-import { mockAgentChatReply } from '../lib/mockAgentChatReply';
 import type { ThoughtStep } from '../types';
-import { ExecutionProcessFold } from './common/ExecutionProcessFold';
 import {
   createSavedSnapshot,
   ensureAgentSnapshots,
   savedSnapshotTitle,
   snapshotToAgentUpdates,
 } from '../lib/agentVersions';
-
-function OnboardChatAgentAvatar({
-  agent,
-  relayAvatarIndex,
-  className,
-}: {
-  agent: HiredAgent;
-  relayAvatarIndex: number;
-  className?: string;
-}) {
-  const display = agentAvatarForEditor(agent.avatar, relayAvatarIndex, agent.avatarCustomized);
-
-  return (
-    <Avatar className={cn('h-8 w-8 shrink-0 overflow-hidden', className)}>
-      {display.kind === 'image' ? (
-        <>
-          <AvatarImage src={display.src} alt="" />
-          <AvatarFallback className="bg-neutral-100" />
-        </>
-      ) : (
-        <AvatarFallback className="bg-neutral-800 text-white text-sm select-none">
-          {display.emoji}
-        </AvatarFallback>
-      )}
-    </Avatar>
-  );
-}
-
-const ONBOARD_CHAT_BUBBLE =
-  'px-3 py-2 rounded-lg bg-white border border-neutral-200 text-xs leading-relaxed text-neutral-800';
-
-function createHexId(length = 32): string {
-  return Array.from({ length }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-}
+import {
+  applyAgentVersionSnapshot,
+  EmployeeVersionSwitchModal,
+} from './employees/EmployeeVersionSwitchModal';
 
 export const EmployeeManagePage: React.FC = () => {
   const { 
@@ -175,28 +143,8 @@ export const EmployeeManagePage: React.FC = () => {
   const [dismissConfirmAgentId, setDismissConfirmAgentId] = useState<string | null>(null);
   const [renameAgentId, setRenameAgentId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [versionSwitchAgentId, setVersionSwitchAgentId] = useState<string | null>(null);
 
-  type OnboardChatMsg = {
-    id?: string;
-    /** 员工回复关联的用户消息 id，用于挂载处理过程 */
-    triggerMsgId?: string;
-    sender: 'user' | 'agent' | 'system';
-    text: string;
-    time: string;
-  };
-  type OnboardExecution = {
-    runId: string;
-    steps: ThoughtStep[];
-    status: 'running' | 'done';
-  };
-
-  const [onboardChatMsgs, setOnboardChatMsgs] = useState<OnboardChatMsg[]>([]);
-  /** key = 触发本轮的用户消息 id */
-  const [onboardExecutions, setOnboardExecutions] = useState<Record<string, OnboardExecution>>({});
-  const [onboardChatInput, setOnboardChatInput] = useState('');
-  const [onboardChatSpinning, setOnboardChatSpinning] = useState(false);
-  const [hasSentOnboardMessage, setHasSentOnboardMessage] = useState(false);
-  const [onboardSessionId, setOnboardSessionId] = useState(() => createHexId());
   const [onboardRightTab, setOnboardRightTab] = useState<'chat' | 'versions'>('chat');
   const [onboardConfigDirty, setOnboardConfigDirty] = useState(false);
   const [onboardConfigSavedAt, setOnboardConfigSavedAt] = useState<Date | null>(null);
@@ -234,95 +182,6 @@ export const EmployeeManagePage: React.FC = () => {
   /** 第 3 步：需先保存配置 */
   const onboardingSaveRequired = demoStep === 'A3';
   const onboardingChatLocked = onboardingSaveRequired || !!previewSnapshotId;
-
-  const handleSendOnboardTest = (onboardAgent: HiredAgent, textToSend?: string) => {
-    if (onboardingChatLocked) {
-      showToast(
-        previewSnapshotId
-          ? `请先取消预览或应用其他${LIFECYCLE_TERMS.examVersion}，再进行${LIFECYCLE_TERMS.onboardTest}。`
-          : `请先点击左上角「保存」完成培训存档，再进行${LIFECYCLE_TERMS.onboardTest}。`,
-      );
-      return;
-    }
-    const rawText = textToSend || onboardChatInput;
-    if (!rawText.trim()) return;
-
-    const msgId = `msg_${Date.now()}`;
-    const replyId = `${msgId}_reply`;
-    // 32 位 hex runId，便于排查与复制
-    const runId = createHexId();
-    const time = new Date().toLocaleTimeString('zh-CN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-
-    setOnboardChatMsgs((prev) => [
-      ...prev,
-      { id: msgId, sender: 'user', text: rawText, time },
-      // 同一轮员工回复占位：处理过程挂在这条上，不另起对话轮次
-      { id: replyId, triggerMsgId: msgId, sender: 'agent', text: '', time },
-    ]);
-
-    if (!textToSend) {
-      setOnboardChatInput('');
-    }
-
-    setHasSentOnboardMessage(true);
-    setOnboardChatSpinning(true);
-    setOnboardExecutions((prev) => ({
-      ...prev,
-      [msgId]: { runId, steps: [], status: 'running' },
-    }));
-
-    const replyMs = pickMockLatencyMs('aiReply');
-    const plan = buildAgentReplyPlan(
-      onboardAgent,
-      rawText,
-      '测试访客',
-      LIFECYCLE_TERMS.onboardTest,
-      knowledgeBases,
-      skills,
-    );
-    const allSteps = planToThoughtSteps(plan, msgId, time);
-    const processSteps = allSteps.filter((s) => s.type !== 'output');
-    const agentText = mockAgentChatReply(rawText, onboardAgent);
-
-    const stepInterval = Math.max(280, Math.floor(replyMs / Math.max(processSteps.length + 1, 2)));
-    let accumulated = 0;
-
-    processSteps.forEach((step) => {
-      accumulated += stepInterval;
-      window.setTimeout(() => {
-        setOnboardExecutions((prev) => {
-          const current = prev[msgId];
-          if (!current || current.status === 'done') return prev;
-          return {
-            ...prev,
-            [msgId]: { ...current, steps: [...current.steps, step] },
-          };
-        });
-      }, accumulated);
-    });
-
-    window.setTimeout(() => {
-      const agentTime = new Date().toLocaleTimeString('zh-CN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
-      setOnboardExecutions((prev) => ({
-        ...prev,
-        [msgId]: { runId, steps: allSteps, status: 'done' },
-      }));
-      setOnboardChatMsgs((prev) =>
-        prev.map((m) =>
-          m.id === replyId ? { ...m, text: agentText, time: agentTime } : m,
-        ),
-      );
-      setOnboardChatSpinning(false);
-    }, replyMs);
-  };
 
   // Dialog test state
   const [testAgent, setTestAgent] = useState<HiredAgent | null>(null);
@@ -552,6 +411,11 @@ export const EmployeeManagePage: React.FC = () => {
     [hiredAgents, renameAgentId],
   );
 
+  const versionSwitchAgent = useMemo(
+    () => hiredAgents.find((a) => a.id === versionSwitchAgentId) ?? null,
+    [hiredAgents, versionSwitchAgentId],
+  );
+
   const handleConfirmDismissAgent = () => {
     if (!dismissConfirmAgent) return;
     const { id } = dismissConfirmAgent;
@@ -606,10 +470,6 @@ export const EmployeeManagePage: React.FC = () => {
 
   useEffect(() => {
     setPreviewSnapshotId(null);
-    setOnboardSessionId(createHexId());
-    setOnboardChatMsgs([]);
-    setOnboardExecutions({});
-    setHasSentOnboardMessage(false);
   }, [activeOnboardingAgentId]);
 
   useEffect(() => {
@@ -880,199 +740,58 @@ export const EmployeeManagePage: React.FC = () => {
             />
           }
           right={
-          <div
-            data-tour-id="test-panel"
-            className="flex flex-col h-full bg-paper overflow-hidden text-neutral-800 text-left"
-          >
-            <div className="flex-1 flex flex-col h-full overflow-hidden text-neutral-800 bg-paper min-h-0">
-                <div className="px-4 py-2.5 bg-white border-b border-neutral-200 flex items-center justify-between shrink-0 gap-2 min-h-[54px]">
-                  <SegmentedTabBar
-                    ariaLabel="预览面板"
-                    value={onboardRightTab}
-                    onChange={(id) => setOnboardRightTab(id as 'chat' | 'versions')}
-                    items={[
-                      { id: 'chat', label: LIFECYCLE_TERMS.onboardTest },
-                      { id: 'versions', label: LIFECYCLE_TERMS.examVersion },
-                    ]}
-                  />
-                  {onboardRightTab === 'chat' && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          void navigator.clipboard.writeText(onboardSessionId).then(
-                            () => showToast('会话 ID 已复制'),
-                            () => showToast('复制失败'),
-                          );
-                        }}
-                        className="text-neutral-500 hover:text-neutral-800 h-7 px-2 text-xs gap-1 cursor-pointer shrink-0"
-                        title={onboardSessionId}
-                      >
-                        <Copy size={12} />
-                        会话ID复制
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setOnboardChatMsgs([{ sender: 'system', text: `已重置${LIFECYCLE_TERMS.onboardTest}，清空对话记录。`, time: '现在' }]);
-                          setOnboardExecutions({});
-                          setHasSentOnboardMessage(false);
-                          setOnboardSessionId(createHexId());
-                        }}
-                        className="text-neutral-500 hover:text-neutral-800 h-7 px-2 text-xs gap-1 cursor-pointer shrink-0"
-                        title="重置对话"
-                      >
-                        <Trash2 size={12} />
-                        重置对话
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                {onboardRightTab === 'chat' ? (
-                  <>
-                {onboardingSaveRequired && !previewSnapshotId && (
-                  <div className="mx-4 mt-3 mb-0 rounded-[13px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900 leading-relaxed shrink-0">
-                    引导提示：请先在左侧点击「保存」完成培训存档，保存成功后再进行{LIFECYCLE_TERMS.onboardTest}。
-                  </div>
-                )}
-                {/* Message window */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar min-h-0 bg-paper">
-                  <div className="flex gap-2.5 items-start">
-                    <OnboardChatAgentAvatar
-                      agent={onboardingAgent}
-                      relayAvatarIndex={onboardingRelayAvatarIndex}
+            <div className="flex flex-col h-full bg-paper overflow-hidden text-neutral-800 text-left min-h-0">
+              {onboardRightTab === 'chat' ? (
+                <OnboardingCapabilityTestPanel
+                  agent={onboardingAgent}
+                  relayAvatarIndex={onboardingRelayAvatarIndex}
+                  knowledgeBases={knowledgeBases}
+                  skills={skills}
+                  showToast={showToast}
+                  locked={onboardingChatLocked}
+                  lockPlaceholder={
+                    previewSnapshotId
+                      ? '预览模式中无法测试'
+                      : '请先保存配置后再测试'
+                  }
+                  lockToast={
+                    previewSnapshotId
+                      ? `请先取消预览或应用其他${LIFECYCLE_TERMS.examVersion}，再进行${LIFECYCLE_TERMS.onboardTest}。`
+                      : `请先点击左上角「保存」完成培训存档，再进行${LIFECYCLE_TERMS.onboardTest}。`
+                  }
+                  headerLeft={
+                    <SegmentedTabBar
+                      ariaLabel="预览面板"
+                      value={onboardRightTab}
+                      onChange={(id) => setOnboardRightTab(id as 'chat' | 'versions')}
+                      items={[
+                        { id: 'chat', label: LIFECYCLE_TERMS.onboardTest },
+                        { id: 'versions', label: LIFECYCLE_TERMS.examVersion },
+                      ]}
                     />
-                    <div className="space-y-2 max-w-[85%]">
-                      <div className={cn(ONBOARD_CHAT_BUBBLE, 'rounded-tl-sm')}>
-                        {onboardingAgent.openingLine ||
-                          defaultOpeningLineForAgent(onboardingAgent.name)}
+                  }
+                  hintBanner={
+                    onboardingSaveRequired && !previewSnapshotId ? (
+                      <div className="mx-4 mt-3 mb-0 rounded-[13px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900 leading-relaxed shrink-0">
+                        引导提示：请先在左侧点击「保存」完成培训存档，保存成功后再进行
+                        {LIFECYCLE_TERMS.onboardTest}。
                       </div>
-                    </div>
-                  </div>
-                  {onboardChatMsgs.map((m, idx) => {
-                    if (m.sender === 'system') {
-                      return (
-                        <div key={m.id ?? idx} className="flex justify-center my-2 select-none">
-                          <span className="bg-white text-neutral-500 text-[10.5px] px-3.5 py-1.5 rounded-full text-center border border-neutral-200 max-w-sm leading-relaxed block shadow-xs font-mono font-medium">
-                            {m.text}
-                          </span>
-                        </div>
-                      );
-                    }
-
-                    const isUser = m.sender === 'user';
-                    const execution =
-                      !isUser && m.triggerMsgId
-                        ? onboardExecutions[m.triggerMsgId]
-                        : undefined;
-                    const userQuery = m.triggerMsgId
-                      ? onboardChatMsgs.find((msg) => msg.id === m.triggerMsgId)?.text
-                      : undefined;
-                    const hasReplyText = Boolean(m.text.trim());
-
-                    return (
-                      <div
-                        key={m.id ?? idx}
-                        className={cn(
-                          'flex gap-2.5 items-start py-0.5',
-                          isUser ? 'justify-end' : 'justify-start',
-                        )}
-                      >
-                        {!isUser && (
-                          <OnboardChatAgentAvatar
-                            agent={onboardingAgent}
-                            relayAvatarIndex={onboardingRelayAvatarIndex}
-                          />
-                        )}
-
-                        <div
-                          className={cn(
-                            'flex flex-col max-w-[85%] gap-1',
-                            isUser ? 'items-end' : 'items-start',
-                          )}
-                        >
-                          {/* 处理过程：挂在员工回复内，不单独占一轮对话 */}
-                          {execution && (
-                            <ExecutionProcessFold
-                              steps={execution.steps}
-                              status={execution.status}
-                              userQuery={userQuery}
-                              runId={execution.runId}
-                              onCopyRunId={(id) => {
-                                void navigator.clipboard.writeText(id).then(
-                                  () => showToast('runId 已复制'),
-                                  () => showToast('复制失败'),
-                                );
-                              }}
-                            />
-                          )}
-
-                          {hasReplyText && (
-                            <div
-                              className={cn(
-                                ONBOARD_CHAT_BUBBLE,
-                                isUser ? 'rounded-tr-sm' : 'rounded-tl-sm',
-                              )}
-                            >
-                              {m.text}
-                            </div>
-                          )}
-
-                          {(hasReplyText || isUser) && (
-                            <span className="text-[9px] text-neutral-400 font-mono tracking-wider px-1 font-bold">
-                              {m.time}
-                            </span>
-                          )}
-                        </div>
-
-                        {isUser && (
-                          <Avatar className="h-8 w-8 rounded-full overflow-hidden after:hidden shrink-0 ring-2 ring-white shadow-sm">
-                            <AvatarFallback className={cn(PROFILE_USER.fallbackClass, 'select-none text-[12px]')}>
-                              {PROFILE_USER.initial}
-                            </AvatarFallback>
-                          </Avatar>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Input area */}
-                <div className="p-3 bg-white border-t border-neutral-200 shrink-0">
-                  <div className="flex gap-2 items-center">
-                    <Input
-                      value={onboardChatInput}
-                      onChange={(e) => setOnboardChatInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !onboardChatSpinning && onboardChatInput.trim()) {
-                          handleSendOnboardTest(onboardingAgent);
-                        }
-                      }}
-                      disabled={onboardChatSpinning || onboardingChatLocked}
-                      placeholder={
-                        onboardingChatLocked
-                          ? previewSnapshotId
-                            ? '预览模式中无法测试'
-                            : '请先保存配置后再测试'
-                          : EMPLOYEE_PAGE_COPY.testPlaceholder
-                      }
-                      className="flex-1 bg-paper border-neutral-200 text-neutral-900 placeholder:text-neutral-400 text-xs h-10 rounded-[7px] focus-visible:ring-neutral-400 focus-visible:border-neutral-500"
+                    ) : null
+                  }
+                />
+              ) : (
+                <>
+                  <div className="px-4 py-2.5 bg-white border-b border-neutral-200 flex items-center justify-between shrink-0 gap-2 min-h-[54px]">
+                    <SegmentedTabBar
+                      ariaLabel="预览面板"
+                      value={onboardRightTab}
+                      onChange={(id) => setOnboardRightTab(id as 'chat' | 'versions')}
+                      items={[
+                        { id: 'chat', label: LIFECYCLE_TERMS.onboardTest },
+                        { id: 'versions', label: LIFECYCLE_TERMS.examVersion },
+                      ]}
                     />
-                    <Button
-                      size="sm"
-                      disabled={onboardChatSpinning || onboardingChatLocked || !onboardChatInput.trim()}
-                      onClick={() => handleSendOnboardTest(onboardingAgent)}
-                      className="bg-neutral-800 hover:opacity-90 text-white font-bold h-10 px-3 rounded-[7px] flex items-center justify-center transition cursor-pointer shrink-0 active:scale-95 shadow-sm"
-                    >
-                      <Send size={13} className="text-white" />
-                    </Button>
                   </div>
-                </div>
-                  </>
-                ) : (
                   <AgentVersionPanel
                     agent={onboardingAgent}
                     knowledgeBases={knowledgeBases}
@@ -1085,11 +804,11 @@ export const EmployeeManagePage: React.FC = () => {
                     onDeleteSnapshot={handleDeleteSnapshot}
                     onDiscardDraft={handleDiscardDraft}
                   />
-                )}
-              </div>
-          </div>
+                </>
+              )}
+            </div>
           }
-        />
+          />
         )}
 
         {!isQcOnboarding && workspaceTab === 'channels' && (
@@ -1218,12 +937,7 @@ export const EmployeeManagePage: React.FC = () => {
             <button
               type="button"
               className={cardStyles.moreItem}
-              onClick={() =>
-                openAgentWorkspace(agent.id, 'build', index, {
-                  startBuildTour: false,
-                  rightTab: 'versions',
-                })
-              }
+              onClick={() => setVersionSwitchAgentId(agent.id)}
             >
               {LIFECYCLE_TERMS.switchVersion}
             </button>
@@ -1482,6 +1196,30 @@ export const EmployeeManagePage: React.FC = () => {
           />
         </label>
       </Modal>
+
+      <EmployeeVersionSwitchModal
+        open={Boolean(versionSwitchAgent)}
+        agent={versionSwitchAgent}
+        onClose={() => setVersionSwitchAgentId(null)}
+        onApply={(agentId, snapshotId) => {
+          const target = hiredAgents.find((a) => a.id === agentId);
+          if (!target) return;
+          const patch = applyAgentVersionSnapshot(target, snapshotId);
+          if (!patch) return;
+          updateHiredAgent(agentId, patch);
+          const title =
+            ensureAgentSnapshots(target).find((s) => s.id === snapshotId)?.title ?? '所选版本';
+          setVersionSwitchAgentId(null);
+          showToast(`已切换至「${title}」`);
+        }}
+        onOpenFullManager={(agentId) => {
+          const idx = filtered.findIndex((a) => a.id === agentId);
+          openAgentWorkspace(agentId, 'build', idx >= 0 ? idx : undefined, {
+            startBuildTour: false,
+            rightTab: 'versions',
+          });
+        }}
+      />
 
       <Modal
         open={!!dismissConfirmAgent}

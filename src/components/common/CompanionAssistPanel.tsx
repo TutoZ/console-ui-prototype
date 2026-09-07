@@ -2,20 +2,18 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 伴随式 AI 搭子侧栏 — 布局参考 B 端 AI 助手规范（标题栏 / 推荐工具 / 猜你想问 / 底栏输入），
- * 可收起展开。内容按业务域注入，不照搬稿内电商文案。
+ * 伴随式 AI 搭子侧栏
+ * 版式：顶栏 → 问候 →（工具推荐 / 猜你想问）→ 底栏输入
  */
 
 import React, { useMemo, useState } from 'react';
 import {
   BookOpen,
   ChevronRight,
-  Clock,
   Database,
   FileText,
   History,
   Maximize2,
-  Paperclip,
   Plus,
   RefreshCw,
   Search,
@@ -24,7 +22,7 @@ import {
   ArrowUp,
   X,
 } from '@/lib/icons';
-import { NAV_ACTIVE_GRADIENT_BG, NAV_ACTIVE_GRADIENT_TEXT, SKILL_AOP_ACCENT_TEXT } from '@/lib/ui';
+import { NAV_ACTIVE_GRADIENT_TEXT, SKILL_AOP_ACCENT_TEXT, SKILL_AOP_SEND_BTN } from '@/lib/ui';
 import { PROFILE_USER } from '@/lib/profileUser';
 import { cn } from '@/lib/utils';
 
@@ -141,8 +139,7 @@ export function CompanionAssistPanel({
     return Array.from({ length: 5 }, (_, i) => QUESTION_POOL[(start + i) % QUESTION_POOL.length]);
   }, [questionsProp, questionSeed]);
 
-  const greetingLead =
-    greetingBefore ?? `Hi ${PROFILE_USER.name}，当前有 `;
+  const greetingLead = greetingBefore ?? `Hi ${PROFILE_USER.name}，当前有 `;
 
   const setOpenPersist = (next: boolean) => {
     if (openProp === undefined) setUncontrolledOpen(next);
@@ -172,59 +169,56 @@ export function CompanionAssistPanel({
     <aside
       className={cn(
         'shrink-0 flex flex-col h-full min-h-0 w-[320px]',
-        'bg-white border-l border-neutral-200 rounded-tl-xl',
+        'bg-white border-l border-neutral-200',
         className,
       )}
       aria-label="AI 搭子"
     >
-      {/* 标题栏 */}
-      <header className="flex items-center justify-between gap-2 px-5 pt-5 pb-3 shrink-0">
+      {/* 1. 顶栏 */}
+      <header className="shrink-0 flex items-center justify-between gap-2 h-12 px-4 border-b border-neutral-100">
         <div className="flex items-center gap-1.5 min-w-0">
-          <Sparkles size={16} className={cn(SKILL_AOP_ACCENT_TEXT, 'shrink-0')} />
-          <span className={cn('text-[15px] font-semibold tracking-tight', NAV_ACTIVE_GRADIENT_TEXT)}>
+          <Sparkles size={15} className={cn(SKILL_AOP_ACCENT_TEXT, 'shrink-0')} />
+          <span className={cn('text-[14px] font-semibold tracking-tight', NAV_ACTIVE_GRADIENT_TEXT)}>
             AI搭子
           </span>
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
           <IconBtn title="历史" ariaLabel="历史记录">
-            <History size={16} />
+            <History size={15} />
           </IconBtn>
           <IconBtn title="展开" ariaLabel="全屏">
-            <Maximize2 size={16} />
+            <Maximize2 size={15} />
           </IconBtn>
-          <IconBtn
-            title="收起"
-            ariaLabel="收起 AI 搭子"
-            onClick={() => setOpenPersist(false)}
-          >
-            <X size={16} />
+          <IconBtn title="收起" ariaLabel="收起 AI 搭子" onClick={() => setOpenPersist(false)}>
+            <X size={15} />
           </IconBtn>
         </div>
       </header>
 
-      {/* 内容区 */}
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5 pb-3 flex flex-col gap-3">
-        <p className="text-[17px] font-semibold leading-6 text-neutral-800">
+      {/* 2. 可滚动主内容：问候 → 工具 → 提问 */}
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 py-3 space-y-4">
+        <p className="text-[13px] leading-5 text-neutral-600">
           {greetingLead}
           {highlightValue !== undefined && highlightValue !== null ? (
-            <span className={cn(SKILL_AOP_ACCENT_TEXT, 'tabular-nums')}>{highlightValue}</span>
+            <span className={cn('font-semibold tabular-nums', SKILL_AOP_ACCENT_TEXT)}>
+              {highlightValue}
+            </span>
           ) : null}
           {greetingAfter}
         </p>
 
-        {/* 工具推荐 */}
-        <section className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-neutral-500">工具推荐</span>
+        <section className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-[12px] font-medium text-neutral-500">工具推荐</h2>
             <button
               type="button"
-              className="inline-flex items-center gap-0.5 text-xs text-neutral-500 hover:text-neutral-800 cursor-pointer transition"
+              className="inline-flex items-center gap-0.5 text-[12px] text-neutral-500 hover:text-neutral-800 cursor-pointer transition"
             >
               全部工具
               <ChevronRight size={12} />
             </button>
           </div>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-3 gap-2">
             {tools.slice(0, 6).map((tool) => (
               <button
                 key={tool.id}
@@ -234,51 +228,47 @@ export function CompanionAssistPanel({
                   applyPrompt(tool.label);
                 }}
                 className={cn(
-                  'flex flex-col items-center justify-center gap-1.5 h-16 px-1',
-                  'rounded-md border border-neutral-200 bg-white',
-                  'text-neutral-800 hover:bg-neutral-50 hover:border-neutral-300',
+                  'flex flex-col items-center justify-center gap-1.5 min-h-[64px] px-1 py-2',
+                  'rounded-[7px] border border-neutral-200 bg-neutral-50/70',
+                  'text-neutral-800 hover:bg-white hover:border-neutral-300 hover:shadow-[0_1px_4px_rgba(17,17,17,0.04)]',
                   'transition cursor-pointer',
                 )}
               >
-                <span className="text-neutral-800">{tool.icon}</span>
-                <span className="text-[13px] leading-[22px] truncate max-w-full">{tool.label}</span>
+                <span className="text-neutral-700">{tool.icon}</span>
+                <span className="text-[12px] leading-4 font-medium truncate max-w-full">
+                  {tool.label}
+                </span>
               </button>
             ))}
           </div>
-          <div className="flex justify-center gap-1 py-0.5" aria-hidden>
-            <span className="h-1 w-3 rounded-full bg-neutral-800/80" />
-            <span className="h-1 w-1 rounded-full bg-neutral-300" />
-            <span className="h-1 w-1 rounded-full bg-neutral-300" />
-          </div>
         </section>
 
-        {/* 猜你想问 */}
-        <section className="flex flex-col gap-2 pt-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-neutral-500">猜你想问</span>
+        <section className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-[12px] font-medium text-neutral-500">猜你想问</h2>
             <button
               type="button"
               onClick={() => setQuestionSeed((s) => s + 1)}
-              className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-800 cursor-pointer transition"
+              className="inline-flex items-center gap-1 text-[12px] text-neutral-500 hover:text-neutral-800 cursor-pointer transition"
             >
               <RefreshCw size={12} />
               换一换
             </button>
           </div>
-          <ul className="flex flex-col gap-3">
+          <ul className="rounded-[7px] border border-neutral-200 overflow-hidden divide-y divide-neutral-100 bg-white">
             {questions.map((q) => (
               <li key={q}>
                 <button
                   type="button"
                   onClick={() => applyPrompt(q)}
-                  className="w-full flex items-center gap-2 text-left cursor-pointer group"
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-left cursor-pointer hover:bg-neutral-50 transition group"
                 >
-                  <span className="flex-1 min-w-0 text-[14px] leading-[22px] text-neutral-800 group-hover:text-neutral-950 truncate">
+                  <span className="flex-1 min-w-0 text-[13px] leading-5 text-neutral-800 group-hover:text-neutral-950 line-clamp-2">
                     {q}
                   </span>
                   <ChevronRight
                     size={14}
-                    className="shrink-0 text-neutral-400 group-hover:text-neutral-600"
+                    className="shrink-0 text-neutral-300 group-hover:text-neutral-500"
                   />
                 </button>
               </li>
@@ -287,58 +277,12 @@ export function CompanionAssistPanel({
         </section>
       </div>
 
-      {/* 底栏 */}
-      <footer className="shrink-0 px-5 pt-2 pb-1.5 bg-white border-t border-transparent">
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="flex items-center gap-1.5 min-w-0 overflow-x-auto">
-            {tools.slice(0, 2).map((tool) => (
-              <button
-                key={`chip-${tool.id}`}
-                type="button"
-                onClick={() => applyPrompt(tool.label)}
-                className={cn(
-                  'inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5',
-                  'rounded border border-neutral-200 bg-white',
-                  'text-[12px] leading-[18px] text-neutral-800',
-                  'hover:bg-neutral-50 cursor-pointer transition',
-                )}
-              >
-                <span className="scale-90">{tool.icon}</span>
-                {tool.label}
-              </button>
-            ))}
-            <button
-              type="button"
-              className={cn(
-                'inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5',
-                'rounded border border-neutral-200 bg-white',
-                'text-[12px] leading-[18px] text-neutral-800',
-                'hover:bg-neutral-50 cursor-pointer transition',
-              )}
-            >
-              <Plus size={12} />
-              更多
-            </button>
-          </div>
-          <div className="flex items-center gap-0.5 shrink-0">
-            <IconBtn title="历史" ariaLabel="历史">
-              <Clock size={16} />
-            </IconBtn>
-            <IconBtn title="新建" ariaLabel="新建对话">
-              <Plus size={16} />
-            </IconBtn>
-          </div>
-        </div>
-
-        <div
-          className={cn(
-            'rounded-lg border border-neutral-200 bg-white p-3 flex flex-col gap-3',
-            'shadow-[0_2px_12px_rgba(21,101,191,0.04)]',
-          )}
-        >
+      {/* 3. 底栏输入：与技能对话统一 skill-ai-composer */}
+      <footer className="shrink-0 px-3 pt-2 pb-3 border-t border-neutral-100 bg-white">
+        <div className="skill-ai-composer skill-ai-composer--dock p-3">
           <textarea
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => setDraft(e.target.value.slice(0, 1000))}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -346,21 +290,23 @@ export function CompanionAssistPanel({
               }
             }}
             rows={2}
+            maxLength={1000}
             placeholder={inputPlaceholder}
-            className={cn(
-              'w-full resize-none border-0 bg-transparent p-0',
-              'text-[14px] leading-[22px] text-neutral-800 placeholder:text-neutral-400',
-              'outline-none focus:ring-0',
-            )}
+            className="w-full min-h-[44px] max-h-28 overflow-y-auto bg-transparent text-[14px] leading-[22px] pb-2 outline-none resize-none placeholder:text-[#B0B2B8] text-[#1C1D1F]"
           />
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1">
-              <IconBtn title="提及" ariaLabel="提及">
-                <span className="text-[13px] font-medium text-neutral-500">@</span>
-              </IconBtn>
-              <IconBtn title="附件" ariaLabel="附件">
-                <Paperclip size={14} />
-              </IconBtn>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                type="button"
+                className="w-8 h-8 rounded border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 flex items-center justify-center cursor-pointer shrink-0"
+                title="上传文件"
+                aria-label="上传文件"
+              >
+                <Plus size={16} />
+              </button>
+              <span className="text-[12px] leading-[22px] text-neutral-400 tabular-nums">
+                {draft.length}/1000
+              </span>
             </div>
             <button
               type="button"
@@ -368,17 +314,13 @@ export function CompanionAssistPanel({
               disabled={!draft.trim()}
               title="发送"
               aria-label="发送"
-              className={cn(
-                'flex h-7 w-7 items-center justify-center rounded-full shrink-0',
-                'text-white transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed',
-                NAV_ACTIVE_GRADIENT_BG,
-              )}
+              className={cn(SKILL_AOP_SEND_BTN, 'w-8 h-8')}
             >
               <ArrowUp size={16} />
             </button>
           </div>
         </div>
-        <p className="text-center text-[12px] leading-[18px] text-neutral-400 mt-1.5 mb-1">
+        <p className="mt-2 text-center text-[11px] leading-4 text-neutral-400">
           内容由 AI 生成，仅供参考
         </p>
       </footer>

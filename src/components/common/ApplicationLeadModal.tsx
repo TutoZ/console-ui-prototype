@@ -21,9 +21,9 @@ import {
 const PHONE_RE = /^1\d{10}$/;
 const CODE_RE = /^\d{6}$/;
 
-const LEAD_LABEL = 'block text-[13px] font-semibold text-neutral-900 mb-1.5';
+const LEAD_LABEL = 'block text-[12px] font-semibold text-neutral-900 mb-1';
 const LEAD_FIELD =
-  'w-full h-10 rounded-[8px] border border-neutral-200 bg-white px-3 text-[13px] text-neutral-800 placeholder:text-neutral-400 outline-none transition focus:border-neutral-300 disabled:opacity-50';
+  'w-full h-9 rounded-[7px] border border-neutral-200 bg-white px-2.5 text-[13px] text-neutral-800 placeholder:text-neutral-400 outline-none transition focus:border-neutral-300 disabled:opacity-50';
 
 export const COMPANY_SCALE_OPTIONS = [
   { value: '1-50', label: '1-50 人' },
@@ -222,38 +222,38 @@ export const ApplicationLeadModal: React.FC<{
   return createPortal(
     <div className={cn(MODAL_OVERLAY, 'z-[130]')} onClick={onClose}>
       <div
-        className={cn(MODAL_PANEL, 'max-w-[560px] p-6 sm:p-7')}
+        className={cn(MODAL_PANEL, 'max-w-[440px] p-4 sm:p-5 max-h-[min(720px,calc(100vh-2rem))] overflow-y-auto')}
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label={done ? successTitle : title}
       >
-        <div className="mb-5">
+        <div className="mb-3.5">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="min-w-0 flex-1 text-[18px] font-semibold tracking-tight text-neutral-900 leading-snug">
+            <h2 className="min-w-0 flex-1 text-[16px] font-semibold tracking-tight text-neutral-900 leading-snug">
               {done ? successTitle : title}
             </h2>
             <button
               type="button"
               aria-label="关闭"
               onClick={onClose}
-              className="shrink-0 -mr-1 -mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 transition cursor-pointer"
+              className="shrink-0 -mr-1 -mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 transition cursor-pointer"
             >
-              <X size={16} />
+              <X size={15} />
             </button>
           </div>
           {description && !done ? (
-            <p className="mt-1.5 text-[13px] text-neutral-500 leading-relaxed pr-6">{description}</p>
+            <p className="mt-1 text-[12px] text-neutral-500 leading-relaxed pr-6">{description}</p>
           ) : null}
           {done && successDescription ? (
-            <p className="mt-1.5 text-[13px] text-neutral-500 leading-relaxed pr-6">{successDescription}</p>
+            <p className="mt-1 text-[12px] text-neutral-500 leading-relaxed pr-6">{successDescription}</p>
           ) : null}
         </div>
 
         {done ? (
-          <div className="rounded-[13px] border border-emerald-100 bg-emerald-50 px-4 py-5 flex items-start gap-3">
-            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[7px] bg-white text-emerald-600 border border-emerald-100">
-              <Check size={16} />
+          <div className="rounded-[10px] border border-emerald-100 bg-emerald-50 px-3.5 py-4 flex items-start gap-3">
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] bg-white text-emerald-600 border border-emerald-100">
+              <Check size={15} />
             </span>
             <div className="min-w-0 space-y-1">
               <p className="text-[13px] font-semibold text-neutral-900">留资成功</p>
@@ -263,8 +263,8 @@ export const ApplicationLeadModal: React.FC<{
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <LeadField id="lead-name" label="姓名" error={errors.name}>
                 <input
                   id="lead-name"
@@ -289,18 +289,41 @@ export const ApplicationLeadModal: React.FC<{
               </LeadField>
             </div>
 
-            <LeadField id="lead-job" label="岗位" error={errors.jobTitle}>
-              <input
-                id="lead-job"
-                className={LEAD_FIELD}
-                placeholder="您的职位"
-                value={form.jobTitle}
-                onChange={(event) => updateField('jobTitle', event.target.value)}
-                maxLength={30}
-              />
-            </LeadField>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <LeadField id="lead-job" label="岗位" error={errors.jobTitle}>
+                <input
+                  id="lead-job"
+                  className={LEAD_FIELD}
+                  placeholder="您的职位"
+                  value={form.jobTitle}
+                  onChange={(event) => updateField('jobTitle', event.target.value)}
+                  maxLength={30}
+                />
+              </LeadField>
+              <LeadField id="lead-urgency" label="紧急程度" error={errors.urgency}>
+                <Select
+                  value={form.urgency || null}
+                  onValueChange={(value) => value && updateField('urgency', value)}
+                >
+                  <SelectTrigger
+                    id="lead-urgency"
+                    className={cn(SELECT_TRIGGER, 'w-full h-9 justify-between text-[13px]')}
+                    aria-label="紧急程度"
+                  >
+                    <SelectValue placeholder="请选择紧急程度" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {URGENCY_OPTIONS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </LeadField>
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <LeadField id="lead-scale" label="企业规模" error={errors.companyScale}>
                 <Select
                   value={form.companyScale || null}
@@ -308,7 +331,7 @@ export const ApplicationLeadModal: React.FC<{
                 >
                   <SelectTrigger
                     id="lead-scale"
-                    className={cn(SELECT_TRIGGER, 'w-full h-10 justify-between text-[13px]')}
+                    className={cn(SELECT_TRIGGER, 'w-full h-9 justify-between text-[13px]')}
                     aria-label="企业规模"
                   >
                     <SelectValue placeholder="请选择企业规模" />
@@ -330,7 +353,7 @@ export const ApplicationLeadModal: React.FC<{
                 >
                   <SelectTrigger
                     id="lead-scenario"
-                    className={cn(SELECT_TRIGGER, 'w-full h-10 justify-between text-[13px]')}
+                    className={cn(SELECT_TRIGGER, 'w-full h-9 justify-between text-[13px]')}
                     aria-label="业务场景"
                   >
                     <SelectValue placeholder="请选择业务场景" />
@@ -346,34 +369,12 @@ export const ApplicationLeadModal: React.FC<{
               </LeadField>
             </div>
 
-            <LeadField id="lead-urgency" label="紧急程度" error={errors.urgency}>
-              <Select
-                value={form.urgency || null}
-                onValueChange={(value) => value && updateField('urgency', value)}
-              >
-                <SelectTrigger
-                  id="lead-urgency"
-                  className={cn(SELECT_TRIGGER, 'w-full h-10 justify-between text-[13px]')}
-                  aria-label="紧急程度"
-                >
-                  <SelectValue placeholder="请选择紧急程度" />
-                </SelectTrigger>
-                <SelectContent>
-                  {URGENCY_OPTIONS.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </LeadField>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <LeadField id="lead-phone" label="手机号" error={errors.phone}>
                 <div className="relative">
                   <input
                     id="lead-phone"
-                    className={cn(LEAD_FIELD, 'pr-[7.5rem]')}
+                    className={cn(LEAD_FIELD, 'pr-[7.25rem]')}
                     placeholder="11 位手机号"
                     value={form.phone}
                     onChange={(event) =>
@@ -384,11 +385,11 @@ export const ApplicationLeadModal: React.FC<{
                   />
                   <button
                     type="button"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 px-2.5 rounded-[6px] border border-neutral-200 bg-neutral-50 text-[12px] font-medium text-neutral-700 hover:bg-white transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2 rounded-[6px] border border-neutral-200 bg-neutral-50 text-[11px] font-medium text-neutral-700 hover:bg-white transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={handleSendCode}
                     disabled={codeCountdown > 0 || codeSending}
                   >
-                    {codeSending ? '发送中…' : codeCountdown > 0 ? `${codeCountdown}s 后重发` : '获取验证码'}
+                    {codeSending ? '发送中…' : codeCountdown > 0 ? `${codeCountdown}s` : '获取验证码'}
                   </button>
                 </div>
               </LeadField>
@@ -410,7 +411,7 @@ export const ApplicationLeadModal: React.FC<{
             <LeadField id="lead-message" label="留言（选填）">
               <textarea
                 id="lead-message"
-                className={cn(LEAD_FIELD, 'min-h-[88px] resize-y py-2.5')}
+                className={cn(LEAD_FIELD, 'min-h-[64px] h-auto resize-y py-2')}
                 placeholder="简要描述您的业务场景或问题"
                 value={form.message}
                 onChange={(event) => updateField('message', event.target.value)}
@@ -418,19 +419,19 @@ export const ApplicationLeadModal: React.FC<{
               />
             </LeadField>
 
-            <div className="pt-1">
+            <div className="pt-0.5">
               <button
                 type="button"
-                className="w-full h-12 inline-flex items-center justify-center gap-3 rounded-full bg-neutral-900 text-white text-[15px] font-semibold hover:opacity-90 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full h-10 inline-flex items-center justify-center gap-2.5 rounded-full bg-neutral-900 text-white text-[14px] font-semibold hover:opacity-90 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleSubmit}
                 disabled={submitting}
               >
                 <span>{submitting ? '提交中…' : submitLabel}</span>
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-neutral-900">
-                  <ArrowRight size={14} strokeWidth={2.5} />
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-neutral-900">
+                  <ArrowRight size={13} strokeWidth={2.5} />
                 </span>
               </button>
-              <p className="mt-3 text-center text-[11px] text-neutral-400 leading-relaxed">
+              <p className="mt-2 text-center text-[11px] text-neutral-400 leading-relaxed">
                 提交即代表您同意我们的隐私政策与服务协议
               </p>
             </div>

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regenerate public/narration/*.mp3.
 
-字幕用 text；合成用 speak（调取→吊取；SOP→S O P）。
+字幕用产品原句 text；合成用 speak（仅 SOP→S O P 等发音处理）。
 """
 
 from __future__ import annotations
@@ -23,45 +23,45 @@ OUT = os.path.join(ROOT, "public", "narration")
 TMP = "/tmp/food-safety-narration"
 
 VOICE = "zh-CN-YunxiNeural"
-RATE = "+0%"
+RATE = "+15%"
 PITCH = "+0Hz"
 
-# (audioId, subtitle_text, speak_text)
+# (audioId, subtitle_text, speak_text) — 字幕保持原句
 ITEMS = [
     (
         "intro_0",
-        "用一条食安险咨询，看数字员工怎么把事办对",
-        "用一条食安险咨询，看数字员工怎么把事办对",
+        "以保险售后咨询场景为例",
+        "以保险售后咨询场景为例",
     ),
     (
         "pre_act1_0",
-        "客户吃完外卖不舒服还吐了，想理赔",
-        "客户吃完外卖不舒服还吐了，想理赔",
+        "数字员工自主规划、主动预测用户餐品质量问题",
+        "数字员工自主规划、主动预测用户餐品质量问题",
+    ),
+    (
+        "pre_act1_1",
+        "用户反馈外卖就餐不舒服如何理赔，模型根据服务原则先安抚用户、再去找理赔规则",
+        "用户反馈外卖就餐不舒服如何理赔，模型根据服务原则先安抚用户、再去找理赔规则",
     ),
     (
         "act1_0",
-        "触发理赔SOP技能，先调知识库核对规则告诉客户",
-        "触发理赔 S O P 技能，先吊知识库核对规则告诉客户",
-    ),
-    (
-        "act1_1",
-        "再调食源性疾病理赔SOP推进流程，请客户选订单",
-        "再吊取食源性疾病理赔 S O P 推进流程，请客户选订单",
+        "Skill中约定了要查看理赔SOP，数字员工自主思考查知识库反馈客户",
+        "Skill 中约定了要查看理赔 S O P，数字员工自主思考查知识库反馈客户",
     ),
     (
         "act2_0",
-        "不必人工查询、不必改接口，用 Browser Use 核对实付",
-        "不必人工查询、不必改接口，用 Browser Use 核对实付",
+        "用户申请推进流程，数字员工无侵入调用业务系统给结果",
+        "用户申请推进流程，数字员工无侵入调用业务系统给结果",
     ),
     (
         "act2_1",
-        "打开订单页查询，读出餐品、状态和金额",
-        "打开订单页查询，读出餐品、状态和金额",
+        "无需接口对接，登录业务系统，输入订单完成查询，给出处理结果",
+        "无需接口对接，登录业务系统，输入订单完成查询，给出处理结果",
     ),
     (
         "act3_0",
-        "客户道谢，礼貌收尾并保留记忆，有问题随时再找它",
-        "客户道谢，礼貌收尾并保留记忆，有问题随时再找它",
+        "客户道谢，数字员工礼貌安抚，保存本次服务记忆，帮助后续问题更懂用户高效解决",
+        "客户道谢，数字员工礼貌安抚，保存本次服务记忆，帮助后续问题更懂用户高效解决",
     ),
 ]
 
@@ -96,6 +96,12 @@ async def synth_one(aid: str, speak: str) -> str:
 
 async def main() -> None:
     os.makedirs(OUT, exist_ok=True)
+    # 旧的 act1_1 / act1_2 已不再使用
+    for stale_name in ("act1_1.mp3", "act1_2.mp3"):
+        stale = os.path.join(OUT, stale_name)
+        if os.path.exists(stale):
+            os.remove(stale)
+            print(f"removed stale {stale_name}")
     print(f"voice={VOICE} rate={RATE} pitch={PITCH}")
     for aid, _subtitle, speak in ITEMS:
         print(f"gen {aid}…", flush=True)

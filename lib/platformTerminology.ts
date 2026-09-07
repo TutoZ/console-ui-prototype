@@ -76,6 +76,7 @@ export const NAV_TERMS = {
   dataDashboard: '办公室',
   employeePerformance: '员工业绩',
   receptionRecords: '接待记录',
+  caseLibrary: '案例库',
   dispatchChannels: '派出渠道',
   taskCenter: '任务中心',
   adminPermissions: '通用配置',

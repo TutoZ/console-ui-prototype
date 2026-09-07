@@ -144,6 +144,8 @@ const AppContent: React.FC<{ navLayout: NavLayoutVersion }> = ({ navLayout }) =>
         return <DashboardPage />;
       case 'sessions':
         return <SessionRecordsPage />;
+      case 'caseLibrary':
+        return <SessionRecordsPage caseLibraryOnly />;
       case 'phoneLines':
         return (
           <ResourcesPlaceholderPage

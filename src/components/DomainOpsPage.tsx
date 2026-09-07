@@ -19,8 +19,8 @@ import { AgentScriptWorkspace } from './OutboundTrainingView';
 import { DomainNoAccessState } from './DomainNoAccessState';
 import { DomainAccessLeadModal } from './DomainAccessLeadModal';
 
-/** Demo：假定电话销售域当前账号无权限，需留资开通 */
-const DOMAIN_ACCESS_LOCKED = new Set(['telesales']);
+/** Demo：假定电话销售 / 电话催收域当前账号无权限，需留资开通 */
+const DOMAIN_ACCESS_LOCKED = new Set(['telesales', 'collection']);
 
 const HOTLINE_CALL_ROWS = [
   {
@@ -115,7 +115,7 @@ export const DomainOpsPage: React.FC = () => {
           onClose={() => setLeadOpen(false)}
           onSubmitted={(payload) => {
             setLeadSubmitted(true);
-            showToast(`「${payload.domainTitle}」开通申请已提交，顾问将尽快联系您`);
+            showToast(`${payload.domainTitle}开通申请已提交，顾问将尽快联系您`);
           }}
         />
       </div>

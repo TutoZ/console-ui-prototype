@@ -44,8 +44,6 @@ type SkillRoundConfirmCardProps = {
   /** 批量编辑：已选中、将带到输入框的要点 id */
   editingItemIds?: string[];
   onConfirm: (items: SkillConfirmItem[]) => void;
-  /** 重新设置要求：将当前要点回填到下方输入框供二次编辑 */
-  onReset: (items: SkillConfirmItem[]) => void;
   /**
    * 批量编辑模式下点选/取消要点（带 1-based 序号）。
    * 父级据此在输入框上方展示小卡片。
@@ -69,7 +67,6 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   confirmed = false,
   editingItemIds = [],
   onConfirm,
-  onReset,
   onEditItem,
   onBatchModeChange,
   onItemsChange,
@@ -78,12 +75,14 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   const [rows, setRows] = useState<SkillConfirmItem[]>(items);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [newLabel, setNewLabel] = useState('');
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [newName, setNewName] = useState('');
+  const [newContent, setNewContent] = useState('');
   const [batchMode, setBatchMode] = useState(false);
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
-  const [inlineDraft, setInlineDraft] = useState('');
-  const inlineRef = useRef<HTMLTextAreaElement>(null);
+  const [inlineNameDraft, setInlineNameDraft] = useState('');
+  const [inlineContentDraft, setInlineContentDraft] = useState('');
+  const inlineNameRef = useRef<HTMLInputElement>(null);
+  const newContentRef = useRef<HTMLTextAreaElement>(null);
   const editingIdSet = useMemo(() => new Set(editingItemIds), [editingItemIds]);
 
   useEffect(() => {
@@ -92,23 +91,12 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
 
   useEffect(() => {
     if (!inlineEditId) return;
-    inlineRef.current?.focus();
-    const el = inlineRef.current;
+    inlineNameRef.current?.focus();
+    const el = inlineNameRef.current;
     if (!el) return;
     el.selectionStart = el.value.length;
     el.selectionEnd = el.value.length;
   }, [inlineEditId]);
-
-  const toggleExpanded = (id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const needsClamp = (text: string) => text.length > 72 || text.includes('\n');
 
   const commitRows = (next: SkillConfirmItem[]) => {
     setRows(next);
@@ -116,14 +104,30 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   };
 
   const addCustom = () => {
-    const next = newLabel.trim();
-    if (!next) return;
+    const name = newName.trim();
+    const content = newContent.trim();
+    if (!name && !content) return;
+    const fieldLabel = name || '自定义要点';
+    const value = content || name;
     commitRows([
       ...rows,
-      { id: `custom-${Date.now()}`, label: next, checked: true },
+      {
+        id: `custom-${Date.now()}`,
+        label: `${fieldLabel}：${value.slice(0, 120)}`,
+        checked: true,
+        fieldLabel,
+        value,
+      },
     ]);
-    setNewLabel('');
+    setNewName('');
+    setNewContent('');
     setAdding(false);
+  };
+
+  const cancelAdding = () => {
+    setAdding(false);
+    setNewName('');
+    setNewContent('');
   };
 
   const startInlineEdit = (row: SkillConfirmItem) => {
@@ -131,34 +135,37 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
     setBatchMode(false);
     onBatchModeChange?.(false);
     setInlineEditId(row.id);
-    setInlineDraft(rowBodyText(row));
-    setExpandedIds((prev) => new Set(prev).add(row.id));
+    setInlineNameDraft(row.fieldLabel?.trim() || '');
+    setInlineContentDraft(row.fieldLabel ? row.value || '' : row.value || row.label);
   };
 
   const commitInlineEdit = () => {
     if (!inlineEditId) return;
-    const nextText = inlineDraft.trim();
+    const nextName = inlineNameDraft.trim();
+    const nextContent = inlineContentDraft.trim();
+    if (!nextName && !nextContent) return;
     commitRows(
       rows.map((row) => {
         if (row.id !== inlineEditId) return row;
-        if (!nextText) return row;
-        if (row.fieldLabel) {
-          return {
-            ...row,
-            value: nextText,
-            label: `${row.fieldLabel}：${nextText.slice(0, 120)}`,
-          };
-        }
-        return { ...row, label: nextText, value: nextText };
+        const name = nextName || row.fieldLabel || '自定义要点';
+        const content = nextContent || nextName;
+        return {
+          ...row,
+          fieldLabel: name,
+          value: content,
+          label: `${name}：${content.slice(0, 120)}`,
+        };
       }),
     );
     setInlineEditId(null);
-    setInlineDraft('');
+    setInlineNameDraft('');
+    setInlineContentDraft('');
   };
 
   const cancelInlineEdit = () => {
     setInlineEditId(null);
-    setInlineDraft('');
+    setInlineNameDraft('');
+    setInlineContentDraft('');
   };
 
   const toggleBatchMode = () => {
@@ -213,14 +220,13 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
               const ordinal = index + 1;
               const bodyText = rowBodyText(row);
               const isInline = inlineEditId === row.id;
-              const clamped = needsClamp(bodyText) && !expandedIds.has(row.id) && !isInline;
               return (
                 <div
                   key={row.id}
                   role={batchMode && !confirmed ? 'button' : undefined}
                   tabIndex={batchMode && !confirmed ? 0 : undefined}
                   className={cn(
-                    'rounded px-1.5 py-1.5 -mx-0.5 border border-transparent',
+                    'relative rounded px-1.5 py-1.5 -mx-0.5 border border-transparent',
                     selected
                       ? 'bg-neutral-100 ring-1 ring-neutral-800 border-neutral-200'
                       : hovered || isInline
@@ -243,148 +249,206 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
                     onEditItem(row, index);
                   }}
                 >
-                  <div className="flex items-start justify-between gap-1.5">
-                    <div className="flex items-start gap-1.5 min-w-0 flex-1">
-                      <span
-                        className={cn(
-                          'w-4 h-4 rounded text-[10px] font-semibold tabular-nums flex items-center justify-center shrink-0 mt-0.5',
-                          selected
-                            ? 'bg-neutral-800 text-white'
-                            : 'bg-neutral-100 text-neutral-500',
-                        )}
-                        aria-label={`要点 ${ordinal}`}
-                      >
-                        {ordinal}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        {row.fieldLabel ? (
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="text-[11px] font-semibold text-neutral-500 leading-4 truncate">
-                              {row.fieldLabel}
+                  <div className="flex items-start gap-1.5 min-w-0">
+                    <span
+                      className={cn(
+                        'w-4 h-4 rounded text-[10px] font-semibold tabular-nums flex items-center justify-center shrink-0 mt-0.5',
+                        selected
+                          ? 'bg-neutral-800 text-white'
+                          : 'bg-neutral-100 text-neutral-500',
+                      )}
+                      aria-label={`要点 ${ordinal}`}
+                    >
+                      {ordinal}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      {isInline ? (
+                        <div className="space-y-2">
+                          <label className="block space-y-1">
+                            <span className="text-[11px] font-semibold text-neutral-500 leading-4">
+                              名称
                             </span>
+                            <input
+                              ref={inlineNameRef}
+                              value={inlineNameDraft}
+                              onChange={(e) => setInlineNameDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Escape') {
+                                  e.preventDefault();
+                                  cancelInlineEdit();
+                                }
+                                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                                  e.preventDefault();
+                                  commitInlineEdit();
+                                }
+                              }}
+                              placeholder="要点名称"
+                              className="w-full h-8 rounded-md border border-neutral-200 bg-white px-2 text-[13px] leading-5 text-neutral-800 outline-none focus:border-neutral-300"
+                              aria-label={`编辑名称 ${ordinal}`}
+                            />
+                          </label>
+                          <label className="block space-y-1">
+                            <span className="text-[11px] font-semibold text-neutral-500 leading-4">
+                              内容
+                            </span>
+                            <textarea
+                              value={inlineContentDraft}
+                              rows={Math.min(
+                                14,
+                                Math.max(3, inlineContentDraft.split('\n').length + 1),
+                              )}
+                              onChange={(e) => setInlineContentDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Escape') {
+                                  e.preventDefault();
+                                  cancelInlineEdit();
+                                }
+                                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                                  e.preventDefault();
+                                  commitInlineEdit();
+                                }
+                              }}
+                              placeholder="要点内容"
+                              className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-[13px] leading-5 text-neutral-800 outline-none focus:border-neutral-300 resize-y min-h-[72px]"
+                              aria-label={`编辑内容 ${ordinal}`}
+                            />
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={commitInlineEdit}
+                              className="h-6 px-2 rounded-md bg-neutral-800 text-white text-[11px] font-medium cursor-pointer"
+                            >
+                              保存
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelInlineEdit}
+                              className="h-6 px-2 rounded-md border border-neutral-200 bg-white text-[11px] text-neutral-600 cursor-pointer"
+                            >
+                              取消
+                            </button>
+                            <span className="text-[10px] text-neutral-400">⌘/Ctrl + Enter 保存</span>
                           </div>
-                        ) : null}
-                        <div className={cn(row.fieldLabel ? 'mt-0.5' : undefined)}>
-                          {isInline ? (
-                            <div className="space-y-1.5">
-                              <textarea
-                                ref={inlineRef}
-                                value={inlineDraft}
-                                rows={Math.min(6, Math.max(2, inlineDraft.split('\n').length))}
-                                onChange={(e) => setInlineDraft(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Escape') {
-                                    e.preventDefault();
-                                    cancelInlineEdit();
-                                  }
-                                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                                    e.preventDefault();
-                                    commitInlineEdit();
-                                  }
-                                }}
-                                className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-[13px] leading-5 text-neutral-800 outline-none focus:border-neutral-300 resize-y min-h-[52px]"
-                                aria-label={`原位编辑要点 ${ordinal}`}
-                              />
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={commitInlineEdit}
-                                  className="h-6 px-2 rounded-md bg-neutral-800 text-white text-[11px] font-medium cursor-pointer"
-                                >
-                                  保存
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={cancelInlineEdit}
-                                  className="h-6 px-2 rounded-md border border-neutral-200 bg-white text-[11px] text-neutral-600 cursor-pointer"
-                                >
-                                  取消
-                                </button>
-                                <span className="text-[10px] text-neutral-400">⌘/Ctrl + Enter 保存</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <p
-                                className={cn(
-                                  'text-[13px] leading-5 whitespace-pre-wrap break-words',
-                                  clamped && 'line-clamp-2',
-                                  selected ? 'text-neutral-900 font-medium' : 'text-neutral-700',
-                                )}
-                              >
-                                {bodyText}
-                              </p>
-                              {needsClamp(bodyText) ? (
-                                <button
-                                  type="button"
-                                  onClick={() => toggleExpanded(row.id)}
-                                  className="mt-0.5 text-[11px] font-medium text-neutral-500 hover:text-neutral-800 cursor-pointer"
-                                >
-                                  {expandedIds.has(row.id) ? '收起' : '展开'}
-                                </button>
-                              ) : null}
-                            </>
-                          )}
                         </div>
-                      </div>
+                      ) : (
+                        <>
+                          {row.fieldLabel ? (
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="text-[11px] font-semibold text-neutral-500 leading-4 truncate">
+                                {row.fieldLabel}
+                              </span>
+                            </div>
+                          ) : null}
+                          <div className={cn(row.fieldLabel ? 'mt-0.5' : undefined)}>
+                            <p
+                              className={cn(
+                                'text-[13px] leading-5 whitespace-pre-wrap break-words',
+                                selected ? 'text-neutral-900 font-medium' : 'text-neutral-700',
+                              )}
+                            >
+                              {bodyText}
+                            </p>
+                          </div>
+                        </>
+                      )}
                     </div>
-                    {!isInline && (hovered || batchMode) && !confirmed ? (
-                      <div className="flex items-center gap-1 shrink-0">
-                        {!batchMode ? (
-                          <button
-                            type="button"
-                            onClick={() => startInlineEdit(row)}
-                            className="cursor-pointer p-0.5 text-neutral-400 hover:text-neutral-700"
-                            aria-label={`编辑要点 ${ordinal}`}
-                            title="原位编辑"
-                          >
-                            <Pencil size={12} />
-                          </button>
-                        ) : null}
+                  </div>
+                  {!isInline && (hovered || batchMode) && !confirmed ? (
+                    <div className="absolute top-1 right-1 z-[1] flex items-center gap-0.5 rounded-md border border-neutral-200/80 bg-white/95 px-0.5 py-0.5 shadow-[0_1px_4px_rgba(17,17,17,0.08)]">
+                      {!batchMode ? (
                         <button
                           type="button"
-                          onClick={() => {
-                            commitRows(rows.filter((item) => item.id !== row.id));
-                            if (selected) onEditItem?.(row, index);
-                            showAppToast('删除成功', 'success');
-                          }}
-                          className="text-neutral-400 hover:text-rose-500 cursor-pointer p-0.5"
-                          aria-label="删除"
-                          title="删除此要点"
+                          onClick={() => startInlineEdit(row)}
+                          className="cursor-pointer p-0.5 text-neutral-400 hover:text-neutral-700"
+                          aria-label={`编辑要点 ${ordinal}`}
+                          title="原位编辑"
                         >
-                          <Trash2 size={12} />
+                          <Pencil size={12} />
                         </button>
-                      </div>
-                    ) : null}
-                  </div>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          commitRows(rows.filter((item) => item.id !== row.id));
+                          if (selected) onEditItem?.(row, index);
+                          showAppToast('删除成功', 'success');
+                        }}
+                        className="text-neutral-400 hover:text-rose-500 cursor-pointer p-0.5"
+                        aria-label="删除"
+                        title="删除此要点"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
 
             {confirmed ? null : adding ? (
-              <div className="flex items-center gap-1.5 pl-5 pt-0.5">
-                <Plus size={12} className="text-neutral-700 shrink-0" />
-                <input
-                  autoFocus
-                  value={newLabel}
-                  onChange={(e) => setNewLabel(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      addCustom();
-                    }
-                    if (e.key === 'Escape') setAdding(false);
-                  }}
-                  placeholder="输入自定义要点"
-                  className="flex-1 h-6 px-1.5 rounded border border-neutral-200 text-[13px] outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={addCustom}
-                  className="text-[11px] font-medium text-neutral-800 cursor-pointer"
-                >
-                  添加
-                </button>
+              <div className="pl-5 pt-1 space-y-2">
+                <div className="flex items-center gap-1.5 text-[13px] text-neutral-700 leading-5">
+                  <Plus size={12} className="text-neutral-700 shrink-0" />
+                  <span>添加自定义要点</span>
+                </div>
+                <label className="block space-y-1">
+                  <span className="text-[11px] font-semibold text-neutral-500 leading-4">名称</span>
+                  <input
+                    autoFocus
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        newContentRef.current?.focus();
+                      }
+                      if (e.key === 'Escape') cancelAdding();
+                    }}
+                    placeholder="要点名称"
+                    className="w-full h-8 rounded-md border border-neutral-200 bg-white px-2 text-[13px] leading-5 text-neutral-800 outline-none focus:border-neutral-300"
+                    aria-label="自定义要点名称"
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-[11px] font-semibold text-neutral-500 leading-4">内容</span>
+                  <textarea
+                    ref={newContentRef}
+                    value={newContent}
+                    rows={Math.min(6, Math.max(2, newContent.split('\n').length + 1))}
+                    onChange={(e) => setNewContent(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancelAdding();
+                      }
+                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        addCustom();
+                      }
+                    }}
+                    placeholder="要点内容"
+                    className="w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-[13px] leading-5 text-neutral-800 outline-none focus:border-neutral-300 resize-y min-h-[52px]"
+                    aria-label="自定义要点内容"
+                  />
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={addCustom}
+                    className="h-6 px-2 rounded-md bg-neutral-800 text-white text-[11px] font-medium cursor-pointer"
+                  >
+                    添加
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelAdding}
+                    className="h-6 px-2 rounded-md border border-neutral-200 bg-white text-[11px] text-neutral-600 cursor-pointer"
+                  >
+                    取消
+                  </button>
+                  <span className="text-[10px] text-neutral-400">⌘/Ctrl + Enter 添加</span>
+                </div>
               </div>
             ) : (
               <button
@@ -407,13 +471,6 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
               className={cn(SKILL_AOP_PRIMARY_BTN, 'h-7 px-3 rounded-md text-[13px]')}
             >
               确认执行
-            </button>
-            <button
-              type="button"
-              onClick={() => onReset(rows)}
-              className="h-7 px-3 rounded border border-neutral-300 bg-white text-[13px] text-neutral-900 hover:bg-neutral-50 cursor-pointer"
-            >
-              重新设置要求
             </button>
             {onEditItem ? (
               <>

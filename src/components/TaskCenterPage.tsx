@@ -12,8 +12,6 @@ import {
   Trash2,
   Send,
   Settings,
-  ChevronDown,
-  ChevronUp,
   FileText,
   Clock,
   Users,
@@ -21,8 +19,8 @@ import {
 } from '@/lib/icons';
 import { Modal } from './common/Modal';
 import { SegmentedTabBar } from './common/SegmentedTabs';
-import { BTN_INK, BTN_SOFT, FIELD, LABEL, PAGE, PANEL, SEARCH_FIELD } from '@/lib/ui';
-import { OnlinePageHeader } from './common/OnlinePageLayout';
+import { BTN_INK, BTN_OUTLINE, BTN_SOFT, FIELD, LABEL, PAGE, SEARCH_FIELD } from '@/lib/ui';
+import { OnlinePageHeader, OnlineSectionHeader } from './common/OnlinePageLayout';
 import { TASK_CENTER_COPY } from '@/lib/platformTerminology';
 import { cn } from '@/lib/utils';
 
@@ -93,12 +91,21 @@ function agentTagId(agentId: string) {
 }
 
 export const TaskCenterPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
-  const { tasks, hiredAgents, createTask, updateTask, deleteTask, showToast, pendingOpsAction, setPendingOpsAction, pendingOpsAgentId, setPendingOpsAgentId } = useApp();
+  const {
+    tasks,
+    hiredAgents,
+    createTask,
+    updateTask,
+    deleteTask,
+    showToast,
+    pendingOpsAction,
+    setPendingOpsAction,
+    pendingOpsAgentId,
+    setPendingOpsAgentId,
+  } = useApp();
 
   const [taskTab, setTaskTab] = useState<TaskAudience>('b');
   const [search, setSearch] = useState('');
-  const [listExpanded, setListExpanded] = useState(true);
-  const [historyExpanded, setHistoryExpanded] = useState(true);
   const [historyRange, setHistoryRange] = useState<HistoryRange>('all');
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -217,214 +224,221 @@ export const TaskCenterPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
     }
   };
 
-  return (
-    <div className={embedded ? 'space-y-4 text-left' : cn(PAGE, 'space-y-4 text-left')}>
-      <OnlinePageHeader title="任务中心">
-        <SegmentedTabBar
-          value={taskTab}
-          onChange={(id) => {
-            setTaskTab(id as 'b' | 'c');
+  const audienceTabs = (
+    <SegmentedTabBar
+      value={taskTab}
+      onChange={(id) => {
+        setTaskTab(id as 'b' | 'c');
+        setPage(1);
+      }}
+      ariaLabel="任务受众"
+      items={[
+        {
+          id: 'b',
+          label: (
+            <>
+              <Users size={13} />
+              商家端任务
+            </>
+          ),
+        },
+        {
+          id: 'c',
+          label: (
+            <>
+              <Headphones size={13} />
+              顾客端任务
+            </>
+          ),
+        },
+      ]}
+    />
+  );
+
+  const toolbarActions = (
+    <>
+      <div className="relative w-full sm:w-44 shrink-0">
+        <Search
+          size={13}
+          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none"
+        />
+        <input
+          type="text"
+          placeholder="搜索任务名称..."
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
             setPage(1);
           }}
-          items={[
-            {
-              id: 'b',
-              label: (
-                <>
-                  <Users size={13} />
-                  商家端任务
-                </>
-              ),
-            },
-            {
-              id: 'c',
-              label: (
-                <>
-                  <Headphones size={13} />
-                  顾客端任务
-                </>
-              ),
-            },
-          ]}
+          className={cn(SEARCH_FIELD, 'pl-8')}
         />
+      </div>
+      <button
+        type="button"
+        onClick={() => setShowCommandModal(true)}
+        className={cn(BTN_OUTLINE, 'shrink-0')}
+      >
+        任务指令交互
+      </button>
+      <button type="button" onClick={openCreate} className={cn(BTN_INK, 'shrink-0')}>
+        <Plus size={13} strokeWidth={2.5} />
+        {TASK_CENTER_COPY.createTask}
+      </button>
+    </>
+  );
 
-        <div className="relative w-full sm:w-44 shrink-0">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="搜索任务名称..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className={cn(SEARCH_FIELD, 'pl-8')}
-          />
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setShowCommandModal(true)}
-          className={cn(BTN_INK, 'shrink-0')}
-        >
-          <Plus size={13} strokeWidth={2.5} />
-          任务指令交互
-        </button>
-        <button type="button" onClick={openCreate} className={cn(BTN_INK, 'shrink-0')}>
-          <Plus size={13} strokeWidth={2.5} />
-          新建任务
-        </button>
-      </OnlinePageHeader>
-
-      {/* 任务列表 — 主内容区 */}
-      <section className={cn(PANEL, 'shadow-[0_2px_10px_rgba(31,35,41,0.03)] overflow-hidden')}>
-        <button
-          type="button"
-          onClick={() => setListExpanded((v) => !v)}
-          className="w-full px-4 py-3 flex items-center justify-between gap-2 hover:bg-neutral-50/80 transition cursor-pointer border-b border-neutral-100"
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <FileText size={15} className="text-neutral-500 shrink-0" />
-            <span className="text-[13px] font-bold text-neutral-900">任务列表</span>
-            <span className="text-[10px] text-neutral-500 font-medium">共 {filteredTasks.length} 条</span>
+  return (
+    <div
+      className={
+        embedded
+          ? 'flex flex-col min-h-0 flex-1 text-left'
+          : cn(PAGE, 'space-y-4 text-left')
+      }
+    >
+      {embedded ? (
+        <div className="shrink-0 flex flex-col gap-3 px-5 pb-3 sm:flex-row sm:items-center sm:justify-between">
+          {audienceTabs}
+          <div className="flex flex-wrap items-center gap-2 min-w-0 sm:justify-end">
+            {toolbarActions}
           </div>
-          {listExpanded ? (
-            <ChevronUp size={15} className="text-neutral-400 shrink-0" />
-          ) : (
-            <ChevronDown size={15} className="text-neutral-400 shrink-0" />
-          )}
-        </button>
+        </div>
+      ) : (
+        <OnlinePageHeader title={TASK_CENTER_COPY.title}>
+          {audienceTabs}
+          {toolbarActions}
+        </OnlinePageHeader>
+      )}
 
-        {listExpanded && (
-          <>
-            {pagedTasks.length === 0 ? (
-              <div className="py-12 text-center text-[11px] text-neutral-500">
-                {TASK_CENTER_COPY.emptyList}
-              </div>
-            ) : (
-              <div className="divide-y divide-neutral-100">
-                {pagedTasks.map((t) => {
-                  return (
-                    <div
-                      key={t.id}
-                      className="px-4 py-3 flex flex-col lg:flex-row lg:items-center gap-3 hover:bg-neutral-50/50 transition"
-                    >
-                      <div className="flex items-start gap-3 min-w-0 flex-1">
-                        <button
-                          type="button"
-                          onClick={() => toggleTaskEnabled(t.id, t.enabled)}
-                          className={cn(
-                            'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors mt-0.5',
-                            t.enabled ? 'bg-emerald-500' : 'bg-neutral-300',
-                          )}
-                          title={t.enabled ? '点击暂停' : '点击启用'}
-                        >
-                          <span
-                            className={cn(
-                              'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition',
-                              t.enabled ? 'translate-x-4' : 'translate-x-0',
-                            )}
-                          />
-                        </button>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                            <span className="font-bold text-neutral-900 text-[13px]">{t.name}</span>
-                            <span className="text-[9px] font-semibold px-1.5 py-px rounded bg-sky-50 text-sky-700 border border-sky-100">
-                              {typeTagLabel(t.type)}
-                            </span>
-                            <span className="text-[9px] font-mono px-1.5 py-px rounded bg-sky-50 text-sky-700 border border-sky-100 truncate max-w-[140px]">
-                              {agentTagId(t.targetAgentId)}
-                            </span>
-                            <span className="text-[9px] font-mono px-1.5 py-px rounded bg-neutral-100 text-neutral-500 border border-neutral-200">
-                              ID: {t.id.replace(/^t_/, '').slice(0, 12)}
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-neutral-500 leading-relaxed truncate">
-                            {t.cronExpression}
-                            <span className="mx-2 text-neutral-300">·</span>
-                            上次: {t.lastExecutedAt}
-                            <span className="mx-2 text-neutral-300">·</span>
-                            时长: {t.durationLabel ?? '-'}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0 pl-12 lg:pl-0">
-                        {!t.enabled && (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                            已暂停
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => openEdit(t)}
-                          className="h-8 px-2.5 rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 text-[11px] font-bold text-neutral-700 flex items-center gap-1 cursor-pointer transition"
-                        >
-                          <Settings size={12} />
-                          修改任务
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => discardTask(t)}
-                          className="h-8 px-2.5 rounded-lg border border-rose-200 bg-white hover:bg-rose-50 text-[11px] font-bold text-rose-600 flex items-center gap-1 cursor-pointer transition"
-                        >
-                          <Trash2 size={12} />
-                          {TASK_CENTER_COPY.discardTask}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="px-4 py-2.5 border-t border-neutral-100 flex flex-wrap items-center justify-between gap-2 text-[10px] text-neutral-500">
-              <span>共 {filteredTasks.length} 条</span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="px-2 py-1 rounded border border-neutral-200 disabled:opacity-40 cursor-pointer hover:bg-neutral-50"
-                >
-                  上一页
-                </button>
-                <span className="px-2 py-1 rounded bg-sky-600 text-white font-bold tabular-nums">{page}</span>
-                <button
-                  type="button"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="px-2 py-1 rounded border border-neutral-200 disabled:opacity-40 cursor-pointer hover:bg-neutral-50"
-                >
-                  下一页
-                </button>
-                <span className="ml-1">{pageSize} 条/页</span>
-              </div>
-            </div>
-          </>
+      <div
+        className={cn(
+          embedded
+            ? 'flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5 pb-5 space-y-5'
+            : 'space-y-4',
         )}
-      </section>
+      >
+        <section className="rounded-lg border border-neutral-200 overflow-hidden bg-white">
+          <OnlineSectionHeader
+            title="任务列表"
+            icon={<FileText size={15} className="text-neutral-500" />}
+            description={`共 ${filteredTasks.length} 条`}
+            className="px-4 pt-3.5 pb-2.5 mb-0 border-b border-neutral-100"
+          />
 
-      {/* 历史任务 — 次级区域 */}
-      <section className={cn(PANEL, 'shadow-[0_2px_10px_rgba(31,35,41,0.03)] overflow-hidden')}>
-        <div className="px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-100">
-          <button
-            type="button"
-            onClick={() => setHistoryExpanded((v) => !v)}
-            className="flex items-center gap-2 min-w-0 cursor-pointer text-left"
-          >
-            <Clock size={15} className="text-neutral-500 shrink-0" />
-            <span className="text-[13px] font-bold text-neutral-900">历史任务</span>
-            <span className="text-[10px] text-neutral-500 font-medium">共 {filteredHistory.length} 条</span>
-            {historyExpanded ? (
-              <ChevronUp size={15} className="text-neutral-400 shrink-0 ml-1" />
-            ) : (
-              <ChevronDown size={15} className="text-neutral-400 shrink-0 ml-1" />
-            )}
-          </button>
+          {pagedTasks.length === 0 ? (
+            <div className="py-12 text-center text-[12px] text-neutral-500">
+              {TASK_CENTER_COPY.emptyList}
+            </div>
+          ) : (
+            <div className="divide-y divide-neutral-100">
+              {pagedTasks.map((t) => (
+                <div
+                  key={t.id}
+                  className="px-4 py-3 flex flex-col lg:flex-row lg:items-center gap-3 hover:bg-neutral-50/50 transition"
+                >
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <button
+                      type="button"
+                      onClick={() => toggleTaskEnabled(t.id, t.enabled)}
+                      className={cn(
+                        'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors mt-0.5',
+                        t.enabled ? 'bg-emerald-500' : 'bg-neutral-300',
+                      )}
+                      title={t.enabled ? '点击暂停' : '点击启用'}
+                    >
+                      <span
+                        className={cn(
+                          'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition',
+                          t.enabled ? 'translate-x-4' : 'translate-x-0',
+                        )}
+                      />
+                    </button>
 
-          {historyExpanded && (
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                        <span className="font-semibold text-neutral-900 text-[13px]">{t.name}</span>
+                        <span className="text-[10px] font-medium px-1.5 py-px rounded bg-neutral-100 text-neutral-600 border border-neutral-200">
+                          {typeTagLabel(t.type)}
+                        </span>
+                        <span className="text-[10px] font-mono px-1.5 py-px rounded bg-neutral-100 text-neutral-500 border border-neutral-200 truncate max-w-[140px]">
+                          {agentTagId(t.targetAgentId)}
+                        </span>
+                        <span className="text-[10px] font-mono px-1.5 py-px rounded bg-neutral-50 text-neutral-400 border border-neutral-200">
+                          ID: {t.id.replace(/^t_/, '').slice(0, 12)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-neutral-500 leading-relaxed truncate">
+                        {t.cronExpression}
+                        <span className="mx-2 text-neutral-300">·</span>
+                        上次: {t.lastExecutedAt}
+                        <span className="mx-2 text-neutral-300">·</span>
+                        时长: {t.durationLabel ?? '-'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 pl-12 lg:pl-0">
+                    {!t.enabled ? (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+                        已暂停
+                      </span>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => openEdit(t)}
+                      className={cn(BTN_SOFT, 'h-8 px-2.5 text-[11px] gap-1')}
+                    >
+                      <Settings size={12} />
+                      修改任务
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => discardTask(t)}
+                      className="h-8 px-2.5 rounded-lg border border-rose-200 bg-white hover:bg-rose-50 text-[11px] font-medium text-rose-600 flex items-center gap-1 cursor-pointer transition"
+                    >
+                      <Trash2 size={12} />
+                      {TASK_CENTER_COPY.discardTask}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="px-4 py-2.5 border-t border-neutral-100 flex flex-wrap items-center justify-between gap-2 text-[11px] text-neutral-500">
+            <span>共 {filteredTasks.length} 条</span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="px-2 py-1 rounded-md border border-neutral-200 disabled:opacity-40 cursor-pointer hover:bg-neutral-50"
+              >
+                上一页
+              </button>
+              <span className="px-2 py-1 rounded-md bg-neutral-900 text-white font-semibold tabular-nums">
+                {page}
+              </span>
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="px-2 py-1 rounded-md border border-neutral-200 disabled:opacity-40 cursor-pointer hover:bg-neutral-50"
+              >
+                下一页
+              </button>
+              <span className="ml-1">{pageSize} 条/页</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-neutral-200 overflow-hidden bg-white">
+          <div className="px-4 pt-3.5 pb-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-100">
+            <OnlineSectionHeader
+              title="历史任务"
+              icon={<Clock size={15} className="text-neutral-500" />}
+              description={`共 ${filteredHistory.length} 条`}
+              className="mb-0 p-0"
+            />
             <div className="flex flex-wrap gap-1">
               {HISTORY_FILTERS.map(({ key, label }) => (
                 <button
@@ -432,7 +446,7 @@ export const TaskCenterPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
                   type="button"
                   onClick={() => setHistoryRange(key)}
                   className={cn(
-                    'px-2 py-1 rounded-md text-[10px] font-semibold transition cursor-pointer',
+                    'px-2 py-1 rounded-md text-[11px] font-medium transition cursor-pointer',
                     historyRange === key
                       ? 'bg-neutral-800 text-white'
                       : 'text-neutral-500 hover:bg-neutral-100',
@@ -442,22 +456,20 @@ export const TaskCenterPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
                 </button>
               ))}
             </div>
-          )}
-        </div>
+          </div>
 
-        {historyExpanded && (
           <div className="divide-y divide-neutral-100">
             {filteredHistory.length === 0 ? (
-              <div className="py-8 text-center text-[11px] text-neutral-500">暂无历史记录</div>
+              <div className="py-8 text-center text-[12px] text-neutral-500">暂无历史记录</div>
             ) : (
               filteredHistory.map((h) => (
                 <div
                   key={h.id}
-                  className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] hover:bg-neutral-50/50"
+                  className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-[12px] hover:bg-neutral-50/50"
                 >
                   <div className="min-w-0">
-                    <span className="font-semibold text-neutral-900">{h.taskName}</span>
-                    <span className="text-neutral-500 mx-2">·</span>
+                    <span className="font-medium text-neutral-900">{h.taskName}</span>
+                    <span className="text-neutral-400 mx-2">·</span>
                     <span className="text-neutral-500">{h.agentName}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 tabular-nums text-neutral-500">
@@ -478,10 +490,9 @@ export const TaskCenterPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
               ))
             )}
           </div>
-        )}
-      </section>
+        </section>
+      </div>
 
-      {/* 任务指令交互 — 按需弹窗，不占主视觉 */}
       <Modal
         open={showCommandModal}
         onClose={() => setShowCommandModal(false)}
@@ -499,7 +510,7 @@ export const TaskCenterPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
           </>
         }
       >
-        <p className="text-[11px] text-neutral-500 mb-3">
+        <p className="text-[12px] text-neutral-500 mb-3">
           选择数字员工并下达即时指令，适用于临时排查或一次性自动化。
         </p>
         <div className="space-y-3">
@@ -530,7 +541,6 @@ export const TaskCenterPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
         </div>
       </Modal>
 
-      {/* 新建 / 修改任务 */}
       <Modal
         open={isCreating}
         onClose={() => {
@@ -538,7 +548,7 @@ export const TaskCenterPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
           setEditingTask(null);
           resetForm();
         }}
-        title={editingTask ? '修改任务' : '新建任务'}
+        title={editingTask ? '修改任务' : TASK_CENTER_COPY.createTask}
         maxWidth="max-w-md"
         footer={
           <>

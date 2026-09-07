@@ -135,6 +135,72 @@ export const INITIAL_HIRED_AGENTS: HiredAgent[] = [
     status: 'online',
     hiredAt: '2026-06-01 10:00',
     syncedTemplateVersion: 'V_1780010000000',
+    publishedSnapshotId: 'snap_food_v02',
+    configSnapshots: [
+      {
+        id: 'snap_baseline_h_food_safety',
+        code: 'V_10300',
+        title: '初始雇佣版本',
+        savedAt: '2026-06-01 10:00:00',
+        kind: 'baseline',
+        config: {
+          name: '食安险客服专员',
+          avatar: FOOD_SAFETY_AGENT_DEFAULTS.avatar,
+          description: FOOD_SAFETY_AGENT_DEFAULTS.description,
+          skills: ['s_claim'],
+          knowledgeBases: ['kb_faq'],
+          persona: FOOD_SAFETY_AGENT_DEFAULTS.persona,
+          languageStyle: FOOD_SAFETY_AGENT_DEFAULTS.languageStyle,
+          constraints: FOOD_SAFETY_AGENT_DEFAULTS.constraints,
+          openingLine: defaultOpeningLineForAgent('食安险客服专员'),
+          backgroundKnowledge: FOOD_SAFETY_AGENT_DEFAULTS.backgroundKnowledge,
+          workflowNotes: FOOD_SAFETY_AGENT_DEFAULTS.workflowNotes,
+          fallbackScript: defaultFallbackScriptForAgent(),
+        },
+      },
+      {
+        id: 'snap_food_v01',
+        code: 'V_10301',
+        title: '员工知识配备后',
+        savedAt: '2026-06-08 11:20:00',
+        kind: 'saved',
+        config: {
+          name: '食安险客服专员',
+          avatar: FOOD_SAFETY_AGENT_DEFAULTS.avatar,
+          description: FOOD_SAFETY_AGENT_DEFAULTS.description,
+          skills: ['s_claim'],
+          knowledgeBases: ['kb_faq', 'kb_product', 'kb_claim'],
+          persona: FOOD_SAFETY_AGENT_DEFAULTS.persona,
+          languageStyle: FOOD_SAFETY_AGENT_DEFAULTS.languageStyle,
+          constraints: FOOD_SAFETY_AGENT_DEFAULTS.constraints,
+          openingLine: defaultOpeningLineForAgent('食安险客服专员'),
+          backgroundKnowledge: FOOD_SAFETY_AGENT_DEFAULTS.backgroundKnowledge,
+          workflowNotes: FOOD_SAFETY_AGENT_DEFAULTS.workflowNotes,
+          fallbackScript: defaultFallbackScriptForAgent(),
+        },
+      },
+      {
+        id: 'snap_food_v02',
+        code: 'V_10302',
+        title: '员工技能「情绪安抚」配备后',
+        savedAt: '2026-06-18 16:40:00',
+        kind: 'saved',
+        config: {
+          name: '食安险客服专员',
+          avatar: FOOD_SAFETY_AGENT_DEFAULTS.avatar,
+          description: FOOD_SAFETY_AGENT_DEFAULTS.description,
+          skills: ['s_claim', 's_emotion'],
+          knowledgeBases: ['kb_faq', 'kb_product', 'kb_claim'],
+          persona: FOOD_SAFETY_AGENT_DEFAULTS.persona,
+          languageStyle: FOOD_SAFETY_AGENT_DEFAULTS.languageStyle,
+          constraints: FOOD_SAFETY_AGENT_DEFAULTS.constraints,
+          openingLine: defaultOpeningLineForAgent('食安险客服专员'),
+          backgroundKnowledge: FOOD_SAFETY_AGENT_DEFAULTS.backgroundKnowledge,
+          workflowNotes: FOOD_SAFETY_AGENT_DEFAULTS.workflowNotes,
+          fallbackScript: defaultFallbackScriptForAgent(),
+        },
+      },
+    ],
   },
   {
     id: 'h_sales',
@@ -382,6 +448,7 @@ export const INITIAL_SKILLS: Skill[] = [
     updatedAt: '2026-06-09 17:00',
     usedByAgents: ['食安险商户顾问', '食安险客服专员'],
     type: 'subscribed',
+    source: 'nl',
     description: '根据保单免赔额、医疗费用票据与责任认定结果，自动测算预估赔付金额并生成报案摘要。'
   },
   {
@@ -391,6 +458,7 @@ export const INITIAL_SKILLS: Skill[] = [
     updatedAt: '2026-06-05 12:45',
     usedByAgents: ['食安险商户顾问'],
     type: 'mine',
+    source: 'upload',
     description: '将对话中识别的门店信息、保单号与续保意向，自动同步至商户 CRM 与客户经理跟进表。'
   },
   {
@@ -400,6 +468,7 @@ export const INITIAL_SKILLS: Skill[] = [
     updatedAt: '2026-06-10 15:30',
     usedByAgents: ['食安险商户顾问', '食安险客服专员', '双十一企微专属小助手'],
     type: 'subscribed',
+    source: 'nl',
     description: '识别食安事故、群体投诉与激烈言辞，达到风险阈值时自动升级至理赔专员人工坐席。'
   },
   {
@@ -409,6 +478,7 @@ export const INITIAL_SKILLS: Skill[] = [
     updatedAt: '2026-04-12 18:00',
     usedByAgents: [],
     type: 'market',
+    source: 'upload',
     description: '调取IP网关直接呼叫客户，挂断后自动记录话单并提取音频全文摘要，多维画像标注。'
   },
   {
@@ -418,6 +488,7 @@ export const INITIAL_SKILLS: Skill[] = [
     updatedAt: '2026-05-28 10:20',
     usedByAgents: [],
     type: 'market',
+    source: 'nl',
     description: '对员工知识库做混合检索，结合会话上下文润色答复，降低答非所问。'
   },
   {
@@ -427,6 +498,7 @@ export const INITIAL_SKILLS: Skill[] = [
     updatedAt: '2026-06-01 09:15',
     usedByAgents: [],
     type: 'market',
+    source: 'nl',
     description: '根据订单号拉取物流节点，向客户播报最新状态并预估送达时间。'
   },
   {
@@ -436,6 +508,7 @@ export const INITIAL_SKILLS: Skill[] = [
     updatedAt: '2026-05-18 14:40',
     usedByAgents: [],
     type: 'market',
+    source: 'nl',
     description: '识别需跟进事项后自动创建工单，按紧急度与业务线分流至对应队列。'
   },
 ];

@@ -8,7 +8,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Check, GitBranch, Pencil, Sparkles } from '@/lib/icons';
+import { BrainCircuit, Check, Pencil, Wand2, Workflow } from '@/lib/icons';
 import { JOB_FAMILY_FULL_LABELS } from '@/lib/jobFamily';
 import { BTN_INK, BTN_OUTLINE, BTN_SOFT } from '@/lib/ui';
 import { cn } from '@/lib/utils';
@@ -49,20 +49,20 @@ const BUILD_OPTIONS: {
   title: string;
   desc: string;
   recommended?: boolean;
-  Icon: typeof Sparkles;
+  Icon: typeof BrainCircuit;
 }[] = [
   {
     id: 'autonomous',
     title: '自主规划',
     desc: '对话梳理业务边界，自动生成岗位与技能配置。',
     recommended: true,
-    Icon: Sparkles,
+    Icon: BrainCircuit,
   },
   {
     id: 'preset',
     title: '预设流程',
     desc: '按固定节点与规则编排，可在画布中精细调整。',
-    Icon: GitBranch,
+    Icon: Workflow,
   },
 ];
 
@@ -70,13 +70,13 @@ const METHOD_OPTIONS: {
   id: EmployeeCreateMethod;
   title: string;
   desc: string;
-  Icon: typeof Sparkles;
+  Icon: typeof Wand2;
 }[] = [
   {
     id: 'ai',
     title: 'AI 帮写',
     desc: '对话生成规则与功能草稿。',
-    Icon: Sparkles,
+    Icon: Wand2,
   },
   {
     id: 'manual',
@@ -231,11 +231,11 @@ export const CreateEmployeeTypeModal: React.FC<CreateEmployeeTypeModalProps> = (
                         className={cn(
                           'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
                           active
-                            ? 'bg-neutral-900 text-white'
+                            ? 'bg-neutral-200 text-neutral-700'
                             : 'bg-neutral-100 text-neutral-500',
                         )}
                       >
-                        <Icon size={15} strokeWidth={2} />
+                        <Icon size={16} strokeWidth={2} className="shrink-0" />
                       </span>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -283,11 +283,11 @@ export const CreateEmployeeTypeModal: React.FC<CreateEmployeeTypeModalProps> = (
                         className={cn(
                           'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
                           active
-                            ? 'bg-neutral-900 text-white'
+                            ? 'bg-neutral-200 text-neutral-700'
                             : 'bg-neutral-100 text-neutral-500',
                         )}
                       >
-                        <Icon size={15} strokeWidth={2} />
+                        <Icon size={16} strokeWidth={2} className="shrink-0" />
                       </span>
                       <div className="min-w-0">
                         <span className="text-[13px] font-semibold text-neutral-900">

@@ -2,24 +2,17 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 食安险客户体验 — 配音字幕时间轴（压缩至约 50s）。
- * 一句只说一次；幕间不重播收尾。
+ * 食安险客户体验 — 配音字幕时间轴。
+ * 字幕尽量沿用产品原句，仅 speakText 做发音处理（SOP→S O P）。
  * 配音：edge-tts zh-CN-YunxiNeural（正常语速）。
- *
- * ## 概念
- * - 触发理赔 SOP 技能 → 先知识库告知规则 → 再调食源性疾病理赔 SOP → 请选订单
- * - 字幕「调」；合成「吊」（diào）；「SOP」→「S O P」
  */
 
 export type NarrationCue = {
   atMs: number;
   durationMs: number;
-  /** 字幕展示文案 */
+  /** 字幕展示文案（产品原句） */
   text: string;
-  /**
-   * 合成口播文案；缺省等于 text。
-   * 「调取」→「吊取」；「SOP」→「S O P」
-   */
+  /** 合成口播；缺省等于 text。「SOP」→「S O P」 */
   speakText?: string;
   audioId: string;
 };
@@ -32,70 +25,68 @@ export type NarrationSegmentId =
   | 'act3';
 
 export const NARRATION_INTRO_FADE_MS = 600;
-/** 开场画面先静默再开读 */
 export const NARRATION_INTRO_LEAD_MS = 1200;
 
 /**
- * 连贯口播（剧情线，压缩版）
- *
- * pre_act1：客户问题
- * act1：命中 SOP → 先知识库 → 再 SOP → 请选订单
- * act2：不必人工/改接口 → Browser Use 核对实付
- * act3：礼貌收尾 + 保留记忆
+ * 口播映射（与左右对话串行）
+ * 1 intro：短开场
+ * 2 pre_act1：思维链「主动预测」→ 左侧主动开口
+ * 3 act1：用户发言后 → 先安抚 → 再 SOP/知识库
+ * 4 act2 / 5 act3
  */
 export const FOOD_SAFETY_NARRATION: Record<NarrationSegmentId, NarrationCue[]> = {
   intro: [
     {
       atMs: 0,
-      durationMs: 5016,
+      durationMs: 2928,
       audioId: 'intro_0',
-      text: '用一条食安险咨询，看数字员工怎么把事办对',
+      text: '以保险售后咨询场景为例',
     },
   ],
   pre_act1: [
     {
       atMs: 0,
-      durationMs: 4128,
+      durationMs: 4272,
       audioId: 'pre_act1_0',
-      text: '客户吃完外卖不舒服还吐了，想理赔',
+      text: '数字员工自主规划、主动预测用户餐品质量问题',
     },
   ],
   act1: [
     {
       atMs: 0,
-      durationMs: 6288,
-      audioId: 'act1_0',
-      text: '触发理赔SOP技能，先调知识库核对规则告诉客户',
-      speakText: '触发理赔 S O P 技能，先吊知识库核对规则告诉客户',
+      durationMs: 7632,
+      audioId: 'pre_act1_1',
+      text: '用户反馈外卖就餐不舒服如何理赔，模型根据服务原则先安抚用户、再去找理赔规则',
     },
     {
-      atMs: 6288,
-      durationMs: 6216,
-      audioId: 'act1_1',
-      text: '再调食源性疾病理赔SOP推进流程，请客户选订单',
-      speakText: '再吊取食源性疾病理赔 S O P 推进流程，请客户选订单',
+      atMs: 7632,
+      durationMs: 6816,
+      audioId: 'act1_0',
+      text: 'Skill中约定了要查看理赔SOP，数字员工自主思考查知识库反馈客户',
+      speakText:
+        'Skill 中约定了要查看理赔 S O P，数字员工自主思考查知识库反馈客户',
     },
   ],
   act2: [
     {
       atMs: 0,
-      durationMs: 5376,
+      durationMs: 5160,
       audioId: 'act2_0',
-      text: '不必人工查询、不必改接口，用 Browser Use 核对实付',
+      text: '用户申请推进流程，数字员工无侵入调用业务系统给结果',
     },
     {
-      atMs: 5376,
-      durationMs: 4896,
+      atMs: 5160,
+      durationMs: 5856,
       audioId: 'act2_1',
-      text: '打开订单页查询，读出餐品、状态和金额',
+      text: '无需接口对接，登录业务系统，输入订单完成查询，给出处理结果',
     },
   ],
   act3: [
     {
       atMs: 0,
-      durationMs: 5640,
+      durationMs: 7200,
       audioId: 'act3_0',
-      text: '客户道谢，礼貌收尾并保留记忆，有问题随时再找它',
+      text: '客户道谢，数字员工礼貌安抚，保存本次服务记忆，帮助后续问题更懂用户高效解决',
     },
   ],
 };
@@ -120,7 +111,6 @@ export function getNarrationCues(segment: NarrationSegmentId): NarrationCue[] {
   return FOOD_SAFETY_NARRATION[segment] ?? [];
 }
 
-/** 合成用文案；字幕仍用 cue.text */
 export function getNarrationSpeakText(cue: NarrationCue): string {
   return cue.speakText ?? cue.text;
 }

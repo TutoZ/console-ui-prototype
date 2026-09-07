@@ -185,11 +185,14 @@ export type SessionRecordsPageProps = {
   embedded?: boolean;
   /** 操作列文案，默认「查看记录」 */
   viewRecordLabel?: string;
+  /** 案例库页：仅展示已加入案例库的会话 */
+  caseLibraryOnly?: boolean;
 };
 
 export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
   embedded = false,
   viewRecordLabel = '查看记录',
+  caseLibraryOnly = false,
 }) => {
   const { sessions, hiredAgents, showToast, demoStep, setDemoStep, updateSession } = useApp();
 
@@ -203,7 +206,9 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
   const [satFilter, setSatFilter] = useState<SatFilter>('all');
   const [employeeId, setEmployeeId] = useState('all');
   const [scenarioFilter, setScenarioFilter] = useState('all');
-  const [caseLibraryFilter, setCaseLibraryFilter] = useState<TriFilter>('all');
+  const [caseLibraryFilter, setCaseLibraryFilter] = useState<TriFilter>(() =>
+    caseLibraryOnly ? 'true' : 'all',
+  );
   const [applied, setApplied] = useState({
     sessionIdQuery: '',
     transFilter: 'all' as TriFilter,
@@ -211,7 +216,7 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
     satFilter: 'all' as SatFilter,
     employeeId: 'all',
     scenarioFilter: 'all',
-    caseLibraryFilter: 'all' as TriFilter,
+    caseLibraryFilter: (caseLibraryOnly ? 'true' : 'all') as TriFilter,
   });
   const [inspectIndex, setInspectIndex] = useState<number | null>(null);
   const [detailTab, setDetailTab] = useState<'info' | 'rating'>('info');
@@ -243,7 +248,8 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
     setSatFilter('all');
     setEmployeeId('all');
     setScenarioFilter('all');
-    setCaseLibraryFilter('all');
+    const caseFilter: TriFilter = caseLibraryOnly ? 'true' : 'all';
+    setCaseLibraryFilter(caseFilter);
     setApplied({
       sessionIdQuery: '',
       transFilter: 'all',
@@ -251,7 +257,7 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
       satFilter: 'all',
       employeeId: 'all',
       scenarioFilter: 'all',
-      caseLibraryFilter: 'all',
+      caseLibraryFilter: caseFilter,
     });
   };
 
@@ -346,7 +352,7 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
       caseLibraryRemark: undefined,
     });
     showToast('已取消加入案例库');
-    if (applied.caseLibraryFilter === 'true') {
+    if (caseLibraryOnly || applied.caseLibraryFilter === 'true') {
       closeInspect();
     }
   };
@@ -442,7 +448,7 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
           }
         />
       ) : (
-        <OnlinePageHeader title="接待记录">
+        <OnlinePageHeader title={caseLibraryOnly ? '案例库' : '接待记录'}>
           <button type="button" onClick={handleReset} className={BTN_SOFT}>
             重置
           </button>
@@ -620,27 +626,29 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
               </Select>
             </FilterField>
 
-            <FilterField label="案例库">
-              <Select
-                value={caseLibraryFilter}
-                onValueChange={(v) => v && setCaseLibraryFilter(v as TriFilter)}
-              >
-                <SelectTrigger className={filterSelectClass}>
-                  <SelectValue>
-                    {caseLibraryFilter === 'all'
-                      ? '全部'
-                      : caseLibraryFilter === 'true'
-                        ? '已加入案例库'
-                        : '未加入案例库'}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部</SelectItem>
-                  <SelectItem value="true">已加入案例库</SelectItem>
-                  <SelectItem value="false">未加入案例库</SelectItem>
-                </SelectContent>
-              </Select>
-            </FilterField>
+            {!caseLibraryOnly ? (
+              <FilterField label="案例库">
+                <Select
+                  value={caseLibraryFilter}
+                  onValueChange={(v) => v && setCaseLibraryFilter(v as TriFilter)}
+                >
+                  <SelectTrigger className={filterSelectClass}>
+                    <SelectValue>
+                      {caseLibraryFilter === 'all'
+                        ? '全部'
+                        : caseLibraryFilter === 'true'
+                          ? '已加入案例库'
+                          : '未加入案例库'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部</SelectItem>
+                    <SelectItem value="true">已加入案例库</SelectItem>
+                    <SelectItem value="false">未加入案例库</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FilterField>
+            ) : null}
           </div>
         </div>
       </section>

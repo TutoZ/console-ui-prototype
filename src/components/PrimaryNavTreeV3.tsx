@@ -52,6 +52,7 @@ import {
   Bell,
   ChevronDown,
   ChevronRight,
+  ClipboardCheck,
   HelpCircle,
   LogOut,
   PanelLeftClose,
@@ -301,6 +302,7 @@ export const PrimaryNavTreeV3: React.FC = () => {
     qcRailTab,
     domainOpsTab,
     setDomainOpsTab,
+    setShowTaskCenter,
     showToast,
   } = useApp();
 
@@ -905,6 +907,17 @@ export const PrimaryNavTreeV3: React.FC = () => {
               >
                 <User size={14} className="text-neutral-500 shrink-0" />
                 <span>个人中心</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProfileMenu(false);
+                  setShowTaskCenter(true);
+                }}
+                className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-neutral-100/50 flex items-center gap-2.5 font-medium text-neutral-800 transition cursor-pointer"
+              >
+                <ClipboardCheck size={14} className="text-neutral-500 shrink-0" />
+                <span>任务中心</span>
               </button>
               <button
                 type="button"

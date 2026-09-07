@@ -61,7 +61,6 @@ import {
   BTN_OUTLINE,
   BTN_SOFT,
   CHIP,
-  CHIP_ACTIVE,
   FIELD,
   FIELD_CTRL,
   LABEL,
@@ -80,15 +79,12 @@ import {
 } from '@/lib/ui';
 import {
   appendComposerChipBlock,
-  buildComposerOutboundText,
   buildComposerTaggedInput,
   buildDynamicSkillReplyPe,
-  composerOutboundLength,
   hasAwaitingSkillConfirm,
   parseResetRequirementsToConfirmItems,
   pickLatestAiTextsForReplyPe,
   pickLatestUserText,
-  removeComposerChipBlock,
   type SkillReplyPeChip,
 } from '@/lib/skillReplyPe';
 import { cn } from '@/lib/utils';
@@ -113,6 +109,12 @@ const FORM_SECTION_TITLES = {
   3: '规范约束',
   4: '补充说明',
 } as const;
+
+/** 右侧四张表单：内容区撑满一页，超出再滚动 */
+const FORM_SECTION_BODY = 'flex-1 min-h-0 overflow-hidden px-3 pb-3 pt-1 flex flex-col';
+const FORM_SECTION_CARD =
+  'flex-1 min-h-0 overflow-y-auto custom-scrollbar rounded-[10px] border border-neutral-200/60 bg-[#F9F9FB] p-3';
+const FORM_SECTION_CARD_INNER = 'min-h-full flex flex-col gap-3';
 
 /** 用户消息气泡 — 右上角小圆角；浅蓝底与顶栏激活渐变 #1565BF 同系 */
 const USER_CHAT_BUBBLE = cn(
@@ -517,6 +519,8 @@ export const BuildSkillModal: React.FC<BuildSkillModalProps> = ({
   const [knowledgeBoundary, setKnowledgeBoundary] = useState('');
   const [knowledgeContent, setKnowledgeContent] = useState('');
   const [knowledgeDesc, setKnowledgeDesc] = useState('');
+  /** 技能主体：业务知识 / 执行步骤 二选一 */
+  const [skillBodyMode, setSkillBodyMode] = useState<'knowledge' | 'steps'>('steps');
   const [knowledgeScripts, setKnowledgeScripts] = useState<string[]>([]);
   const [knowledgeKbs, setKnowledgeKbs] = useState<string[]>([]);
   const [answerTone, setAnswerTone] = useState('');
@@ -605,6 +609,9 @@ export const BuildSkillModal: React.FC<BuildSkillModalProps> = ({
 
   const goToFormSection = (sectionId: number) => {
     if (sectionId < 1 || sectionId > 4) return;
+    if (isUpdatingForm) {
+      confirmTypewriterRef.current.followUi = false;
+    }
     formStepDirRef.current = sectionId > activeStep ? 1 : sectionId < activeStep ? -1 : 0;
     openFormSection(sectionId);
   };
@@ -634,8 +641,11 @@ export const BuildSkillModal: React.FC<BuildSkillModalProps> = ({
         (n, c) => n + c.steps.filter((s) => s.name.trim()).length,
         0,
       );
+      if (skillBodyMode === 'knowledge') {
+        if (knowledgeContent.trim()) return '已填知识';
+        return '未完善';
+      }
       if (stepCount > 0) return `${stepCount} 个步骤`;
-      if (knowledgeContent.trim()) return '已填知识';
       return '未完善';
     }
     if (sectionId === 3) {
@@ -667,8 +677,10 @@ export const BuildSkillModal: React.FC<BuildSkillModalProps> = ({
         (n, c) => n + c.steps.filter((s) => s.name.trim()).length,
         0,
       );
-      if (stepCount > 0 && knowledgeContent.trim()) return 'done';
-      if (stepCount > 0 || knowledgeContent.trim()) return 'partial';
+      if (skillBodyMode === 'knowledge') {
+        return knowledgeContent.trim() || knowledgeDesc.trim() ? 'done' : 'empty';
+      }
+      if (stepCount > 0) return 'done';
       return 'empty';
     }
     if (sectionId === 3) {
@@ -1072,8 +1084,8 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
 
   const [chatMessages, setChatMessages] = useState<Array<{sender: string, name: string, content: string, timestamp: string, isRevoked?: boolean}>>([]);
   const [chatInput, setChatInput] = useState('');
-  /** 底部「AI 帮写」已选中的快捷芯片（可多选叠加到输入框） */
-  const [composerChipSelections, setComposerChipSelections] = useState<SkillReplyPeChip[]>([]);
+  /** 底部快捷芯片：已点选回填后从建议条移除（无选中态） */
+  const [composerConsumedChipIds, setComposerConsumedChipIds] = useState<string[]>([]);
   /** 确认卡「重新设置要求」：回填输入框供二次编辑 */
   const [composerResetMode, setComposerResetMode] = useState(false);
   const [goalGhostTipIndex, setGoalGhostTipIndex] = useState(0);
@@ -1104,7 +1116,42 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
   /** 用户消息：在气泡内联编辑 */
   const [editingUserMsgIndex, setEditingUserMsgIndex] = useState<number | null>(null);
   const [editingUserMsgDraft, setEditingUserMsgDraft] = useState('');
-  const confirmTypewriterRef = useRef({ cancelled: false });
+  const confirmTypewriterRef = useRef({
+    cancelled: false,
+    /** 用户未手动切卡时，写入跟随切到对应表单页 */
+    followUi: true,
+  });
+  const formSnapshotRef = useRef({
+    cnName: '',
+    businessProblem: '',
+    triggerCond: '',
+    forbiddenCond: '',
+    coreInputIn: '',
+    coreInputOut: '',
+    notAllowed: '',
+    contentRedLines: '',
+    fallback: '',
+    usageExamples: '',
+    customNotes: '',
+    actionChainNames: '' as string,
+  });
+  formSnapshotRef.current = {
+    cnName,
+    businessProblem,
+    triggerCond,
+    forbiddenCond,
+    coreInputIn,
+    coreInputOut,
+    notAllowed,
+    contentRedLines,
+    fallback,
+    usageExamples,
+    customNotes,
+    actionChainNames: (actionChains[0]?.steps || [])
+      .map((step) => step.name)
+      .filter(Boolean)
+      .join(' → '),
+  };
   const pendingResetRequirementsRef = useRef(false);
   const chatComposerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const userBubbleEditRef = useRef<HTMLTextAreaElement | null>(null);
@@ -1169,49 +1216,25 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     ],
   );
 
-  const toggleComposerReplyChip = useCallback((chip: SkillReplyPeChip) => {
-    setComposerChipSelections((prev) => {
-      const exists = prev.some((item) => item.id === chip.id);
-      if (exists) {
-        setChatInput((current) => removeComposerChipBlock(current, chip));
-        return prev.filter((item) => item.id !== chip.id);
-      }
-      setChatInput((current) => appendComposerChipBlock(current, chip));
-      return [...prev, chip];
-    });
-    setComposerResetMode(false);
-    requestAnimationFrame(() => {
-      const el = chatComposerTextareaRef.current;
-      if (!el) return;
-      el.focus();
-      const end = el.value.length;
-      el.setSelectionRange(end, end);
-    });
-  }, []);
+  const visibleComposerReplyPe = useMemo(
+    () => composerReplyPe.filter((chip) => !composerConsumedChipIds.includes(chip.id)),
+    [composerReplyPe, composerConsumedChipIds],
+  );
 
-  const handleConfirmResetRequirements = useCallback((items: SkillConfirmItem[]) => {
+  useEffect(() => {
+    setComposerConsumedChipIds((prev) =>
+      prev.filter((id) => composerReplyPe.some((chip) => chip.id === id)),
+    );
+  }, [composerReplyPe]);
+
+  const applyComposerReplyChip = useCallback((chip: SkillReplyPeChip) => {
+    const outbound = appendComposerChipBlock('', chip);
+    setComposerConsumedChipIds((prev) => (prev.includes(chip.id) ? prev : [...prev, chip.id]));
+    setComposerResetMode(false);
     setConfirmEditTarget(null);
-    setComposerChipSelections([]);
-    const checked = items.filter((item) => item.checked);
-    const blocks = checked.map((item, index) => {
-      const label = item.fieldLabel || `要点 ${index + 1}`;
-      const body = (item.value || item.label.replace(/^[^：:]+[：:]\s*/, '')).trim();
-      return { label, body };
-    });
-    const intro = '我想重新设置技能要求，请按以下内容重新拆解草案：';
-    const text =
-      blocks.length > 0
-        ? `${intro}\n\n${buildComposerTaggedInput(blocks)}`
-        : `${intro}\n\n请告诉我需要调整的方向。`;
-    setChatInput(text.slice(0, 1000));
-    setComposerResetMode(true);
-    requestAnimationFrame(() => {
-      const el = chatComposerTextareaRef.current;
-      if (!el) return;
-      el.focus();
-      el.setSelectionRange(el.value.length, el.value.length);
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
+    setChatInput('');
+    // 快捷芯片一键发送，直接弹出思考与确认卡（无需再点发送）
+    handleSendChatMessageRef.current(outbound);
   }, []);
 
   const goalGhostTip = GOAL_LANDING_TIPS[goalGhostTipIndex % GOAL_LANDING_TIPS.length];
@@ -1251,6 +1274,20 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
       el.setSelectionRange(end, end);
     });
   }, [chatInput]);
+
+  useEffect(() => {
+    const el = chatComposerTextareaRef.current;
+    if (!el || !skillGoalReady) return;
+    el.style.height = 'auto';
+    const next = Math.min(Math.max(el.scrollHeight, 44), 160);
+    el.style.height = `${next}px`;
+  }, [
+    chatInput,
+    skillGoalReady,
+    composerConsumedChipIds.length,
+    confirmEditTarget,
+    composerResetMode,
+  ]);
 
   useEffect(() => {
     if (skillGoalReady || isAiThinking || !chatInput.trim()) {
@@ -1734,12 +1771,12 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
       updatedCompleted.push(1);
     }
 
-    // Step 2: 技能主体 (Required: knowledge content or at least one step name)
+    // Step 2: 技能主体（业务知识 / 执行步骤 二选一）
     const hasKnowledge = (knowledgeContent && knowledgeContent.trim().length > 0) || (selectedKBs && selectedKBs.length > 0) || (knowledgeDesc && knowledgeDesc.trim().length > 0);
     const hasStepName = actionChains.length > 0 && actionChains.some(c => 
       c.steps.length > 0 && c.steps.some(st => st.name.trim().length > 0)
     );
-    if (hasKnowledge || hasStepName) {
+    if (skillBodyMode === 'knowledge' ? hasKnowledge : hasStepName) {
       updatedCompleted.push(2);
     }
 
@@ -1784,6 +1821,10 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     coreInputIn,
     coreInputOut,
     actionChainsKey,
+    skillBodyMode,
+    knowledgeContent,
+    knowledgeDesc,
+    selectedKBs,
     notAllowed,
     fallback,
     usageExamples,
@@ -1814,6 +1855,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
       knowledgeBoundary,
       knowledgeContent,
       knowledgeDesc,
+      skillBodyMode,
       knowledgeScripts: [...knowledgeScripts],
       knowledgeKbs: [...knowledgeKbs],
       answerTone,
@@ -1865,6 +1907,9 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     if (snapshot.knowledgeBoundary !== undefined) setKnowledgeBoundary(snapshot.knowledgeBoundary);
     if (snapshot.knowledgeContent !== undefined) setKnowledgeContent(snapshot.knowledgeContent);
     if (snapshot.knowledgeDesc !== undefined) setKnowledgeDesc(snapshot.knowledgeDesc);
+    if (snapshot.skillBodyMode === 'knowledge' || snapshot.skillBodyMode === 'steps') {
+      setSkillBodyMode(snapshot.skillBodyMode);
+    }
     if (snapshot.knowledgeScripts) setKnowledgeScripts(snapshot.knowledgeScripts);
     if (snapshot.knowledgeKbs) setKnowledgeKbs(snapshot.knowledgeKbs);
     if (snapshot.answerTone !== undefined) setAnswerTone(snapshot.answerTone);
@@ -1908,6 +1953,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
       knowledgeBoundary,
       knowledgeContent,
       knowledgeDesc,
+      skillBodyMode,
       knowledgeScripts: [...knowledgeScripts],
       knowledgeKbs: [...knowledgeKbs],
       answerTone,
@@ -1956,6 +2002,9 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     if (snapshot.knowledgeBoundary !== undefined) setKnowledgeBoundary(snapshot.knowledgeBoundary);
     if (snapshot.knowledgeContent !== undefined) setKnowledgeContent(snapshot.knowledgeContent);
     if (snapshot.knowledgeDesc !== undefined) setKnowledgeDesc(snapshot.knowledgeDesc);
+    if (snapshot.skillBodyMode === 'knowledge' || snapshot.skillBodyMode === 'steps') {
+      setSkillBodyMode(snapshot.skillBodyMode);
+    }
     if (snapshot.knowledgeScripts) setKnowledgeScripts(snapshot.knowledgeScripts);
     if (snapshot.knowledgeKbs) setKnowledgeKbs(snapshot.knowledgeKbs);
     if (snapshot.answerTone !== undefined) setAnswerTone(snapshot.answerTone);
@@ -1994,7 +2043,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     seedPromptConsumedRef.current = true;
     seedFirstTurnRef.current = true;
     setSkillGoalReady(true);
-    setRightCollapsed(false);
+    setRightCollapsed(true);
     setPendingAutoSend(seed);
   }, [open, initialPrompt, draftSkillId]);
 
@@ -2016,16 +2065,18 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     /** 编辑入口：跳过「描述技能目标」落地页，直接进入多轮 AOP */
     setSkillGoalReady(true);
     setDraftConfirmed(true);
-    setRightCollapsed(false);
+    setRightCollapsed(true);
     setCompletedSteps([1, 2, 3, 4]);
 
     if (skill.draftData) {
       restoreFullSnapshot(skill.draftData);
       setSkillGoalReady(true);
-      setRightCollapsed(false);
       const snap = skill.draftData as Record<string, unknown>;
       if (typeof snap.draftConfirmed === 'boolean') setDraftConfirmed(snap.draftConfirmed);
       else setDraftConfirmed(true);
+      const confirmed =
+        typeof snap.draftConfirmed === 'boolean' ? snap.draftConfirmed : true;
+      setRightCollapsed(!confirmed);
       if (Array.isArray(snap.chatMessages) && snap.chatMessages.length > 0) {
         setChatMessages(snap.chatMessages as typeof chatMessages);
       } else {
@@ -2048,6 +2099,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     setEnId(skill.enId || skill.skillCode || '');
     setBusinessProblem(skill.description || '');
     setChatStep(5);
+    setRightCollapsed(false);
     const skillLabel = skill.cnName || skill.name || '当前技能';
     setChatMessages([
       {
@@ -2387,13 +2439,14 @@ ${usageExamples || '暂无调用示例'}
     fieldLabel: string,
     value: string,
   ): SkillConfirmItem => {
-    const compact = (value || '').replace(/\s+/g, ' ').trim() || '未填写';
+    const text = (value || '').replace(/\r\n/g, '\n').trim() || '未填写';
+    const compactLabel = text.replace(/\s+/g, ' ');
     return {
       id: fieldKey,
       fieldKey,
       fieldLabel,
-      value: compact,
-      label: `${fieldLabel}：${compact}`,
+      value: text,
+      label: `${fieldLabel}：${compactLabel}`,
       checked: true,
     };
   };
@@ -2422,10 +2475,11 @@ ${usageExamples || '暂无调用示例'}
   const switchToConfirmFieldSection = (fieldKey: SkillConfirmFieldKey) => {
     if (centerTabRef.current !== 'form') return;
     const sectionId = sectionForConfirmField(fieldKey);
+    setCompletedSteps((steps) => [...new Set([...steps, sectionId])]);
+    if (!confirmTypewriterRef.current.followUi) return;
     const prev = activeStepRef.current;
     formStepDirRef.current = sectionId > prev ? 1 : sectionId < prev ? -1 : 0;
     openFormSection(sectionId);
-    setCompletedSteps((steps) => [...new Set([...steps, sectionId])]);
     requestAnimationFrame(() => {
       document.getElementById(confirmFieldDomId(fieldKey))?.scrollIntoView({
         behavior: 'smooth',
@@ -2459,13 +2513,48 @@ ${usageExamples || '暂无调用示例'}
     }, 3200);
   };
 
+  const parseActionChainStepNames = (value: string): string[] => {
+    const marked = value.match(/写入表单步骤名[：:]\s*([^\n）)]+)/);
+    if (marked?.[1]) {
+      return marked[1]
+        .split(/\s*→\s*|\s*->\s*/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    const numbered = [...value.matchAll(/^\s*\d+[\.、．]\s*(.+)$/gm)]
+      .map((m) => m[1].trim())
+      .filter(Boolean);
+    if (numbered.length > 0) return numbered;
+    return value
+      .split(/\s*→\s*|\s*->\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  };
+
+  const getConfirmFieldSnapshot = (fieldKey: SkillConfirmFieldKey): string => {
+    const snap = formSnapshotRef.current;
+    if (fieldKey === 'cnName') return snap.cnName;
+    if (fieldKey === 'businessProblem') return snap.businessProblem;
+    if (fieldKey === 'triggerCond') return snap.triggerCond;
+    if (fieldKey === 'forbiddenCond') return snap.forbiddenCond;
+    if (fieldKey === 'coreInputIn') return snap.coreInputIn;
+    if (fieldKey === 'coreInputOut') return snap.coreInputOut;
+    if (fieldKey === 'notAllowed') return snap.notAllowed;
+    if (fieldKey === 'contentRedLines') return snap.contentRedLines;
+    if (fieldKey === 'fallback') return snap.fallback;
+    if (fieldKey === 'usageExamples') return snap.usageExamples;
+    if (fieldKey === 'customNotes') return snap.customNotes;
+    if (fieldKey === 'actionChain') return snap.actionChainNames;
+    return '';
+  };
+
   const applyConfirmValueToForm = (
     fieldKey: SkillConfirmFieldKey,
     value: string,
-    options?: { scroll?: boolean; openSection?: boolean },
+    options?: { scroll?: boolean; openSection?: boolean; allowEmpty?: boolean },
   ) => {
     const next = value.trim();
-    if (!next) return;
+    if (!next && !options?.allowEmpty) return;
     if (fieldKey === 'cnName') setCnName(next.slice(0, 30));
     if (fieldKey === 'businessProblem') setBusinessProblem(next.slice(0, 50));
     if (fieldKey === 'triggerCond') setTriggerCond(next.slice(0, 200));
@@ -2478,7 +2567,7 @@ ${usageExamples || '暂无调用示例'}
     if (fieldKey === 'usageExamples') setUsageExamples(next.slice(0, 1000));
     if (fieldKey === 'customNotes') setCustomNotes(next);
     if (fieldKey === 'actionChain') {
-      const names = next.split(/\s*→\s*|\s*->\s*/).map((s) => s.trim()).filter(Boolean);
+      const names = parseActionChainStepNames(next);
       if (names.length > 0) {
         setActionChains((prev) =>
           prev.map((chain, idx) =>
@@ -2492,13 +2581,24 @@ ${usageExamples || '暂无调用示例'}
               : chain,
           ),
         );
+      } else if (options?.allowEmpty) {
+        setActionChains((prev) =>
+          prev.map((chain, idx) =>
+            idx === 0
+              ? {
+                  ...chain,
+                  steps: chain.steps.map((step) => ({ ...step, name: '' })),
+                }
+              : chain,
+          ),
+        );
       }
     }
     setIsFormDirty(true);
-    if (options?.openSection) {
+    if (options?.openSection && confirmTypewriterRef.current.followUi) {
       openFormSection(sectionForConfirmField(fieldKey));
     }
-    if (options?.scroll !== false) {
+    if (options?.scroll !== false && confirmTypewriterRef.current.followUi) {
       requestAnimationFrame(() => {
         document.getElementById(confirmFieldDomId(fieldKey))?.scrollIntoView({
           behavior: 'smooth',
@@ -2509,13 +2609,12 @@ ${usageExamples || '暂无调用示例'}
   };
 
   const typewriterWriteActionChain = async (value: string) => {
-    const names = value
-      .split(/\s*→\s*|\s*->\s*/)
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const names = parseActionChainStepNames(value);
     if (names.length === 0) return;
 
-    switchToConfirmFieldSection('actionChain');
+    if (confirmTypewriterRef.current.followUi) {
+      switchToConfirmFieldSection('actionChain');
+    }
     setConfirmFieldTyping('actionChain', true);
 
     setActionChains((prev) => {
@@ -2533,13 +2632,28 @@ ${usageExamples || '暂无调用示例'}
           associatedDocs: [],
         });
       }
-      return prev.map((item, idx) => (idx === 0 ? { ...item, steps } : item));
+      return prev.map((item, idx) =>
+        idx === 0
+          ? {
+              ...item,
+              steps: steps.map((step, stepIdx) =>
+                stepIdx < names.length ? { ...step, name: '' } : step,
+              ),
+            }
+          : item,
+      );
     });
 
+    await sleep(CONFIRM_TYPEWRITER_MS);
+    let lastWritten = '';
     for (let stepIdx = 0; stepIdx < names.length; stepIdx += 1) {
       const fullName = names[stepIdx];
       for (let i = 1; i <= fullName.length; i += 1) {
         if (confirmTypewriterRef.current.cancelled) return;
+        if (getConfirmFieldSnapshot('actionChain') !== lastWritten) {
+          setConfirmFieldTyping('actionChain', false);
+          return;
+        }
         const partial = fullName.slice(0, i);
         setActionChains((prev) =>
           prev.map((chain, chainIdx) =>
@@ -2553,12 +2667,36 @@ ${usageExamples || '暂无调用示例'}
               : chain,
           ),
         );
+        lastWritten = [...names.slice(0, stepIdx), partial].join(' → ');
         await sleep(CONFIRM_TYPEWRITER_MS + (i % 4 === 0 ? 6 : 0));
       }
     }
 
     setIsFormDirty(true);
     setConfirmFieldTyping('actionChain', false);
+  };
+
+  const capConfirmFieldValue = (fieldKey: SkillConfirmFieldKey, value: string): string => {
+    const next = value.trim();
+    if (fieldKey === 'cnName') return next.slice(0, 30);
+    if (fieldKey === 'businessProblem') return next.slice(0, 50);
+    if (fieldKey === 'usageExamples') return next.slice(0, 1000);
+    if (
+      fieldKey === 'notAllowed' ||
+      fieldKey === 'contentRedLines' ||
+      fieldKey === 'fallback'
+    ) {
+      return next.slice(0, 500);
+    }
+    if (
+      fieldKey === 'triggerCond' ||
+      fieldKey === 'forbiddenCond' ||
+      fieldKey === 'coreInputIn' ||
+      fieldKey === 'coreInputOut'
+    ) {
+      return next.slice(0, 200);
+    }
+    return next;
   };
 
   const typewriterWriteToField = async (fieldKey: SkillConfirmFieldKey, value: string) => {
@@ -2569,16 +2707,31 @@ ${usageExamples || '暂无调用示例'}
       return;
     }
 
-    switchToConfirmFieldSection(fieldKey);
+    if (confirmTypewriterRef.current.followUi) {
+      switchToConfirmFieldSection(fieldKey);
+    }
     setConfirmFieldTyping(fieldKey, true);
-    applyConfirmValueToForm(fieldKey, '', { scroll: false, openSection: false });
+    applyConfirmValueToForm(fieldKey, '', {
+      scroll: false,
+      openSection: false,
+      allowEmpty: true,
+    });
+    await sleep(CONFIRM_TYPEWRITER_MS);
 
+    let lastWritten = '';
     for (let i = 1; i <= next.length; i += 1) {
       if (confirmTypewriterRef.current.cancelled) return;
-      applyConfirmValueToForm(fieldKey, next.slice(0, i), {
+      if (getConfirmFieldSnapshot(fieldKey) !== lastWritten) {
+        // 用户改过该字段：停止本字段，其它字段继续写
+        setConfirmFieldTyping(fieldKey, false);
+        return;
+      }
+      const partial = capConfirmFieldValue(fieldKey, next.slice(0, i));
+      applyConfirmValueToForm(fieldKey, partial, {
         scroll: false,
         openSection: false,
       });
+      lastWritten = partial;
       await sleep(CONFIRM_TYPEWRITER_MS + (i % 4 === 0 ? 6 : 0));
     }
 
@@ -2596,6 +2749,7 @@ ${usageExamples || '暂无调用示例'}
     setRightCollapsed(false);
     setEditingMarkdown(null);
     confirmTypewriterRef.current.cancelled = false;
+    confirmTypewriterRef.current.followUi = true;
     setIsUpdatingForm(true);
 
     const pendingSide = pendingGoalDraftSideRef.current;
@@ -2650,23 +2804,43 @@ ${usageExamples || '暂无调用示例'}
       .toString(36)
       .slice(0, 8)}`;
     const intro =
-      raw
-        .replace(/^[\s\S]*[」』”"]技能[：:]?\s*/, '')
-        .replace(/^帮我做[一个]*[「『"']?[^」』"']+[」』"']?\s*技能[：:]?\s*/, '')
-        .trim()
-        .slice(0, 50) || raw.slice(0, 50);
-    const trigger = `当用户表达「${extractedCn}」相关意图，并提供必要业务标识（如单号）时`;
-    const forbiddenCond = '非本技能业务范围；缺少关键标识或情绪严重失控时';
-    const inputIn = '用户诉求与必要业务标识（如订单号、物流单号）';
-    const outputOut = '是否可办理、办理路径、时效与费用规则，或不可办理原因';
+      (
+        raw
+          .replace(/^[\s\S]*[」』”"]技能[：:]?\s*/, '')
+          .replace(/^帮我做[一个]*[「『"']?[^」』"']+[」』"']?\s*技能[：:]?\s*/, '')
+          .replace(/^[。．.!！?？、，,\s]+/, '')
+          .trim() || raw.trim()
+      ).slice(0, 50) || extractedCn;
+    const trigger =
+      `当用户表达「${extractedCn}」相关意图（如查询进度、办理状态、下一步怎么走），并提供必要业务标识（服务单号 / 订单号等）时触发；可用手机号后四位做轻量核验。`.slice(
+        0,
+        200,
+      );
+    const forbiddenCond =
+      `非「${extractedCn}」业务范围；缺少关键业务标识且用户拒绝补充；情绪严重失控、明确要求投诉升级，或需越权改单 / 承诺赔付时，不该使用本技能。`.slice(
+        0,
+        200,
+      );
+    const inputIn =
+      `用户自然语言诉求；必要业务标识（如延保服务单号、订单号、物流单号）；可选核验信息（手机号后四位）；用户对时效 / 寄回 / 进度节点的追问。`.slice(
+        0,
+        200,
+      );
+    const outputOut =
+      `当前办理节点与可读状态说明；预计时效或下一步动作；若不可办理则给出原因与可执行替代路径（含是否需转人工）。`.slice(
+        0,
+        200,
+      );
     const step1Name = '核验诉求与业务标识';
     const step2Name = '查询并组织结论';
     const generatedSteps: ExecutionStep[] = [
       {
         id: 1,
         name: step1Name,
-        description: '解析用户意图，校验必要标识是否齐全。',
-        example: '用户提供服务单号后，确认属于本技能可处理范围。',
+        description:
+          '解析用户意图是否属于本技能范围；检查服务单号 / 订单号等必要标识是否齐全；缺失时礼貌追问，齐全后做轻量核验（如手机号后四位）再进入查询。',
+        example:
+          '用户：「帮我查一下延保修到哪了，单号 XB20260301。」→ 确认属进度查询，核验标识通过后进入查询步骤。',
         associatedScripts: selectedScripts.length > 0 ? [selectedScripts[0]] : [],
         associatedKBs: [] as string[],
         associatedDocs: [] as string[],
@@ -2674,28 +2848,61 @@ ${usageExamples || '暂无调用示例'}
       {
         id: 2,
         name: step2Name,
-        description: '调用挂载资源获取状态，组织对用户可读的结论。',
-        example: '返回当前处理节点与下一步建议话术。',
+        description:
+          '调用挂载脚本 / 知识库获取真实状态；将内部节点转成用户可理解的进度说明；给出下一步建议话术；异常或越权诉求则按托底策略阻断并转人工。',
+        example:
+          '返回：「您的延保单当前在质检环节，预计 2 个工作日内寄回；如需加急请说明，我帮您转专席。」',
         associatedScripts: [] as string[],
         associatedKBs: selectedKBs.length > 0 ? [selectedKBs[0]] : [],
         associatedDocs: [] as string[],
       },
     ];
-    const notAllowed = '严禁越权改单、擅自承诺赔付标准、泄露后台接口或未授权写操作。';
-    const fallback = '阻断并回复：该请求需人工处理，正在为您转接专席…';
-    const contentRedLines = '不编造进度、不泄露内部工单与接口细节。';
-    const usageExamples = `用户："帮我查一下进度"\n数字员工：启用本技能，核验标识后返回当前节点与下一步。`;
-    const customNotes = '高峰或接口延迟时，3 秒内告知用户稍候。';
+    const notAllowed =
+      `严禁越权改单、擅自承诺赔付或时效标准、伪造进度；不得泄露后台接口、内部工单号规则或未授权写操作；不得在未核验标识时直接查询并回传完整客户资料。`.slice(
+        0,
+        500,
+      );
+    const fallback =
+      `当标识缺失且用户拒绝补充、系统接口超时 / 报错、或诉求超出本技能范围时：明确告知需人工处理，安抚后转接专席，并同步已收集的业务标识，避免用户重复说明。`.slice(
+        0,
+        500,
+      );
+    const contentRedLines =
+      `不编造进度与时效；不泄露内部工单、仓库地址、接口细节；不输出未授权的客户隐私字段；不确定时说明「以系统实时状态为准」并引导核验或转人工。`.slice(
+        0,
+        500,
+      );
+    const usageExamples = [
+      `用户："帮我查一下延保进度，单号 XB20260301。"`,
+      `数字员工：启用「${extractedCn}」，核验单号后返回当前节点、预计时效与下一步建议。`,
+      ``,
+      `用户："修到哪一步了？什么时候寄回？"`,
+      `数字员工：确认标识后说明当前环节与寄回预估；若系统无时效则如实说明并给出跟进方式。`,
+    ].join('\n');
+    const customNotes =
+      `高峰或接口延迟时，3 秒内先告知用户「正在查询，请稍候」；同一会话内已核验的标识可复用，避免重复追问；多单并存时请用户确认目标单号再继续。`;
+    const actionChainSummary = [
+      `1. ${step1Name}`,
+      `说明：${generatedSteps[0].description}`,
+      `实例：${generatedSteps[0].example}`,
+      ``,
+      `2. ${step2Name}`,
+      `说明：${generatedSteps[1].description}`,
+      `实例：${generatedSteps[1].example}`,
+      ``,
+      `（写入表单步骤名：${step1Name} → ${step2Name}）`,
+    ].join('\n');
 
     return {
       extractedCn,
       side: {
         enId: extractedEn,
         generatedSteps,
-        knowledgeContent: `围绕「${extractedCn}」核验标识、查询状态并给出可读结论。`,
-        knowledgeDesc: '执行前先核验必要标识；查询结果需转成用户可理解的节点说明。',
-        answerTone: '先结论后依据，语气克制清晰。',
-        outputConstraints: '结论须简明，含状态与下一步；严禁泄露后台地址。',
+        knowledgeContent: `围绕「${extractedCn}」完成标识核验、状态查询与可读结论输出；优先使用已挂载脚本取数，知识库补充话术与规则口径。`,
+        knowledgeDesc:
+          '执行前先核验必要标识；查询结果须转成用户可理解的节点说明；异常与越权统一走托底与内容红线。',
+        answerTone: '先结论后依据，语气克制清晰；涉及时效用「预计」表述，避免绝对承诺。',
+        outputConstraints: '结论须简明，含状态与下一步；严禁泄露后台地址与内部字段。',
       },
       confirmItems: [
         toConfirmItem('cnName', '技能名称', extractedCn),
@@ -2704,7 +2911,7 @@ ${usageExamples || '暂无调用示例'}
         toConfirmItem('forbiddenCond', '不该使用的情况', forbiddenCond),
         toConfirmItem('coreInputIn', '用户输入信息', inputIn),
         toConfirmItem('coreInputOut', '产出物', outputOut),
-        toConfirmItem('actionChain', '执行步骤', `${step1Name} → ${step2Name}`),
+        toConfirmItem('actionChain', '执行步骤', actionChainSummary),
         toConfirmItem('notAllowed', '禁止行为', notAllowed),
         toConfirmItem('contentRedLines', '内容红线', contentRedLines),
         toConfirmItem('fallback', '托底策略', fallback),
@@ -2768,9 +2975,7 @@ ${usageExamples || '暂无调用示例'}
     const textToSend =
       forcedText !== undefined
         ? forcedText
-        : confirmEditTarget
-          ? chatInput
-          : buildComposerOutboundText(chatInput, composerChipSelections);
+        : chatInput;
     if (!textToSend.trim()) {
       if (confirmEditTarget && forcedText === undefined) {
         showToast('请输入修改内容');
@@ -2820,7 +3025,7 @@ ${usageExamples || '暂无调用示例'}
       setMessageQueue(prev => [...prev, textToSend]);
       if (forcedText === undefined) {
         setChatInput('');
-        setComposerChipSelections([]);
+        setComposerConsumedChipIds([]);
       }
       showToast('当前 AI 正在深度思考中，您的消息已成功加入发送队列，将在思考完成后自动处理');
       return;
@@ -2865,7 +3070,7 @@ ${usageExamples || '暂无调用示例'}
     setChatMessages(prev => [...prev, userMsg]);
     if (forcedText === undefined) {
       setChatInput('');
-      setComposerChipSelections([]);
+      setComposerConsumedChipIds([]);
       setComposerResetMode(false);
     }
     clearBubbleTimers();
@@ -2877,7 +3082,7 @@ ${usageExamples || '暂无调用示例'}
       seedFirstTurnRef.current = false;
       pendingGoalRef.current = userText;
       setSkillGoalReady(true);
-      setRightCollapsed(false);
+      setRightCollapsed(true);
       startThinkThen(buildClarifyThinkPlan(userText), () => {
         archiveThinkPlanToChat();
         setIsAiThinking(false);
@@ -2945,6 +3150,16 @@ ${usageExamples || '暂无调用示例'}
         userText.trim() === '新增技能';
       const useRoundDefault = /默认|采用|继续|好的|好|嗯|可以|按这个/.test(userText) || userText.trim().length < 6;
 
+      const stripComposerTags = (raw: string) =>
+        raw
+          .replace(/^【[^】]+】\s*/gm, '')
+          .replace(/\n{2,}/g, '\n')
+          .trim();
+      const refineBody = stripComposerTags(userText);
+      const looksLikePeChip =
+        /^【/.test(userText.trim()) ||
+        /^(?:补触发|补安全红线|生成动作链|补使用示例)/.test(refineBody);
+
       const fillDefinition = (raw: string) => {
         const extractedCn =
           raw.length > 24 ? `${raw.slice(0, 22)}…` : raw.replace(/[。.!！?？]+$/, '').slice(0, 30);
@@ -2966,21 +3181,21 @@ ${usageExamples || '暂无调用示例'}
         return extractedCn;
       };
 
-      if ((chatStep === 0 || chatStep === 1) && isMagicOnly) {
+      if ((chatStep === 0 || chatStep === 1) && isMagicOnly && !looksLikePeChip) {
         openFormSection(1);
         setChatStep(1);
         aiBubbles = [
           '好的。请直接描述业务能力，例如「查询京东延保服务单进度并告知处理节点」。',
           '也可以点选下方示例。说完第一轮后，我会把「技能定义」写到右侧。',
         ];
-      } else if ((chatStep === 0 || chatStep === 1) && looksLikeIntent) {
+      } else if ((chatStep === 0 || chatStep === 1) && looksLikeIntent && !looksLikePeChip) {
         const extractedCn = fillDefinition(userText);
         aiBubbles = [
           `第一轮已写入「技能定义」：${extractedCn}。`,
           { sender: 'system_status', content: '已更新第 1 张卡片，下一轮进入技能主体' },
           '第二轮请告诉我技能怎么执行：步骤、知识或点「采用默认动作链」。',
         ];
-      } else if (chatStep === 2) {
+      } else if (chatStep === 2 && !looksLikePeChip) {
         const generatedSteps = [
           {
             id: 1,
@@ -3016,7 +3231,7 @@ ${usageExamples || '暂无调用示例'}
           { sender: 'system_status', content: '已更新第 2 张卡片' },
           '第三轮请约定红线与兜底，或点「采用高安全防护线」。',
         ];
-      } else if (chatStep === 3) {
+      } else if (chatStep === 3 && !looksLikePeChip) {
         const extractedNotAllowed = useRoundDefault
           ? '严禁越权改单、擅自承诺赔付标准、泄露后台接口或未授权写操作。'
           : userText.slice(0, 200);
@@ -3032,7 +3247,7 @@ ${usageExamples || '暂无调用示例'}
           { sender: 'system_status', content: '已更新第 3 张卡片' },
           '第四轮请补一条示例或备注，或点「采用默认说明」。',
         ];
-      } else if (chatStep === 4) {
+      } else if (chatStep === 4 && !looksLikePeChip) {
         const extractedExamples =
           useRoundDefault
             ? `用户："帮我查一下进度"\n数字员工：启用本技能，核验标识后返回当前节点与下一步。`
@@ -3046,7 +3261,13 @@ ${usageExamples || '暂无调用示例'}
           { sender: 'system_status', content: '可点「展开配置」核对草案' },
           '需要时点右上角展开配置核对；确认后可测一条或校验发布。',
         ];
-      } else if (chatStep === 5 || chatStep === 10 || chatStep === 11 || chatStep >= 7) {
+      } else if (
+        chatStep === 5 ||
+        chatStep === 10 ||
+        chatStep === 11 ||
+        chatStep >= 7 ||
+        looksLikePeChip
+      ) {
         type RefineTopic = 'io' | 'trigger' | 'chain' | 'safety' | 'examples' | null;
         const t = userText;
         const topic: RefineTopic =
@@ -3068,10 +3289,12 @@ ${usageExamples || '暂无调用示例'}
 
         if (topic === 'trigger') {
           didPatch = true;
-          const extractedTrigger =
-            /默认|补触发|触发边界/.test(t) && t.length < 16
-              ? `当用户表达「${cnName || '该业务'}」相关意图，并提供必要业务标识（如单号）时`
-              : t.replace(/^补触发边界[：:]?\s*/, '').slice(0, 200);
+          const cleaned = refineBody.replace(/^补触发边界[：:]?\s*/, '').trim();
+          const instructional =
+            cleaned.length < 16 || /请根据|写清何时|我想优化|再写具体/.test(cleaned);
+          const extractedTrigger = instructional
+            ? `当用户表达「${cnName || '该业务'}」相关意图，并提供必要业务标识（如单号）时`
+            : cleaned.slice(0, 200);
           const nextForbidden = '非本技能范围、缺少关键标识、情绪严重失控或客诉升级时不该使用';
           setTriggerCond(extractedTrigger);
           setForbiddenCond(nextForbidden);
@@ -3129,7 +3352,17 @@ ${usageExamples || '暂无调用示例'}
             toConfirmItem(
               'actionChain',
               '执行步骤',
-              `${generatedSteps[0].name} → ${generatedSteps[1].name}`,
+              [
+                `1. ${generatedSteps[0].name}`,
+                `说明：${generatedSteps[0].description}`,
+                `实例：${generatedSteps[0].example}`,
+                ``,
+                `2. ${generatedSteps[1].name}`,
+                `说明：${generatedSteps[1].description}`,
+                `实例：${generatedSteps[1].example}`,
+                ``,
+                `（写入表单步骤名：${generatedSteps[0].name} → ${generatedSteps[1].name}）`,
+              ].join('\n'),
             ),
           ];
           aiBubbles = [
@@ -3261,7 +3494,7 @@ ${usageExamples || '暂无调用示例'}
     setGoalResourceOpen(false);
     setGoalResourceQuery('');
     setChatInput('');
-    setComposerChipSelections([]);
+    setComposerConsumedChipIds([]);
     setComposerResetMode(false);
     showToast('已回到技能目标输入');
 
@@ -3317,7 +3550,7 @@ ${usageExamples || '暂无调用示例'}
       overflowFields.push('技能定义：产出物 (超过200字上限)');
     }
 
-    // 第 2 部分 技能主体 (知识内容与执行步骤名称二选一必填)
+    // 第 2 部分 技能主体（业务知识 / 执行步骤 二选一必填）
     if (knowledgeContent && knowledgeContent.length > 1000) {
       overflowFields.push('技能主体：知识内容 (超过1000字上限)');
     }
@@ -3329,8 +3562,12 @@ ${usageExamples || '暂无调用示例'}
     const hasKnowledgeContent = (knowledgeContent && knowledgeContent.trim().length > 0) || (selectedKBs && selectedKBs.length > 0) || (knowledgeDesc && knowledgeDesc.trim().length > 0);
     const hasStepName = stepsList.some(s => s.name && s.name.trim().length > 0);
 
-    if (!hasKnowledgeContent && !hasStepName) {
-      missingFields.push('技能主体：知识内容与执行步骤名称二选一必填，请填写其中一项');
+    if (skillBodyMode === 'knowledge') {
+      if (!hasKnowledgeContent) {
+        missingFields.push('技能主体：请填写业务知识（知识内容或知识说明）');
+      }
+    } else if (!hasStepName) {
+      missingFields.push('技能主体：请至少填写一个执行步骤名称');
     }
 
     stepsList.forEach((step, idx) => {
@@ -3431,19 +3668,24 @@ ${usageExamples || '暂无调用示例'}
       sectionsToExpand.add(1);
     }
 
-    // 7. 检查技能主体 (知识内容与执行步骤名称二选一必填)
+    // 7. 检查技能主体（业务知识 / 执行步骤 二选一必填）
     const stepsList = actionChains[0]?.steps || [];
     const hasKnowledgeContent = (knowledgeContent && knowledgeContent.trim().length > 0) || (selectedKBs && selectedKBs.length > 0) || (knowledgeDesc && knowledgeDesc.trim().length > 0);
     const hasStepName = stepsList.some(s => s.name && s.name.trim().length > 0);
 
-    if (!hasKnowledgeContent && !hasStepName) {
-      errorFields.push('field-knowledgeContent');
+    if (skillBodyMode === 'knowledge') {
+      if (!hasKnowledgeContent) {
+        errorFields.push('field-knowledgeContent');
+        errorMsgs.push('技能主体：请填写业务知识');
+        sectionsToExpand.add(2);
+      }
+    } else if (!hasStepName) {
       errorFields.push('field-steps-container');
-      errorMsgs.push('技能主体：知识内容与执行步骤名称需至少填写一项');
+      errorMsgs.push('技能主体：请至少填写一个执行步骤名称');
       sectionsToExpand.add(2);
     }
 
-    if (hasStepName) {
+    if (skillBodyMode === 'steps' && hasStepName) {
       const stepNames = stepsList.map(s => s.name.trim()).filter(n => n.length > 0);
       stepsList.forEach((st, idx) => {
         const fId = `field-step-name-${st.id}`;
@@ -4446,7 +4688,7 @@ return (
                           className="w-8 h-8 rounded-[7px] border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 flex items-center justify-center cursor-pointer shrink-0 shadow-[0_1px_0_rgba(0,0,0,0.05)]"
                           title="上传参考"
                         >
-                          <Paperclip size={16} />
+                          <Plus size={16} strokeWidth={2} />
                         </button>
                         <div className="relative" ref={goalResourcePanelRef}>
                           <button
@@ -4984,7 +5226,7 @@ return (
                             : []
                         }
                         onEditItem={(item, itemIndex) => {
-                          setComposerChipSelections([]);
+                          setComposerConsumedChipIds([]);
                           setComposerResetMode(false);
                           const hint = item.fieldLabel || `要点 ${itemIndex + 1}`;
                           const value = (
@@ -5060,7 +5302,6 @@ return (
                             ),
                           );
                         }}
-                        onReset={handleConfirmResetRequirements}
                         onDelete={() => {
                           setChatMessages((prev) => prev.filter((_, idx) => idx !== i));
                           if (confirmEditTarget?.msgIndex === i) {
@@ -5200,7 +5441,7 @@ return (
                                   if (originalIndex < 0) return;
                                   setConfirmEditTarget(null);
                                   setComposerResetMode(false);
-                                  setComposerChipSelections([]);
+                                  setComposerConsumedChipIds([]);
                                   setEditingUserMsgIndex(originalIndex);
                                   setEditingUserMsgDraft(msg.content.slice(0, 1000));
                                   requestAnimationFrame(() => {
@@ -5300,23 +5541,19 @@ return (
             </div>
 
             <div className="w-full max-w-[720px] mx-auto px-3 pb-3 pt-1 shrink-0">
-            {skillGoalReady && !isAiThinking && !hasPendingClarify && composerReplyPe.length > 0 ? (
+            {skillGoalReady && !isAiThinking && !hasPendingClarify && visibleComposerReplyPe.length > 0 ? (
             <div className="pb-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
-              <span className="text-[11px] text-neutral-400 shrink-0 pr-0.5">AI 帮写</span>
-              {composerReplyPe.map((chip) => {
-                const selected = composerChipSelections.some((item) => item.id === chip.id);
-                return (
+              {visibleComposerReplyPe.map((chip) => (
                 <button
                   key={chip.id}
                   type="button"
-                  onClick={() => toggleComposerReplyChip(chip)}
-                  className={selected ? CHIP_ACTIVE : CHIP}
-                  title="点选后回填到输入框，可继续编辑再发送"
+                  onClick={() => applyComposerReplyChip(chip)}
+                  className={CHIP}
+                  title="点选后立刻发送，由 AI 补全并弹出确认卡"
                 >
                   {chip.label}
                 </button>
-                );
-              })}
+              ))}
             </div>
             ) : null}
 
@@ -5339,30 +5576,6 @@ return (
                         <X size={12} />
                       </button>
                     </span>
-                  </div>
-                ) : null}
-                {composerChipSelections.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-2 pb-2 mb-1 border-b border-neutral-100">
-                    {composerChipSelections.map((chip, index) => (
-                      <span
-                        key={chip.id}
-                        className="inline-flex items-center gap-1.5 h-7 pl-1.5 pr-2 rounded-md bg-neutral-100 border border-neutral-200 text-[12px] text-neutral-800 max-w-full"
-                        title={chip.send}
-                      >
-                        <span className="w-5 h-5 rounded bg-neutral-800 text-white text-[11px] font-semibold tabular-nums flex items-center justify-center shrink-0">
-                          {index + 1}
-                        </span>
-                        <span className="truncate">AI 帮写 · {chip.label}</span>
-                        <button
-                          type="button"
-                          onClick={() => toggleComposerReplyChip(chip)}
-                          className="ml-0.5 text-neutral-400 hover:text-neutral-800 cursor-pointer shrink-0"
-                          aria-label={`移除 ${chip.label}`}
-                        >
-                          <X size={12} />
-                        </button>
-                      </span>
-                    ))}
                   </div>
                 ) : null}
                 {confirmEditTarget ? (
@@ -5401,7 +5614,7 @@ return (
                 ) : null}
                 <textarea
                   ref={chatComposerTextareaRef}
-                  rows={3}
+                  rows={1}
                   maxLength={1000}
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
@@ -5410,7 +5623,7 @@ return (
                       e.preventDefault();
                       setComposerResetMode(false);
                       setChatInput('');
-                      setComposerChipSelections([]);
+                      setComposerConsumedChipIds([]);
                       return;
                     }
                     if (e.key === 'Escape' && confirmEditTarget) {
@@ -5436,7 +5649,7 @@ return (
                             ? '继续补充规则，或点上方「AI 帮写」快捷填充…'
                             : '说明想改哪张卡片，或点上方「AI 帮写」快捷填充…'
                   }
-                  className="w-full min-h-[80px] max-h-40 bg-transparent text-[14px] leading-[22px] pb-2 outline-none resize-none placeholder:text-[#B0B2B8] text-[#1C1D1F]"
+                  className="w-full min-h-[44px] max-h-40 overflow-y-auto bg-transparent text-[14px] leading-[22px] pb-2 outline-none resize-none placeholder:text-[#B0B2B8] text-[#1C1D1F]"
                 />
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 min-w-0">
@@ -5446,10 +5659,10 @@ return (
                       className="w-8 h-8 rounded border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 flex items-center justify-center cursor-pointer shrink-0"
                       title="上传文件"
                     >
-                      <Paperclip size={16} />
+                      <Plus size={16} />
                     </button>
                     <span className="text-[14px] leading-[22px] text-neutral-400 tabular-nums">
-                      {composerOutboundLength(chatInput, composerChipSelections)}/1000
+                      {chatInput.length}/1000
                     </span>
                   </div>
                   {isAiThinking ? (
@@ -5464,9 +5677,7 @@ return (
                   ) : (
                     <button
                       type="button"
-                      disabled={
-                        (!chatInput.trim() && composerChipSelections.length === 0) || hasPendingClarify
-                      }
+                      disabled={!chatInput.trim() || hasPendingClarify}
                       onClick={() => handleSendChatMessage()}
                       className={cn(
                         SKILL_AOP_SEND_BTN,
@@ -5491,7 +5702,7 @@ return (
           </div>
 
           {!rightCollapsed && (
-          <div className="flex-1 flex flex-col min-h-0 bg-[#F9F9FB] pl-3 pr-3 pt-0 pb-3 relative transition-all duration-200">
+          <div className="flex-1 flex flex-col min-h-0 bg-[#F9F9FB] pl-3 pr-3 pt-0 pb-3 relative transition-all duration-200 select-text">
             <div className="flex-1 min-h-0 flex flex-col bg-white border border-[#E9EAEB] rounded-2xl shadow-[0_1px_4px_-1px_rgba(0,0,0,0.06)] overflow-hidden">
               {centerTab === 'editor' ? (
                 <ManusExpertFrame
@@ -5604,8 +5815,9 @@ return (
                     <FormCarouselPanel sectionId={1}>
                       <div id="form-section-1" className="flex flex-col h-full min-h-0">
                         {formSectionPanelHeader(1, FORM_SECTION_TITLES[1], true)}
-                        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-                          <div className="space-y-3 px-3 pb-3 pt-1">
+                        <div className={FORM_SECTION_BODY}>
+                          <div className={FORM_SECTION_CARD}>
+                            <div className={FORM_SECTION_CARD_INNER}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <SkillRewriteField
                             fieldKey="cnName"
@@ -5613,7 +5825,7 @@ return (
                             id="field-cnName"
                             value={cnName}
                             maxLength={30}
-                            disabled={isUpdatingForm || isAiThinking}
+                            disabled={isAiThinking}
                             onChange={(val) => {
                               setCnName(val);
                               setIsFormDirty(true);
@@ -5656,7 +5868,7 @@ return (
                             value={enId}
                             maxLength={50}
                             mono
-                            disabled={isUpdatingForm || isAiThinking}
+                            disabled={isAiThinking}
                             onChange={(val) => {
                               setEnId(val);
                               setIsFormDirty(true);
@@ -6148,15 +6360,97 @@ return (
                           </div>
                         </div>
                       </div>
+                      </div>
                     </FormCarouselPanel>
 
                     <FormCarouselPanel sectionId={2}>
                       <div id="form-section-2" className="flex flex-col h-full min-h-0">
                         {formSectionPanelHeader(2, FORM_SECTION_TITLES[2], true)}
-                        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-                          <div className="space-y-3 px-3 pb-3 pt-1">
+                        <div className={FORM_SECTION_BODY}>
+                          <div className={FORM_SECTION_CARD}>
+                            <div className={FORM_SECTION_CARD_INNER}>
+                        {/* 技能主体：业务知识 / 执行步骤 二选一 */}
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1.5">
+                            {REQUIRED_STAR}
+                            <span className="text-xs font-semibold text-neutral-900">技能主体</span>
+                            <span className="text-[10px] text-neutral-400">二选一</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              disabled={isAiThinking}
+                              onClick={() => {
+                                setSkillBodyMode('knowledge');
+                                setIsFormDirty(true);
+                              }}
+                              className={cn(
+                                'flex items-center gap-2.5 rounded-[10px] border px-3 py-2.5 text-left transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
+                                skillBodyMode === 'knowledge'
+                                  ? 'border-neutral-900 bg-neutral-50 shadow-[0_1px_0_rgba(17,17,17,0.06)]'
+                                  : 'border-neutral-200 bg-white hover:bg-neutral-50',
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  'flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px]',
+                                  skillBodyMode === 'knowledge'
+                                    ? 'bg-white text-neutral-900'
+                                    : 'bg-neutral-100 text-neutral-500',
+                                )}
+                              >
+                                <BookOpen size={15} strokeWidth={2.2} />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-xs font-semibold text-neutral-900">业务知识</span>
+                                <span className="block text-[10px] text-neutral-500 mt-0.5 leading-snug">
+                                  沉淀条文与说明
+                                </span>
+                              </span>
+                              {skillBodyMode === 'knowledge' ? (
+                                <Check size={14} className="shrink-0 text-neutral-900" strokeWidth={2.5} />
+                              ) : null}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isAiThinking}
+                              onClick={() => {
+                                setSkillBodyMode('steps');
+                                setIsFormDirty(true);
+                              }}
+                              className={cn(
+                                'flex items-center gap-2.5 rounded-[10px] border px-3 py-2.5 text-left transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
+                                skillBodyMode === 'steps'
+                                  ? 'border-neutral-900 bg-neutral-50 shadow-[0_1px_0_rgba(17,17,17,0.06)]'
+                                  : 'border-neutral-200 bg-white hover:bg-neutral-50',
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  'flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px]',
+                                  skillBodyMode === 'steps'
+                                    ? 'bg-white text-neutral-900'
+                                    : 'bg-neutral-100 text-neutral-500',
+                                )}
+                              >
+                                <Workflow size={15} strokeWidth={2.2} />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-xs font-semibold text-neutral-900">执行步骤</span>
+                                <span className="block text-[10px] text-neutral-500 mt-0.5 leading-snug">
+                                  编排动作与流程
+                                </span>
+                              </span>
+                              {skillBodyMode === 'steps' ? (
+                                <Check size={14} className="shrink-0 text-neutral-900" strokeWidth={2.5} />
+                              ) : null}
+                            </button>
+                          </div>
+                        </div>
+
                         {/* 1. 业务知识板块 */}
-                        <div className="space-y-3.5">
+                        {skillBodyMode === 'knowledge' ? (
+                        <div className="space-y-3.5 pt-1">
                           <div className="flex items-center gap-1.5">
                             <BookOpen size={14} className="text-neutral-700" />
                             <span className="text-xs font-semibold text-neutral-900">业务知识</span>
@@ -6226,12 +6520,15 @@ return (
                             label={<span>知识说明</span>}
                           />
                         </div>
+                        ) : null}
 
                         {/* 2. 执行步骤板块 */}
+                        {skillBodyMode === 'steps' ? (
+                        <>
                         <div className="space-y-3 pt-2">
                           <div className="flex justify-between items-center gap-2 flex-wrap">
                             <label className="text-xs font-bold text-neutral-700 flex items-center gap-1.5">
-                              {REQUIRED_STAR}
+                              <Workflow size={14} className="text-neutral-700" />
                               <span>执行步骤</span>
                             </label>
 
@@ -6372,7 +6669,6 @@ return (
                                               )}
                                               label={
                                                 <span className="flex items-center gap-1">
-                                                  {REQUIRED_STAR}
                                                   <span>步骤名称</span>
                                                 </span>
                                               }
@@ -6662,16 +6958,20 @@ return (
                             />
                           </div>
                         )}
+                        </>
+                        ) : null}
                           </div>
                         </div>
+                      </div>
                       </div>
                     </FormCarouselPanel>
 
                     <FormCarouselPanel sectionId={3}>
                       <div id="form-section-3" className="flex flex-col h-full min-h-0">
                         {formSectionPanelHeader(3, FORM_SECTION_TITLES[3], false)}
-                        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-                          <div className="space-y-3 px-3 pb-3 pt-1">
+                        <div className={FORM_SECTION_BODY}>
+                          <div className={FORM_SECTION_CARD}>
+                            <div className={FORM_SECTION_CARD_INNER}>
                         <SkillRewriteField
                           fieldKey="notAllowed"
                           fieldLabel="禁止行为"
@@ -6815,13 +7115,15 @@ return (
                           </div>
                         </div>
                       </div>
+                      </div>
                     </FormCarouselPanel>
 
                     <FormCarouselPanel sectionId={4}>
                       <div id="form-section-4" className="flex flex-col h-full min-h-0">
                         {formSectionPanelHeader(4, FORM_SECTION_TITLES[4], false)}
-                        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-                          <div className="space-y-3 px-3 pb-3 pt-1">
+                        <div className={FORM_SECTION_BODY}>
+                          <div className={FORM_SECTION_CARD}>
+                            <div className={FORM_SECTION_CARD_INNER}>
                         <div className="space-y-3">
                           <SkillRewriteField
                             fieldKey="usageExamples"
@@ -6869,6 +7171,7 @@ return (
                         </div>
                           </div>
                         </div>
+                      </div>
                       </div>
                     </FormCarouselPanel>
                   </motion.div>

@@ -2,11 +2,11 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 导航左侧版本管理助手 — 导航布局 A/B 切换
+ * 底部单一胶囊入口；登录 / 首页 / 版本等选项收进展开面板
  */
 
-import React, { useEffect, useState } from 'react';
-import { Layers, User, RefreshCw, Home, X, Check } from '@/lib/icons';
+import React, { useEffect, useRef, useState } from 'react';
+import { Layers, User, RefreshCw, Home, X, Check, ChevronUp } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import { clearJoyServingAppCache } from '@/lib/clearAppCache';
 import {
@@ -23,6 +23,12 @@ interface VersionSwitcherProps {
   onGoHome?: () => void;
 }
 
+function versionLabel(version: NavLayoutVersion): string {
+  if (version === 'hybrid') return 'V1';
+  if (version === 'dualSide') return 'V2';
+  return 'V3';
+}
+
 export const VersionSwitcher: React.FC<VersionSwitcherProps> = ({
   version,
   onChange,
@@ -31,15 +37,24 @@ export const VersionSwitcher: React.FC<VersionSwitcherProps> = ({
   onGoHome,
 }) => {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const activeMeta = NAV_LAYOUT_VERSIONS.find((v) => v.id === version);
+  const screenLabel = screen === 'login' ? '登录' : '首页';
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
+    const onPointer = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('mousedown', onPointer);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('mousedown', onPointer);
+    };
   }, [open]);
 
   const select = (next: NavLayoutVersion) => {
@@ -66,23 +81,20 @@ export const VersionSwitcher: React.FC<VersionSwitcherProps> = ({
 
   return (
     <div
-      className={cn(
-        'fixed bottom-3 z-[280] flex flex-col items-start gap-1.5 pointer-events-none',
-        /* 首页贴在左侧主导航右侧，避免压住 76px 导航轨 */
-        screen === 'home' ? 'left-[88px]' : 'left-3',
-      )}
+      ref={rootRef}
+      className="fixed bottom-3 left-1/2 z-[280] flex -translate-x-1/2 flex-col items-center gap-1.5 pointer-events-none"
     >
-      {open && (
+      {open ? (
         <div
           className="pointer-events-auto w-[300px] rounded-2xl border border-neutral-200 bg-white shadow-[0_12px_40px_rgba(31,35,41,0.14)] overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
           role="dialog"
-          aria-label="导航版本切换"
+          aria-label="页面与版本切换"
         >
           <div className="flex items-start justify-between gap-3 px-4 pt-3.5 pb-2.5 border-b border-neutral-100">
             <div className="min-w-0">
               <div className="text-[13px] font-semibold text-neutral-900">版本管理助手</div>
               <p className="text-[11px] text-neutral-500 mt-0.5 leading-relaxed">
-                对比三种导航结构的易用性，切换后立即生效
+                切换页面与导航结构，选择后立即生效
               </p>
             </div>
             <button
@@ -95,55 +107,9 @@ export const VersionSwitcher: React.FC<VersionSwitcherProps> = ({
             </button>
           </div>
 
-          <div className="p-2 space-y-1.5">
-            {NAV_LAYOUT_VERSIONS.map((item, index) => {
-              const active = item.id === version;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => select(item.id)}
-                  className={cn(
-                    'w-full text-left rounded-xl px-3 py-2.5 border transition cursor-pointer',
-                    active
-                      ? 'border-sky-200 bg-sky-50/80 ring-1 ring-sky-100'
-                      : 'border-transparent hover:bg-neutral-50 hover:border-neutral-200',
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        'inline-flex h-5 min-w-5 px-1.5 items-center justify-center rounded-md text-[10px] font-bold',
-                        active
-                          ? 'bg-live text-white'
-                          : 'bg-neutral-100 text-neutral-500',
-                      )}
-                    >
-                      V{index + 1}
-                    </span>
-                    <span className="text-[13px] font-semibold text-neutral-900">
-                      {item.title}
-                    </span>
-                    {active ? (
-                      <Check size={14} className="ml-auto text-live shrink-0" />
-                    ) : null}
-                  </div>
-                  <p className="text-[11px] text-neutral-500 mt-1 leading-relaxed pl-[28px]">
-                    {item.subtitle}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="px-4 py-2.5 bg-neutral-50 border-t border-neutral-100 text-[10px] text-neutral-400">
-            当前：{activeMeta?.title ?? version} · 选择会写入本地缓存
-          </div>
           {onGoLogin || onGoHome ? (
-            <div className="px-3 py-2 border-t border-neutral-100">
-              <div className="text-[10px] font-semibold text-neutral-500 mb-1.5 px-1">
-                页面导航
-              </div>
+            <div className="px-3 py-2.5 border-b border-neutral-100">
+              <div className="text-[10px] font-semibold text-neutral-500 mb-1.5 px-1">页面</div>
               <div className="grid grid-cols-2 gap-1.5">
                 <button
                   type="button"
@@ -155,7 +121,7 @@ export const VersionSwitcher: React.FC<VersionSwitcherProps> = ({
                   className={cn(
                     'flex items-center justify-center gap-1 h-8 rounded-lg text-[11px] font-semibold border transition cursor-pointer disabled:cursor-default',
                     screen === 'login'
-                      ? 'border-sky-200 bg-sky-50 text-live'
+                      ? 'border-neutral-800 bg-neutral-900 text-white'
                       : 'text-neutral-700 bg-white border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300',
                   )}
                 >
@@ -172,7 +138,7 @@ export const VersionSwitcher: React.FC<VersionSwitcherProps> = ({
                   className={cn(
                     'flex items-center justify-center gap-1 h-8 rounded-lg text-[11px] font-semibold border transition cursor-pointer disabled:cursor-default',
                     screen === 'home'
-                      ? 'border-sky-200 bg-sky-50 text-live'
+                      ? 'border-neutral-800 bg-neutral-900 text-white'
                       : 'text-neutral-700 bg-white border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300',
                   )}
                 >
@@ -182,6 +148,54 @@ export const VersionSwitcher: React.FC<VersionSwitcherProps> = ({
               </div>
             </div>
           ) : null}
+
+          <div className="p-2 space-y-1.5">
+            <div className="text-[10px] font-semibold text-neutral-500 px-2 pt-1 pb-0.5">
+              导航版本
+            </div>
+            {NAV_LAYOUT_VERSIONS.map((item, index) => {
+              const active = item.id === version;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => select(item.id)}
+                  className={cn(
+                    'w-full text-left rounded-xl px-3 py-2.5 border transition cursor-pointer',
+                    active
+                      ? 'border-neutral-300 bg-neutral-50 ring-1 ring-neutral-200'
+                      : 'border-transparent hover:bg-neutral-50 hover:border-neutral-200',
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        'inline-flex h-5 min-w-5 px-1.5 items-center justify-center rounded-md text-[10px] font-bold',
+                        active
+                          ? 'bg-neutral-900 text-white'
+                          : 'bg-neutral-100 text-neutral-500',
+                      )}
+                    >
+                      V{index + 1}
+                    </span>
+                    <span className="text-[13px] font-semibold text-neutral-900">
+                      {item.title}
+                    </span>
+                    {active ? (
+                      <Check size={14} className="ml-auto text-neutral-800 shrink-0" />
+                    ) : null}
+                  </div>
+                  <p className="text-[11px] text-neutral-500 mt-1 leading-relaxed pl-[28px]">
+                    {item.subtitle}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="px-4 py-2.5 bg-neutral-50 border-t border-neutral-100 text-[10px] text-neutral-400">
+            当前：{screenLabel} · {activeMeta?.title ?? version}
+          </div>
           <div className="px-3 py-2 border-t border-neutral-100 space-y-1.5">
             <a
               href="/?ds=1"
@@ -199,71 +213,39 @@ export const VersionSwitcher: React.FC<VersionSwitcherProps> = ({
             </button>
           </div>
         </div>
-      )}
+      ) : null}
 
-      <div className="flex items-center gap-1.5 pointer-events-auto">
-        {onGoLogin || onGoHome ? (
-          <div
-            className="inline-flex items-center gap-0.5 h-7 p-0.5 rounded-full border border-neutral-200 bg-white/90 shadow-[0_3px_10px_rgba(31,35,41,0.08)]"
-            role="group"
-            aria-label="页面导航"
-          >
-            <button
-              type="button"
-              onClick={() => onGoLogin?.()}
-              disabled={screen === 'login'}
-              title="登录页"
-              className={cn(
-                'inline-flex items-center gap-1 h-6 px-2 rounded-full text-[10px] font-semibold transition cursor-pointer disabled:cursor-default',
-                screen === 'login'
-                  ? 'bg-neutral-900 text-white'
-                  : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900',
-              )}
-            >
-              <User size={11} className="shrink-0" />
-              登录
-            </button>
-            <button
-              type="button"
-              onClick={() => onGoHome?.()}
-              disabled={screen === 'home'}
-              title="首页"
-              className={cn(
-                'inline-flex items-center gap-1 h-6 px-2 rounded-full text-[10px] font-semibold transition cursor-pointer disabled:cursor-default',
-                screen === 'home'
-                  ? 'bg-neutral-900 text-white'
-                  : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900',
-              )}
-            >
-              <Home size={11} className="shrink-0" />
-              首页
-            </button>
-          </div>
-        ) : null}
-
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          'pointer-events-auto inline-flex items-center gap-1.5 h-7 pl-2.5 pr-2 rounded-full border shadow-[0_3px_10px_rgba(31,35,41,0.08)] transition cursor-pointer',
+          open
+            ? 'border-neutral-900 bg-neutral-900 text-white'
+            : 'border-neutral-200 bg-white/90 text-neutral-800 hover:border-neutral-300 hover:bg-white',
+        )}
+        title="页面与版本切换"
+        aria-expanded={open}
+        aria-label="页面与版本切换"
+      >
+        <Layers size={12} className={cn('shrink-0', open ? 'opacity-90' : 'opacity-60')} />
+        <span className="text-[11px] font-semibold leading-none">{screenLabel}</span>
+        <span
           className={cn(
-            'inline-flex items-center gap-1 h-7 pl-2 pr-1.5 rounded-full border shadow-[0_3px_10px_rgba(31,35,41,0.08)] transition cursor-pointer',
-            open
-              ? 'bg-neutral-900 text-white border-neutral-900'
-              : 'bg-white/90 text-neutral-700 border-neutral-200 hover:border-neutral-300 hover:bg-white',
+            'text-[10px] font-bold leading-none px-1.5 py-0.5 rounded-md',
+            open ? 'bg-white/15 text-white' : 'bg-neutral-100 text-neutral-500',
           )}
-          title="版本管理助手"
-          aria-expanded={open}
         >
-          <Layers size={12} className="shrink-0 opacity-70" />
-          <span
-            className={cn(
-              'text-[10px] font-semibold px-1.5 py-0.5 rounded-md leading-none',
-              open ? 'bg-white/15 text-white' : 'bg-neutral-100 text-neutral-500',
-            )}
-          >
-            {version === 'hybrid' ? 'V1' : version === 'dualSide' ? 'V2' : 'V3'}
-          </span>
-        </button>
-      </div>
+          {versionLabel(version)}
+        </span>
+        <ChevronUp
+          size={12}
+          className={cn(
+            'shrink-0 transition-transform',
+            open ? 'rotate-0 opacity-80' : 'rotate-180 opacity-45',
+          )}
+        />
+      </button>
     </div>
   );
 };

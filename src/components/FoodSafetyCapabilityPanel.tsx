@@ -9,6 +9,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   Bot,
+  BrainCircuit,
   Check,
   CheckCircle2,
   ChevronRight,
@@ -31,6 +32,10 @@ import { LoadingCircle } from './common/ToastLoadingIcon';
 import {
   FOOD_SAFETY_DEMO_ORDER,
   FOOD_SAFETY_CAPABILITY_STAGES,
+  LOOP_FINDER_DELAY_MS,
+  LOOP_FINDER_DWELL_MS,
+  LOOP_STEP_GAP_MS,
+  LOOP_THOUGHT_CHAR_MS,
   type CapabilityDemoStage,
   type LoopDemoNode,
   type LoopNodeRef,
@@ -197,6 +202,12 @@ function refMeta(kind: LoopRefKind): { label: string; cls: string; Icon: typeof 
         label: '流程',
         cls: 'bg-violet-50 text-neutral-900',
         Icon: GitBranch,
+      };
+    case 'agent':
+      return {
+        label: '员工',
+        cls: 'bg-amber-50 text-neutral-900',
+        Icon: Bot,
       };
     default:
       return {
@@ -717,7 +728,7 @@ function BrowserUseDemo({
               <Lock size={11} className="shrink-0 text-emerald-600" strokeWidth={2.2} />
               <span className="text-[12px] text-neutral-700 truncate font-medium tracking-tight">
                 {urlReady
-                  ? 'https://insure-ops.jd.com/claim/order/query?channel=foodsafe'
+                  ? 'https://insure-ops.waimai.com/claim/order/query?channel=foodsafe'
                   : 'about:blank'}
               </span>
             </div>
@@ -772,7 +783,7 @@ function BrowserUseDemo({
                     保
                   </span>
                   <span className="text-[13px] font-semibold tracking-tight truncate">
-                    京保理赔作业中台
+                    外卖保理赔作业中台
                   </span>
                 </div>
                 <nav className="hidden sm:flex items-center gap-1 text-[12px] min-w-0">
@@ -996,7 +1007,7 @@ function BrowserUseDemo({
                                   phase >= 9 ? 'opacity-100' : 'opacity-30',
                                 )}
                               >
-                                京东到家
+                                外卖到家
                               </td>
                             </tr>
                           </tbody>
@@ -1015,7 +1026,7 @@ function BrowserUseDemo({
                   <section className="mt-3 rounded-md border border-neutral-200/90 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] px-3.5 py-3 opacity-70">
                     <h4 className="text-[13px] font-semibold text-neutral-800 mb-2">订单明细摘要</h4>
                     <ul className="space-y-1.5 text-[12px] text-neutral-500">
-                      <li>投保渠道：京东到家 · 食安险附加</li>
+                      <li>投保渠道：外卖到家 · 食安险附加</li>
                       <li>履约状态：妥投完成 · 可发起理赔预审</li>
                       <li>材料提示：致病理赔仍需医院诊断与医疗材料</li>
                       <li>系统备注：本页为企业现网页面，经 Browser Use 无侵入调用</li>
@@ -1135,10 +1146,59 @@ function buildProcessEntries(name: string): {
   };
 }
 
+function buildAgentEntries(agentName: string, meta?: string): {
+  breadcrumb: string[];
+  query: string;
+  entries: BrowseEntry[];
+  hitPreview: string;
+} {
+  const hitAgentMd = !meta || meta.includes('数字员工') || meta.toLowerCase().includes('agent');
+  const hitPreview = hitAgentMd
+    ? [
+        '## 数字员工.md · 服务原则',
+        '1. 先感知并安抚客户情绪，再告知业务规则与方案。',
+        '2. 情绪激动时优先共情与安全提示，避免直接抛条款。',
+        '3. 安抚完成后再进入理赔 SOP / 知识库答复。',
+      ].join('\n')
+    : [
+        '## 岗位角色.md · 人设与语气',
+        '语气温暖、克制、专业；主动共识用户问题后再推进方案。',
+      ].join('\n');
+
+  return {
+    breadcrumb: ['数字员工', agentName, '人格与规则'],
+    query: hitAgentMd ? '数字员工.md 先安抚再告知规则' : '岗位角色.md 人设语气',
+    hitPreview,
+    entries: [
+      {
+        id: 'a1',
+        name: '数字员工.md',
+        kind: 'file',
+        hit: hitAgentMd,
+        score: hitAgentMd ? '规则' : undefined,
+        preview: hitPreview,
+      },
+      {
+        id: 'a2',
+        name: '岗位角色.md',
+        kind: 'file',
+        hit: !hitAgentMd,
+        score: !hitAgentMd ? '角色' : undefined,
+        preview: hitPreview,
+      },
+      { id: 'a3', name: '记忆.md', kind: 'file' },
+      { id: 'a4', name: '工具.json', kind: 'file' },
+      { id: 'a5', name: '技能', kind: 'folder' },
+      { id: 'a6', name: '知识库', kind: 'folder' },
+    ],
+  };
+}
+
 /**
  * 对齐真实 Agent 路径的可视化（Finder / Browser Use 找文件夹）：
  * 知识库：挂载库 → 进入知识库目录 → 问题改写检索词 → 扫文档命中 → 打开片段
  * 技能：挂载库 → 技能目录 → 打开技能包 → 读取 SKILL.md
+ * 员工：数字员工目录 → 数字员工.md / 岗位角色.md → 读取服务原则
  */
 function KnowledgeBrowseDemo({
   target,
@@ -1149,10 +1209,12 @@ function KnowledgeBrowseDemo({
 }) {
   const isKnowledge = target?.kind === 'knowledge';
   const isSkill = target?.kind === 'skill';
+  const isAgent = target?.kind === 'agent';
   const pack = useMemo(() => {
     if (!target) return null;
     if (target.kind === 'knowledge') return buildKnowledgeEntries(target.name);
     if (target.kind === 'skill') return buildSkillEntries(target.name, target.meta);
+    if (target.kind === 'agent') return buildAgentEntries(target.name, target.meta);
     return buildProcessEntries(target.name);
   }, [target]);
 
@@ -1252,26 +1314,34 @@ function KnowledgeBrowseDemo({
     !target || !active
       ? '待命'
       : subPhase <= 1
-        ? '打开挂载库'
+        ? '打开数字员工目录'
         : subPhase === 2
-          ? isKnowledge
-            ? '进入知识库文件夹'
-            : isSkill
-              ? '进入技能包文件夹'
-              : '进入流程目录'
+          ? isAgent
+            ? '进入员工配置文件夹'
+            : isKnowledge
+              ? '进入知识库文件夹'
+              : isSkill
+                ? '进入技能包文件夹'
+                : '进入流程目录'
           : subPhase === 3
-            ? isKnowledge
-              ? '改写检索词'
-              : '定位技能包'
+            ? isAgent
+              ? '定位 数字员工.md'
+              : isKnowledge
+                ? '改写检索词'
+                : '定位技能包'
             : subPhase === 4
-              ? isKnowledge
-                ? '向量检索扫文件…'
-                : '浏览技能包文件…'
+              ? isAgent
+                ? '浏览员工配置文件…'
+                : isKnowledge
+                  ? '向量检索扫文件…'
+                  : '浏览技能包文件…'
               : subPhase === 5
                 ? '打开命中文件'
-                : isKnowledge
-                  ? '读取知识片段'
-                  : '读取 SKILL.md';
+                : isAgent
+                  ? '读取服务原则'
+                  : isKnowledge
+                    ? '读取知识片段'
+                    : '读取 SKILL.md';
 
   const typedQuery =
     pack && subPhase >= 3
@@ -1289,21 +1359,10 @@ function KnowledgeBrowseDemo({
         {/* Finder 标题栏 */}
         <div className="shrink-0 bg-[#e8e8e8] border-b border-neutral-300/90">
           <div className="flex items-center gap-2 px-2.5 pt-2 pb-1.5">
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
-              <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
-              <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
-            </div>
-            <div className="flex-1 min-w-0 text-center">
-              <span className="text-[11px] font-semibold text-neutral-700 truncate">
-                {!target
-                  ? '员工挂载资源'
-                  : isSkill
-                    ? '技能包资源管理器'
-                    : isKnowledge
-                      ? '知识库资源管理器'
-                      : '流程资源管理器'}
-              </span>
+            <div className="flex items-center gap-1 shrink-0 opacity-40">
+              <span className="w-2 h-2 rounded-full bg-neutral-400" />
+              <span className="w-2 h-2 rounded-full bg-neutral-400" />
+              <span className="w-2 h-2 rounded-full bg-neutral-400" />
             </div>
             <span className="text-[10px] text-neutral-500 tabular-nums shrink-0 max-w-[7rem] truncate">
               {statusLabel}
@@ -1356,7 +1415,13 @@ function KnowledgeBrowseDemo({
             ) : null}
             {subPhase >= 5 && target ? (
               <span className="absolute left-4 top-5 whitespace-nowrap rounded bg-neutral-900/85 text-white text-[10px] font-medium px-1.5 py-0.5 shadow">
-                {subPhase >= 6 ? (isKnowledge ? '读取片段' : '读取 SKILL.md') : '双击打开'}
+                {subPhase >= 6
+                  ? isAgent
+                    ? '读取 数字员工.md'
+                    : isKnowledge
+                      ? '读取片段'
+                      : '读取 SKILL.md'
+                  : '双击打开'}
               </span>
             ) : null}
           </div>
@@ -1365,7 +1430,7 @@ function KnowledgeBrowseDemo({
             <div className="flex-1 flex flex-col items-center justify-center gap-2 px-4 text-center">
               <Folder size={28} className="text-neutral-300" />
               <p className="text-[12px] text-neutral-400 leading-relaxed">
-                Agent 调知识 / 技能时
+                Agent 调员工配置 / 知识 / 技能时
                 <br />
                 会像在电脑里打开挂载文件夹查找
               </p>
@@ -1374,12 +1439,10 @@ function KnowledgeBrowseDemo({
             <>
               {/* 左侧：挂载库侧栏 */}
               <aside className="w-[88px] sm:w-[100px] shrink-0 border-r border-neutral-200/90 bg-[#ececef] py-2 px-1.5 space-y-0.5">
-                <p className="px-1.5 text-[9px] font-semibold tracking-wider text-neutral-400 mb-1">
-                  FAVORITES
-                </p>
                 {(
                   [
-                    { id: 'kb', label: '知识库', on: isKnowledge || (!isSkill && target.kind !== 'process') },
+                    { id: 'agent', label: '员工配置', on: isAgent },
+                    { id: 'kb', label: '知识库', on: isKnowledge },
                     { id: 'sk', label: '技能', on: isSkill },
                     { id: 'flow', label: '流程', on: target.kind === 'process' },
                   ] as const
@@ -1410,9 +1473,11 @@ function KnowledgeBrowseDemo({
                     <Search size={12} className="text-neutral-400 shrink-0" />
                     <span className="text-[11px] text-neutral-800 truncate flex-1 min-w-0 font-mono">
                       {subPhase < 3
-                        ? isKnowledge
-                          ? '等待问题改写…'
-                          : '定位技能包…'
+                        ? isAgent
+                          ? '等待打开员工配置…'
+                          : isKnowledge
+                            ? '等待问题改写…'
+                            : '定位技能包…'
                         : typedQuery}
                       {active && subPhase === 3 ? (
                         <span className="inline-block w-0.5 h-3 ml-0.5 align-middle bg-[#1565BF] animate-pulse" />
@@ -1422,9 +1487,9 @@ function KnowledgeBrowseDemo({
                       <LoadingCircle size={12} className="shrink-0" />
                     ) : null}
                   </div>
-                  {subPhase >= 3 && isKnowledge ? (
+                  {subPhase >= 3 && isAgent ? (
                     <p className="mt-1 text-[9px] text-neutral-400 px-0.5">
-                      RAG：口语问题 → 检索关键词 → 向量扫库
+                      读取：数字员工.md / 岗位角色.md → 服务原则与人设
                     </p>
                   ) : null}
                   {subPhase >= 3 && isSkill ? (
@@ -1492,13 +1557,24 @@ function KnowledgeBrowseDemo({
                   <div className="shrink-0 border-t border-neutral-200 bg-white px-2.5 py-2">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <p className="text-[10px] font-semibold text-neutral-500">
-                        {isKnowledge ? '命中片段' : isSkill ? '已加载技能说明' : '已定位流程'}
+                        {isAgent
+                          ? '已读取服务原则'
+                          : isKnowledge
+                            ? '命中片段'
+                            : isSkill
+                              ? '已加载技能说明'
+                              : '已定位流程'}
                       </p>
                       {target.meta ? (
                         <span className="text-[10px] tabular-nums text-neutral-400">{target.meta}</span>
                       ) : null}
                     </div>
-                    <p className="text-[11px] leading-relaxed text-neutral-800 line-clamp-3">
+                    <p
+                      className={cn(
+                        'text-[11px] leading-relaxed text-neutral-800 whitespace-pre-line',
+                        isAgent ? 'line-clamp-6' : 'line-clamp-3',
+                      )}
+                    >
                       {pack.hitPreview}
                     </p>
                   </div>
@@ -1512,10 +1588,10 @@ function KnowledgeBrowseDemo({
   );
 }
 
-/** Agent Loop 主面板：左 Thought → 右 Finder（串行：先打完思考，再进库动画） */
+/** Agent Loop 主面板：左 Thought → 右 Finder，严格串行（顶部 AGENT LOOP 条可单独持续转） */
 function AgentLoopThinkPanel({
   stage,
-  phase,
+  phase: _clockPhase,
   running,
 }: {
   stage: CapabilityDemoStage;
@@ -1523,14 +1599,42 @@ function AgentLoopThinkPanel({
   running: boolean;
 }) {
   const nodes = stage.nodes;
-  const revealed = Math.min(Math.max(phase, 0), nodes.length);
+  /** 事件驱动：思考打完 → Finder 展示完 → 再下一步；不用时钟 phase 抢跑 */
+  const [serialPhase, setSerialPhase] = useState(0);
+  const stepStartedAtRef = useRef(0);
+
+  useEffect(() => {
+    if (!running) {
+      setSerialPhase(nodes.length > 0 ? nodes.length : 0);
+      return;
+    }
+    setSerialPhase(nodes.length > 0 ? 1 : 0);
+    stepStartedAtRef.current = performance.now();
+  }, [running, stage.turnId, nodes.length]);
+
+  useEffect(() => {
+    if (!running || serialPhase <= 0) return;
+    stepStartedAtRef.current = performance.now();
+  }, [running, serialPhase, stage.turnId]);
+
+  const revealed = Math.min(Math.max(serialPhase, 0), nodes.length);
   const currentIdx = running && revealed > 0 ? revealed - 1 : -1;
   const activeNode: LoopDemoNode | null = currentIdx >= 0 ? nodes[currentIdx] : null;
   const doneAll = !running && revealed >= nodes.length && nodes.length > 0;
 
+  /** 已完成步骤（不含当前打字中）；结束态展示全部 */
+  const settledNodes = useMemo(() => {
+    if (doneAll) return nodes;
+    if (currentIdx < 0) return nodes.slice(0, Math.max(0, revealed));
+    return nodes.slice(0, currentIdx);
+  }, [doneAll, nodes, currentIdx, revealed]);
+
   const browseTarget = useMemo(() => {
     const refs = activeNode?.refs ?? [];
+    // 与当前思维对齐：员工配置 / 技能 / 知识库
     const preferred =
+      refs.find((r) => r.kind === activeNode?.tone) ??
+      refs.find((r) => r.kind === 'agent') ??
       refs.find((r) => r.kind === 'knowledge') ??
       refs.find((r) => r.kind === 'skill') ??
       refs.find((r) => r.kind === 'process') ??
@@ -1539,7 +1643,11 @@ function AgentLoopThinkPanel({
     if (doneAll) {
       for (let i = nodes.length - 1; i >= 0; i -= 1) {
         const hit = (nodes[i].refs ?? []).find(
-          (r) => r.kind === 'knowledge' || r.kind === 'skill' || r.kind === 'process',
+          (r) =>
+            r.kind === 'agent' ||
+            r.kind === 'knowledge' ||
+            r.kind === 'skill' ||
+            r.kind === 'process',
         );
         if (hit) return hit;
       }
@@ -1550,21 +1658,37 @@ function AgentLoopThinkPanel({
   const hasBrowseRefs = Boolean(
     activeNode &&
       (activeNode.refs ?? []).some(
-        (r) => r.kind === 'knowledge' || r.kind === 'skill' || r.kind === 'process',
+        (r) =>
+          r.kind === 'agent' ||
+          r.kind === 'knowledge' ||
+          r.kind === 'skill' ||
+          r.kind === 'process',
       ),
   );
 
+  const browseHint =
+    browseTarget?.kind === 'agent'
+      ? '打开员工配置'
+      : browseTarget?.kind === 'skill'
+        ? '打开技能包'
+        : browseTarget?.kind === 'knowledge'
+          ? '检索知识库'
+          : browseTarget?.kind === 'process'
+            ? '定位流程'
+            : '调用资源';
+
   const [thoughtShown, setThoughtShown] = useState('');
   const [thoughtDone, setThoughtDone] = useState(false);
-  /** Thought 出答案后停顿，再调用系统（进库 / 技能），禁止立刻连着播 */
+  /** 思维打完后短暂停顿，再打开右侧 FINDER */
   const [systemReady, setSystemReady] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const full = activeNode?.thought ?? '';
     setThoughtDone(false);
     setSystemReady(false);
     if (!full) {
-      setThoughtShown(doneAll ? '循环收敛，输出回复' : '');
+      setThoughtShown('');
       setThoughtDone(Boolean(doneAll || !running));
       setSystemReady(Boolean(doneAll || !running));
       return;
@@ -1578,7 +1702,7 @@ function AgentLoopThinkPanel({
         window.clearInterval(id);
         setThoughtDone(true);
       }
-    }, 22);
+    }, LOOP_THOUGHT_CHAR_MS);
     return () => window.clearInterval(id);
   }, [activeNode?.thought, activeNode?.action, doneAll, stage.turnId, running]);
 
@@ -1588,102 +1712,164 @@ function AgentLoopThinkPanel({
       return;
     }
     setSystemReady(false);
-    const t = window.setTimeout(() => setSystemReady(true), 1200);
+    const t = window.setTimeout(() => setSystemReady(true), LOOP_FINDER_DELAY_MS);
     return () => window.clearTimeout(t);
   }, [running, thoughtDone, hasBrowseRefs, activeNode?.action, stage.turnId]);
 
-  /** 串行：Thought 打完 → 停顿看答案 → 再启动右侧进库 */
+  /** 当前步收束后再揭示下一步（Finder 需停留；holdMs 对齐左侧气泡） */
+  useEffect(() => {
+    if (!running || !thoughtDone) return;
+    if (hasBrowseRefs && !systemReady) return;
+    if (revealed <= 0 || revealed >= nodes.length) return;
+
+    const baseDwell = hasBrowseRefs ? LOOP_FINDER_DWELL_MS : LOOP_STEP_GAP_MS;
+    const holdMs = activeNode?.holdMs ?? 0;
+    const elapsed = performance.now() - stepStartedAtRef.current;
+    const dwellMs = Math.max(baseDwell, holdMs > 0 ? holdMs - elapsed : 0);
+
+    const t = window.setTimeout(() => {
+      setSerialPhase((p) => Math.min(p + 1, nodes.length));
+    }, Math.max(120, dwellMs));
+    return () => window.clearTimeout(t);
+  }, [
+    running,
+    thoughtDone,
+    systemReady,
+    hasBrowseRefs,
+    revealed,
+    nodes.length,
+    activeNode?.action,
+    activeNode?.holdMs,
+    stage.turnId,
+  ]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [thoughtShown, settledNodes.length, doneAll]);
+
+  /** 串行：当前思维打完 → 若本步有资源则 FINDER → 再进入下一步思维 */
   const browseActive = Boolean(running && systemReady && hasBrowseRefs);
   const waitingToCallSystem = Boolean(running && thoughtDone && !systemReady && hasBrowseRefs);
   const showBrowseIdle = !browseActive && !doneAll;
-  const focusRight = browseActive || doneAll;
+  const focusRight = browseActive;
+  const showLiveThought = Boolean(running && activeNode?.thought);
+  const hasAnyThought =
+    settledNodes.some((n) => Boolean(n.thought)) || showLiveThought || doneAll;
 
   return (
     <div className="relative h-full overflow-hidden">
       <div className="relative h-full flex flex-col py-3 sm:py-4 min-h-0 overflow-hidden px-3 sm:px-4">
-        <div className="shrink-0 mb-3 px-1">
-          <h2
-            className={cn(
-              'text-[22px] sm:text-[26px] font-semibold tracking-[-0.03em] leading-tight truncate',
-              SKILL_AOP_GRADIENT_TEXT,
-            )}
-          >
-            {stage.title}
-          </h2>
-          {activeNode?.action ? (
-            <p className="mt-1 text-[12px] font-medium text-neutral-500 truncate">
-              当前步骤 · {activeNode.action}
-            </p>
-          ) : null}
-        </div>
-
         <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.15fr)] gap-3 overflow-hidden">
-          {/* 左：仅 Thought；进库阶段降噪，避免双区同时抢注意力 */}
           <div
             className={cn(
               'min-h-0 flex flex-col rounded-[12px] border border-neutral-200/80 bg-white/90 overflow-hidden transition-opacity duration-300',
-              focusRight && running ? 'opacity-45' : 'opacity-100',
+              focusRight ? 'opacity-55' : 'opacity-100',
             )}
           >
-            <div className="flex-1 min-h-0 px-3 py-3 overflow-y-auto">
-              <div className="flex items-start gap-2 min-w-0 h-full">
-                <Activity size={15} strokeWidth={2} className="shrink-0 mt-0.5 text-[#1565BF]" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-[11px] font-semibold tracking-[0.08em] text-[#1565BF]">
-                      THOUGHT
-                    </span>
-                    {running && !thoughtDone ? (
-                      <LoadingCircle size={12} />
-                    ) : doneAll || (thoughtDone && !browseActive && !waitingToCallSystem) ? (
-                      <Check size={13} className="text-emerald-600" strokeWidth={2.5} />
-                    ) : null}
-                  </div>
-                  <p className="text-[14px] sm:text-[15px] leading-relaxed text-neutral-800">
-                    {thoughtShown || (running ? '…' : '等待输入')}
-                    {running && !thoughtDone && thoughtShown ? (
-                      <span className="inline-block w-0.5 h-[14px] ml-0.5 align-middle bg-[#1565BF] animate-pulse" />
-                    ) : null}
-                  </p>
-                  {waitingToCallSystem ? (
-                    <p className="mt-2 text-[11px] font-medium text-neutral-500">
-                      已得出结论 · 稍后调用系统…
-                    </p>
+            <div className="shrink-0 px-3.5 py-3.5 sm:py-4 border-b border-neutral-200/70 flex items-center gap-2.5 min-h-[52px] sm:min-h-[56px]">
+              <span className="text-[16px] sm:text-[17px] font-bold tracking-[-0.02em] text-[#1565BF] truncate">
+                模型自主思考
+              </span>
+              {running && !thoughtDone ? (
+                <LoadingCircle size={14} className="ml-auto shrink-0" />
+              ) : doneAll || (thoughtDone && !browseActive && !waitingToCallSystem) ? (
+                <Check size={16} className="ml-auto shrink-0 text-emerald-600" strokeWidth={2.5} />
+              ) : null}
+            </div>
+            <div ref={scrollRef} className="flex-1 min-h-0 px-3 py-3 overflow-y-auto custom-scrollbar">
+              {!hasAnyThought ? (
+                <p className="text-[13px] text-neutral-400">{running ? '…' : '等待输入'}</p>
+              ) : (
+                <ol className="space-y-3">
+                  {settledNodes.map((node, idx) =>
+                    node.thought ? (
+                      <li key={`settled-${stage.turnId}-${idx}`} className="flex gap-2.5 min-w-0">
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[10px] font-semibold tabular-nums text-emerald-700">
+                          {idx + 1}
+                        </span>
+                        <div className="min-w-0 flex-1 pt-0.5">
+                          {node.action ? (
+                            <p className="inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-500 mb-0.5">
+                              <BrainCircuit size={12} className="shrink-0 opacity-80" strokeWidth={2.2} />
+                              {node.action}
+                            </p>
+                          ) : null}
+                          <p className="text-[13px] sm:text-[14px] leading-relaxed text-neutral-800 whitespace-pre-wrap">
+                            {node.thought}
+                          </p>
+                        </div>
+                      </li>
+                    ) : null,
+                  )}
+
+                  {showLiveThought ? (
+                    <li className="flex gap-2.5 min-w-0">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[rgba(21,101,191,0.08)] text-[10px] font-semibold tabular-nums text-[#1565BF]">
+                        {thoughtDone ? (
+                          <Check size={11} strokeWidth={3} />
+                        ) : (
+                          currentIdx + 1
+                        )}
+                      </span>
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        {activeNode?.action ? (
+                          <p className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1565BF] mb-0.5">
+                            <BrainCircuit size={12} className="shrink-0" strokeWidth={2.2} />
+                            {activeNode.action}
+                          </p>
+                        ) : null}
+                        <p className="text-[13px] sm:text-[14px] leading-relaxed text-neutral-800 whitespace-pre-wrap">
+                          {thoughtShown || '…'}
+                          {running && !thoughtDone && thoughtShown ? (
+                            <span className="inline-block w-0.5 h-[13px] ml-0.5 align-middle bg-[#1565BF] animate-pulse" />
+                          ) : null}
+                        </p>
+                        {waitingToCallSystem ? (
+                          <p className="mt-1.5 text-[11px] font-medium text-neutral-500">
+                            即将{browseHint}…
+                          </p>
+                        ) : null}
+                        {browseActive ? (
+                          <p className="mt-1.5 text-[11px] font-medium text-[#1565BF]">
+                            正在{browseHint}…
+                          </p>
+                        ) : null}
+                      </div>
+                    </li>
                   ) : null}
-                  {running && systemReady && hasBrowseRefs ? (
-                    <p className="mt-2 text-[11px] font-medium text-[#1565BF]">
-                      开始进库查找…
-                    </p>
+
+                  {doneAll ? (
+                    <li className="flex gap-2.5 min-w-0 pt-1 border-t border-neutral-100">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-600">
+                        <Check size={11} strokeWidth={3} />
+                      </span>
+                      <p className="min-w-0 flex-1 text-[13px] sm:text-[14px] leading-relaxed text-neutral-800 pt-0.5">
+                        循环收敛，输出回复
+                      </p>
+                    </li>
                   ) : null}
-                </div>
-              </div>
+                </ol>
+              )}
             </div>
           </div>
 
-          {/* 右：仅在 Thought 结束后播放 Finder 动画 */}
           <div
             className={cn(
               'min-h-0 min-w-0 rounded-[12px] border border-neutral-200/80 bg-white/70 overflow-hidden flex flex-col transition-opacity duration-300',
               showBrowseIdle ? 'opacity-50' : 'opacity-100',
             )}
           >
-            <div className="shrink-0 px-3 py-2 border-b border-neutral-200/70 flex items-center gap-2">
-              <span className="text-[11px] font-semibold tracking-[0.08em] text-neutral-400">
-                FINDER
+            <div className="shrink-0 px-3.5 py-3.5 sm:py-4 border-b border-neutral-200/70 flex items-center gap-2.5 min-h-[52px] sm:min-h-[56px]">
+              <span className="text-[16px] sm:text-[17px] font-bold tracking-[-0.02em] text-neutral-800 truncate">
+                模型自主行动
               </span>
-              <span className="text-[12px] text-neutral-600 truncate">
-                {waitingToCallSystem
-                  ? '等待调用系统…'
-                  : !thoughtDone && running
-                    ? '等待思考结束…'
-                    : browseTarget
-                      ? browseTarget.kind === 'knowledge'
-                        ? '进知识库找文档'
-                        : browseTarget.kind === 'skill'
-                          ? '进技能包读 SKILL.md'
-                          : '进流程目录定位'
-                      : '待命 · 挂载库'}
-              </span>
+              {waitingToCallSystem || browseActive ? (
+                <LoadingCircle size={14} className="ml-auto shrink-0" />
+              ) : doneAll && browseTarget ? (
+                <Check size={16} className="ml-auto shrink-0 text-emerald-600" strokeWidth={2.5} />
+              ) : null}
             </div>
             <div className="flex-1 min-h-0">
               <KnowledgeBrowseDemo
@@ -1782,8 +1968,8 @@ function CareDemo({
     <div className="relative h-full overflow-hidden">
       <div className="relative h-full flex flex-col items-center justify-center px-10 text-center gap-3">
         <CapabilityStageHeadline challenge={accent} coreValue={plain} compact />
-        <p className="text-[13px] text-neutral-500 max-w-[22rem] leading-relaxed">
-          礼貌收尾，并保留后续咨询入口——服务结束，关系不断。
+        <p className="text-[13px] text-neutral-500 leading-relaxed whitespace-nowrap">
+          礼貌安抚，保存服务记忆，下次更快对上用户
         </p>
       </div>
     </div>
@@ -2041,12 +2227,13 @@ export function FoodSafetyCapabilityPanel({
   activeTurnId: string | null;
   running: boolean;
 }) {
-  const stage = useMemo(
-    () =>
-      (activeTurnId && FOOD_SAFETY_CAPABILITY_STAGES.find((s) => s.turnId === activeTurnId)) ||
-      null,
-    [activeTurnId],
-  );
+  const stage = useMemo(() => {
+    if (activeTurnId) {
+      return FOOD_SAFETY_CAPABILITY_STAGES.find((s) => s.turnId === activeTurnId) ?? null;
+    }
+    // 进线前空态：直接展示「主动共识 / 先安抚」思维链，不再放空白占位
+    return FOOD_SAFETY_CAPABILITY_STAGES.find((s) => s.turnId === 'pre') ?? null;
+  }, [activeTurnId]);
 
   const phases = useMemo(() => {
     if (!stage) return 0;
@@ -2092,7 +2279,7 @@ export function FoodSafetyCapabilityPanel({
             <div className="relative h-full overflow-hidden">
               <div className="relative h-full flex flex-col items-center justify-center px-10 text-center">
                 <p className="food-safety-hero-caption text-[28px] sm:text-[34px] leading-none tracking-[-0.02em] select-text whitespace-nowrap">
-                  <span className="food-safety-hero-caption-accent">食安险</span>
+                  <span className="food-safety-hero-caption-accent">保险</span>
                   <span className="food-safety-hero-caption-plain">数字员工能力演示</span>
                 </p>
               </div>

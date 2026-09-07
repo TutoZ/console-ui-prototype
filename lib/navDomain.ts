@@ -186,6 +186,13 @@ export const ONLINE_SUB_NAV: SubNavItem[] = [
     description: '进入数字员工对话记录页面',
   },
   {
+    id: 'nav_case_library',
+    title: '案例库',
+    tab: 'caseLibrary',
+    icon: 'solar:notebook-bookmark-linear',
+    description: '查看已加入案例库的接待会话',
+  },
+  {
     id: 'nav_kb',
     title: '员工知识',
     tab: 'kb',

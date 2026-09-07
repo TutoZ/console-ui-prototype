@@ -3,23 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * AI 数字员工智能孵化 — 对齐技能创建 CUI：
- * 全屏左右分栏 · 左侧自然语言对话 · 右侧可收起配置卡片（对齐员工培训）
+ * 全屏左右分栏 · 左侧自然语言对话 · 右侧复用员工培训配置 + 预览调试对话
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ArrowUp,
-  BookOpen,
   Check,
-  CheckCircle2,
-  Cpu,
   Loader2,
-  Paperclip,
   Plus,
   Sparkles,
-  Trash2,
-  UserCheck,
   X,
 } from '@/lib/icons';
 import {
@@ -31,18 +25,18 @@ import {
   SKILL_AOP_TINT_BORDER,
 } from '@/lib/ui';
 import { cn } from '@/lib/utils';
-import { EMPLOYEE_RESOURCE_TERMS } from '@/lib/platformTerminology';
 import type { SkillThinkStep } from '@/lib/skillStudioMock';
 import { useApp } from '../../context/AppContext';
+import type { HiredAgent, KnowledgeBase, Skill } from '../../types';
 import { ResizableSplitPane } from '../common/ResizableSplitPane';
 import { OnboardingWorkspaceHeader } from '../onboarding/OnboardingWorkspaceHeader';
-import { ConfigSection, ONBOARDING_FIELD } from '../onboarding/OnboardingConfigPanel';
+import { OnboardingConfigPanel } from '../onboarding/OnboardingConfigPanel';
+import { OnboardingCapabilityTestPanel } from '../onboarding/OnboardingCapabilityTestPanel';
 import {
   SkillRoundConfirmCard,
   type SkillConfirmItem,
 } from '../skills/SkillRoundConfirmCard';
 import { SkillThinkingCard } from '../skills/SkillThinkingCard';
-import { SkillRewriteField, SkillRewriteProvider } from '../skills/SkillRewriteField';
 
 export type IncubationDraft = {
   name: string;
@@ -350,300 +344,69 @@ function applySeedResources(
 
 const INCUBATION_WORKSPACE_TABS = [{ id: 'build' as const, label: '智能孵化' }];
 
-function IncubationDraftTopBar({
-  draft,
+function IncubationTrainingPane({
   formReady,
-  onNameChange,
-}: {
-  draft: IncubationDraft;
-  formReady: boolean;
-  onNameChange: (name: string) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [nameDraft, setNameDraft] = useState('');
-
-  return (
-    <div className="shrink-0 px-4 py-3 bg-white border-b border-neutral-200 flex items-center justify-between gap-3">
-      <div className="min-w-0">
-        {editing ? (
-          <input
-            autoFocus
-            value={nameDraft}
-            onChange={(e) => setNameDraft(e.target.value.slice(0, 12))}
-            onBlur={() => {
-              const trimmed = nameDraft.trim();
-              if (trimmed) onNameChange(trimmed);
-              setEditing(false);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-              if (e.key === 'Escape') setEditing(false);
-            }}
-            className={cn(ONBOARDING_FIELD, 'h-8 py-1.5 text-sm max-w-[220px]')}
-          />
-        ) : (
-          <h2 className="text-sm font-extrabold text-neutral-900 tracking-tight truncate">
-            {draft.name || '未命名数字员工'}
-          </h2>
-        )}
-        <p className="text-xs text-neutral-500 mt-0.5">
-          {formReady ? '草案已确认 · 可继续编辑' : '对话确认后同步草案'}
-        </p>
-      </div>
-      {!editing && formReady ? (
-        <button
-          type="button"
-          onClick={() => {
-            setNameDraft(draft.name);
-            setEditing(true);
-          }}
-          className="text-xs font-medium text-primary shrink-0 cursor-pointer"
-        >
-          编辑名称
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-function IncubationDraftPanel({
-  draft,
-  formReady,
-  setDraft,
+  agent,
+  knowledgeBases,
+  skills,
+  updateHiredAgent,
   showToast,
 }: {
-  draft: IncubationDraft;
   formReady: boolean;
-  setDraft: React.Dispatch<React.SetStateAction<IncubationDraft>>;
+  agent: HiredAgent | null;
+  knowledgeBases: KnowledgeBase[];
+  skills: Skill[];
+  updateHiredAgent: (id: string, updates: Partial<HiredAgent>) => void;
   showToast: (message: string) => void;
 }) {
-  const [open, setOpen] = useState({ persona: true, skills: true, kb: true });
-  const toggle = (key: 'persona' | 'skills' | 'kb') =>
-    setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
-
-  const fieldCommon = {
-    labelClassName: 'text-xs font-medium text-neutral-500',
-    className: 'space-y-1',
-  } as const;
+  if (!formReady || !agent) {
+    return (
+      <div className="w-full h-full flex flex-col overflow-hidden bg-white">
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-center px-8">
+          <p className="text-[15px] font-medium text-neutral-800">
+            先在左侧
+            <span className={cn('font-bold mx-1', SKILL_AOP_GRADIENT_TEXT)}>对话确认</span>
+            草案要点
+          </p>
+          <p className="mt-2 text-[13px] text-neutral-500 max-w-sm leading-relaxed">
+            确认后将打开与员工培训相同的配置页，并可在右侧直接对话预览与调试。
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full h-full flex flex-col overflow-hidden bg-white">
-      <IncubationDraftTopBar
-        draft={draft}
-        formReady={formReady}
-        onNameChange={(name) => setDraft((d) => ({ ...d, name }))}
-      />
-      <div className="flex-1 min-h-0 p-4 overflow-y-auto space-y-2 custom-scrollbar">
-        {!formReady ? (
-          <div className="h-full min-h-[320px] flex flex-col items-center justify-center text-center px-8">
-            <p className="text-[15px] font-medium text-neutral-800">
-              先在左侧
-              <span className={cn('font-bold mx-1', SKILL_AOP_GRADIENT_TEXT)}>对话确认</span>
-              草案要点
-            </p>
-            <p className="mt-2 text-[13px] text-neutral-500 max-w-sm leading-relaxed">
-              与技能创建相同：AI 先拆解确认卡，你点确认后，员工资料、技能与知识库才会同步到右侧配置区。
-            </p>
-          </div>
-        ) : (
-          <SkillRewriteProvider onToast={showToast}>
-            <ConfigSection
-              title="入职标签"
-              icon={<UserCheck size={13} className="text-neutral-500 shrink-0" />}
-              open={open.persona}
-              onToggle={() => toggle('persona')}
-            >
-              <div className="space-y-2 pt-1">
-                <SkillRewriteField
-                  {...fieldCommon}
-                  fieldKey="emp-desc"
-                  fieldLabel={EMPLOYEE_RESOURCE_TERMS.employeeDescription}
-                  label={EMPLOYEE_RESOURCE_TERMS.employeeDescription}
-                  multiline
-                  rows={3}
-                  value={draft.description}
-                  maxLength={200}
-                  onChange={(v) => setDraft((d) => ({ ...d, description: v }))}
-                  placeholder="简要描述这位数字员工的岗位定位与服务范围…"
-                  inputClassName={cn(ONBOARDING_FIELD, 'min-h-[72px] resize-y leading-relaxed text-sm')}
-                />
-                <SkillRewriteField
-                  {...fieldCommon}
-                  fieldKey="emp-personality"
-                  fieldLabel="语言风格"
-                  label="语言风格"
-                  value={draft.personality}
-                  maxLength={80}
-                  onChange={(v) => setDraft((d) => ({ ...d, personality: v }))}
-                  placeholder="亲和专业、温和体贴、共情力强…"
-                  inputClassName={cn(ONBOARDING_FIELD, 'h-8 py-1.5 text-sm')}
-                />
-                <SkillRewriteField
-                  {...fieldCommon}
-                  fieldKey="emp-duties"
-                  fieldLabel="技能&工作流"
-                  label="技能&工作流"
-                  multiline
-                  rows={4}
-                  value={draft.duties}
-                  maxLength={1000}
-                  onChange={(v) => setDraft((d) => ({ ...d, duties: v }))}
-                  placeholder="描述职责步骤与服务流程…"
-                  inputClassName={cn(ONBOARDING_FIELD, 'min-h-[72px] resize-y leading-relaxed text-sm')}
-                />
-                <SkillRewriteField
-                  {...fieldCommon}
-                  fieldKey="emp-prohibited"
-                  fieldLabel="约束&限制"
-                  label="约束&限制"
-                  multiline
-                  rows={4}
-                  value={draft.prohibited}
-                  maxLength={1000}
-                  onChange={(v) => setDraft((d) => ({ ...d, prohibited: v }))}
-                  placeholder="1. 回答简洁\n2. 超出知识范围时礼貌拒答…"
-                  inputClassName={cn(ONBOARDING_FIELD, 'min-h-[72px] resize-y leading-relaxed text-sm')}
-                />
-              </div>
-            </ConfigSection>
-
-            <ConfigSection
-              title={EMPLOYEE_RESOURCE_TERMS.configuredSkillList}
-              icon={<Cpu size={13} className="text-neutral-500 shrink-0" />}
-              open={open.skills}
-              onToggle={() => toggle('skills')}
-              badge={
-                draft.skills.length > 0 ? (
-                  <span className="text-xs text-neutral-500 flex items-center gap-0.5">
-                    <CheckCircle2 size={10} />
-                    {draft.skills.length}
-                  </span>
-                ) : null
-              }
-            >
-              <div className="pt-2 space-y-2">
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDraft((d) => ({
-                        ...d,
-                        skills: [
-                          ...d.skills,
-                          { id: uid('sk'), name: '新技能', desc: '请补充技能说明。' },
-                        ],
-                      }))
-                    }
-                    className="text-xs text-primary font-medium cursor-pointer flex items-center gap-0.5"
-                  >
-                    <Plus size={11} />
-                    添加技能
-                  </button>
-                </div>
-                <div className="space-y-1">
-                  {draft.skills.map((sk) => (
-                    <div
-                      key={sk.id}
-                      className="flex items-start justify-between gap-2 px-2 py-1.5 rounded-md border border-neutral-200 bg-neutral-100/30"
-                    >
-                      <div className="min-w-0 text-left">
-                        <p className="text-sm font-semibold text-neutral-800 truncate">{sk.name}</p>
-                        <p className="text-xs text-neutral-500 line-clamp-2 leading-snug">{sk.desc}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setDraft((d) => ({
-                            ...d,
-                            skills: d.skills.filter((s) => s.id !== sk.id),
-                          }))
-                        }
-                        className="text-neutral-500 hover:text-destructive p-0.5 cursor-pointer shrink-0 mt-0.5"
-                        title={EMPLOYEE_RESOURCE_TERMS.removeAssigned}
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  ))}
-                  {draft.skills.length === 0 && (
-                    <p className="text-xs text-neutral-500 py-1 leading-relaxed">
-                      {EMPLOYEE_RESOURCE_TERMS.configSkillHint}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </ConfigSection>
-
-            <ConfigSection
-              title={EMPLOYEE_RESOURCE_TERMS.configuredKbList}
-              icon={<BookOpen size={13} className="text-neutral-500 shrink-0" />}
-              open={open.kb}
-              onToggle={() => toggle('kb')}
-              badge={
-                draft.knowledgeBases.length > 0 ? (
-                  <span className="text-xs text-neutral-500 flex items-center gap-0.5">
-                    <CheckCircle2 size={10} />
-                    {draft.knowledgeBases.length}
-                  </span>
-                ) : null
-              }
-            >
-              <div className="pt-2 space-y-2">
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDraft((d) => ({
-                        ...d,
-                        knowledgeBases: [
-                          ...d.knowledgeBases,
-                          { id: uid('kb'), name: '新知识库', desc: '请补充知识库说明。' },
-                        ],
-                      }))
-                    }
-                    className="text-xs text-primary font-medium cursor-pointer flex items-center gap-0.5"
-                  >
-                    <Plus size={11} />
-                    添加知识库
-                  </button>
-                </div>
-                <div className="space-y-1">
-                  {draft.knowledgeBases.map((kb) => (
-                    <div
-                      key={kb.id}
-                      className="flex items-start justify-between gap-2 px-2 py-1.5 rounded-md border border-neutral-200 bg-neutral-100/30"
-                    >
-                      <div className="min-w-0 text-left">
-                        <p className="text-sm font-semibold text-neutral-800 truncate">{kb.name}</p>
-                        <p className="text-xs text-neutral-500 line-clamp-2 leading-snug">{kb.desc}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setDraft((d) => ({
-                            ...d,
-                            knowledgeBases: d.knowledgeBases.filter((k) => k.id !== kb.id),
-                          }))
-                        }
-                        className="text-neutral-500 hover:text-destructive p-0.5 cursor-pointer shrink-0 mt-0.5"
-                        title={EMPLOYEE_RESOURCE_TERMS.removeAssigned}
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  ))}
-                  {draft.knowledgeBases.length === 0 && (
-                    <p className="text-xs text-neutral-500 py-1 leading-relaxed">
-                      {EMPLOYEE_RESOURCE_TERMS.configKbHint}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </ConfigSection>
-          </SkillRewriteProvider>
-        )}
-      </div>
-    </div>
+    <ResizableSplitPane
+      storageKey="js_incubation_training_split"
+      defaultRatio={0.62}
+      minLeftPx={280}
+      minRightPx={260}
+      className="bg-paper h-full"
+      left={
+        <OnboardingConfigPanel
+          agent={agent}
+          knowledgeBases={knowledgeBases}
+          skills={skills}
+          hasKbs={knowledgeBases.length > 0}
+          hasSks={skills.length > 0}
+          updateHiredAgent={updateHiredAgent}
+          showToast={showToast}
+          onPersonaConfigured={() => {}}
+          onKnowledgeBound={() => {}}
+          onSkillBound={() => {}}
+        />
+      }
+      right={
+        <OnboardingCapabilityTestPanel
+          agent={agent}
+          knowledgeBases={knowledgeBases}
+          skills={skills}
+          showToast={showToast}
+          title="预览和调试"
+        />
+      }
+    />
   );
 }
 
@@ -670,14 +433,19 @@ export function EmployeeIncubationWorkspace({
     createKnowledgeBase,
     showToast,
     updateHiredAgent,
+    deleteHiredAgent,
+    hiredAgents,
     skills: platformSkills,
     knowledgeBases: platformKbs,
+    setActiveOnboardingAgentId,
+    setActiveTab,
   } = useApp();
 
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [draft, setDraft] = useState<IncubationDraft>(emptyDraft);
   const [pendingDraft, setPendingDraft] = useState<IncubationDraft | null>(null);
   const [formReady, setFormReady] = useState(false);
+  const [trainingAgentId, setTrainingAgentId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
   const [thinkSteps, setThinkSteps] = useState<SkillThinkStep[]>([]);
@@ -693,9 +461,22 @@ export function EmployeeIncubationWorkspace({
   } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const seededRef = useRef(false);
+  const materializedRef = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  const trainingAgent = useMemo(
+    () => (trainingAgentId ? hiredAgents.find((a) => a.id === trainingAgentId) ?? null : null),
+    [hiredAgents, trainingAgentId],
+  );
+
+  const trainingAgentIdRef = useRef<string | null>(null);
+  trainingAgentIdRef.current = trainingAgentId;
+
   const resetSession = useCallback(() => {
+    const provisionalId = trainingAgentIdRef.current;
+    if (provisionalId) deleteHiredAgent(provisionalId);
+    setTrainingAgentId(null);
+    materializedRef.current = false;
     setMessages([]);
     setDraft(emptyDraft());
     setPendingDraft(null);
@@ -706,7 +487,7 @@ export function EmployeeIncubationWorkspace({
     setChipSelections([]);
     setConfirmEdit(null);
     seededRef.current = false;
-  }, []);
+  }, [deleteHiredAgent]);
 
   const runThinkAnimation = async (steps: SkillThinkStep[]) => {
     setThinkSteps(steps.map((s) => ({ ...s, status: 'pending' })));
@@ -782,6 +563,67 @@ export function EmployeeIncubationWorkspace({
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [messages, thinking, thinkSteps]);
+
+  /** 确认草案后物化真实员工，右侧直接复用培训配置 + 预览调试 */
+  useEffect(() => {
+    if (!open || !formReady || materializedRef.current) return;
+    if (!draft.name.trim()) return;
+
+    materializedRef.current = true;
+    const skillIds = draft.skills.map((sk, i) => {
+      if (sk.sourceId) return sk.sourceId;
+      return createSkill(sk.name, sk.desc, 'mine', {
+        kind: 'tool',
+        source: 'nl',
+        status: 'published',
+        skillCode: `skill_${Date.now()}_${i}`,
+      }).id;
+    });
+    const kbIds = draft.knowledgeBases.map((kb) => {
+      if (kb.sourceId) return kb.sourceId;
+      return createKnowledgeBase(kb.name).id;
+    });
+
+    const agent = createBlankHiredAgent({
+      name: draft.name.slice(0, 8),
+      description: draft.description,
+      jobFamily: 'customer_service',
+      buildMode: 'autonomous',
+      enterTraining: false,
+    });
+
+    updateHiredAgent(agent.id, {
+      skills: skillIds,
+      knowledgeBases: kbIds,
+      languageStyle: draft.personality,
+      constraints: draft.prohibited,
+      workflowNotes: draft.duties,
+      persona: draft.duties,
+    });
+    setTrainingAgentId(agent.id);
+    // 仅在 formReady 首次置真时物化；后续以培训面板 / 对话同步为准
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, formReady]);
+
+  useEffect(() => {
+    if (!trainingAgentId || !formReady) return;
+    updateHiredAgent(trainingAgentId, {
+      name: (draft.name || '新员工').slice(0, 8),
+      description: draft.description,
+      languageStyle: draft.personality,
+      constraints: draft.prohibited,
+      workflowNotes: draft.duties,
+    });
+  }, [
+    draft.name,
+    draft.description,
+    draft.personality,
+    draft.duties,
+    draft.prohibited,
+    formReady,
+    trainingAgentId,
+    updateHiredAgent,
+  ]);
 
   const runUserTurn = async (raw: string) => {
     let text = raw.trim();
@@ -884,6 +726,19 @@ export function EmployeeIncubationWorkspace({
       showToast('请先在对话中确认草案，再创建员工');
       return;
     }
+
+    // 已物化：保留员工并进入正式培训页
+    if (trainingAgentId && trainingAgent) {
+      setActiveOnboardingAgentId(trainingAgentId);
+      setActiveTab('training');
+      trainingAgentIdRef.current = null;
+      setTrainingAgentId(null);
+      materializedRef.current = false;
+      showToast(`「${trainingAgent.name}」已就绪，继续完善入职培训`);
+      onClose();
+      return;
+    }
+
     const skillIds = draft.skills.map((sk, i) => {
       if (sk.sourceId) return sk.sourceId;
       return createSkill(sk.name, sk.desc, 'mine', {
@@ -900,18 +755,7 @@ export function EmployeeIncubationWorkspace({
 
     const agent = createBlankHiredAgent({
       name: draft.name.slice(0, 8),
-      description: [
-        draft.description,
-        '',
-        '【性格】',
-        draft.personality,
-        '',
-        '【职责】',
-        draft.duties,
-        '',
-        '【禁止行为】',
-        draft.prohibited,
-      ].join('\n'),
+      description: draft.description,
       jobFamily: 'customer_service',
       buildMode: 'autonomous',
       enterTraining: true,
@@ -963,7 +807,7 @@ export function EmployeeIncubationWorkspace({
         defaultLeftPx={480}
         defaultRatio={0.42}
         minLeftPx={320}
-        minRightPx={360}
+        minRightPx={480}
         className="bg-paper"
         left={
           <section className="flex flex-col min-h-0 h-full bg-[#F9F9FB] select-text">
@@ -981,7 +825,7 @@ export function EmployeeIncubationWorkspace({
                     </div>
                   </div>
                   <p className="text-[13px] leading-relaxed text-neutral-700">
-                    你好！我会像创建技能一样，用对话帮你规划数字员工的主 Prompt、技能边界与知识库，确认后再同步到右侧配置区。
+                    你好！我会像创建技能一样，用对话帮你规划数字员工的主 Prompt、技能边界与知识库，确认后右侧会打开培训配置页，并可对话预览与调试。
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {[
@@ -1025,6 +869,7 @@ export function EmployeeIncubationWorkspace({
                     </div>
                   );
                 }
+                if (m.kind !== 'confirm') return null;
                 return (
                   <div key={m.id} className="w-full">
                     <SkillRoundConfirmCard
@@ -1037,16 +882,6 @@ export function EmployeeIncubationWorkspace({
                           : []
                       }
                       onConfirm={(items) => handleConfirm(m.id, items)}
-                      onReset={(items) => {
-                        setConfirmEdit(null);
-                        setInput(
-                          items
-                            .filter((it) => it.checked)
-                            .map((it) => `${it.fieldLabel || '要点'}：${it.value || it.label}`)
-                            .join('\n'),
-                        );
-                        inputRef.current?.focus();
-                      }}
                       onEditItem={(item, itemIndex) => {
                         setChipSelections([]);
                         const hint = item.fieldLabel || `要点 ${itemIndex + 1}`;
@@ -1196,7 +1031,7 @@ export function EmployeeIncubationWorkspace({
                   className="w-8 h-8 rounded-[7px] border border-neutral-200 bg-white text-neutral-600 flex items-center justify-center cursor-pointer"
                   title="附件"
                 >
-                  <Paperclip size={16} />
+                  <Plus size={16} />
                 </button>
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] text-neutral-400 tabular-nums">
@@ -1222,10 +1057,12 @@ export function EmployeeIncubationWorkspace({
           </section>
         }
         right={
-          <IncubationDraftPanel
-            draft={draft}
+          <IncubationTrainingPane
             formReady={formReady}
-            setDraft={setDraft}
+            agent={trainingAgent}
+            knowledgeBases={platformKbs}
+            skills={platformSkills}
+            updateHiredAgent={updateHiredAgent}
             showToast={showToast}
           />
         }

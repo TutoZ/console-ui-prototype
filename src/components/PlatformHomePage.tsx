@@ -15,8 +15,8 @@ import {
   History,
   Layers,
   Library,
-  Paperclip,
   Pencil,
+  Plus,
   Search,
   Trash2,
   Users,
@@ -446,26 +446,28 @@ export const PlatformHomePage: React.FC = () => {
           </div>
         </aside>
       ) : (
-        <button
-          type="button"
-          onClick={() => setSessionSidebarOpen(true)}
-          className="absolute left-4 top-3 z-[3] inline-flex items-center gap-1.5 text-[14px] font-medium text-neutral-700 hover:text-neutral-900 cursor-pointer"
-          aria-label="展开最近会话"
-          title="展开最近会话"
-        >
-          <span>最近会话</span>
-          <History size={16} strokeWidth={1.75} className="text-neutral-600" />
-        </button>
+        <div className="absolute left-0 top-0 z-[3] flex h-11 items-center gap-2 px-3">
+          <h2 className="text-[14px] font-medium text-neutral-700">最近会话</h2>
+          <button
+            type="button"
+            onClick={() => setSessionSidebarOpen(true)}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-50 hover:text-neutral-800 cursor-pointer transition"
+            aria-label="展开会话列表"
+            title="展开"
+          >
+            <History size={16} strokeWidth={1.75} />
+          </button>
+        </div>
       )}
 
       <div className="relative flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-white">
       {/* 柔光：大模糊 + 长淡出，避免椭圆硬边 */}
       <div
         aria-hidden
-        className="pointer-events-none absolute left-1/2 top-1/2 h-[280px] w-[min(560px,70%)] -translate-x-1/2 -translate-y-[55%] rounded-full bg-[rgba(21,101,191,0.09)] blur-[80px]"
+        className="pointer-events-none absolute left-1/2 top-[44%] h-[280px] w-[min(560px,70%)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[rgba(21,101,191,0.09)] blur-[80px]"
       />
 
-      <div className="relative z-[1] flex flex-col items-center justify-center px-6 py-10 min-h-full">
+      <div className="relative z-[1] flex flex-col items-center justify-center px-6 pt-6 pb-24 min-h-full -translate-y-10 sm:-translate-y-14">
         {/* 标题 */}
         <div className="w-full max-w-[860px] text-center">
           <AnimatePresence mode="wait" initial={false}>
@@ -602,7 +604,7 @@ export const PlatformHomePage: React.FC = () => {
                     'hover:bg-neutral-50 cursor-pointer transition',
                   )}
                 >
-                  <Paperclip size={16} />
+                  <Plus size={16} />
                 </button>
                 <div className="relative" ref={indexPanelRef}>
                   <button

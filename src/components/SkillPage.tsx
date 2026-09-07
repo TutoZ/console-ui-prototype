@@ -4,22 +4,9 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { Icon, addCollection } from '@iconify/react';
+import solarIcons from '@iconify-json/solar/icons.json';
 import { useApp } from '../context/AppContext';
-import {
-  Search,
-  Plus,
-  UploadCloud,
-  Sparkles,
-  FileText,
-  Workflow,
-  ShieldAlert,
-  Database,
-  BookOpen,
-  Cpu,
-  MessageSquare,
-  Activity,
-  Zap,
-} from '@/lib/icons';
 import { ListPagination, LIST_PAGE_SIZE, paginateItems } from './common/ListPagination';
 import {
   SkillStudioWorkspace,
@@ -35,6 +22,8 @@ import { Modal } from './common/Modal';
 import { useMockLatency } from '@/lib/useMockLatency';
 import { useInlineAction } from '@/lib/useInlineAction';
 import type { Skill } from '../types';
+
+addCollection(solarIcons as Parameters<typeof addCollection>[0]);
 
 type SkillListTab = 'mine' | 'market';
 
@@ -63,28 +52,38 @@ const SUB_TABS: { key: SkillListTab; label: string }[] = [
   { key: 'market', label: SKILL_PAGE_COPY.tabMarket },
 ];
 
-const SKILL_ICON_FALLBACKS = [Sparkles, Cpu, Zap, Activity, BookOpen, MessageSquare] as const;
+/** 标签无描边：仅底色 + 字色 */
+const SKILL_BADGE_NO_STROKE = 'border-0 shadow-none';
+
+const SKILL_ICON_FALLBACKS = [
+  'solar:stars-bold',
+  'solar:cpu-bolt-bold',
+  'solar:bolt-bold',
+  'solar:graph-up-bold',
+  'solar:book-bold',
+  'solar:chat-round-bold',
+] as const;
 
 function SkillListIcon({ skill }: { skill: Skill }) {
   const n = skill.name;
-  let Icon = Sparkles;
-  if (/理赔|测算|票据|保单|费用/.test(n)) Icon = FileText;
-  else if (/CRM|同步|建单|工单|外呼|拨号/.test(n)) Icon = Workflow;
-  else if (/情绪|投诉|升级|风险|监测/.test(n)) Icon = ShieldAlert;
-  else if (/物流|订单|轨迹|查询/.test(n)) Icon = Activity;
-  else if (/知识|召回|润色|FAQ/.test(n)) Icon = BookOpen;
-  else if (/对话|消息|客服/.test(n)) Icon = MessageSquare;
-  else if (skill.kind === 'kb') Icon = BookOpen;
-  else if (skill.kind === 'tool') Icon = Database;
+  let icon: string = 'solar:stars-bold';
+  if (/理赔|测算|票据|保单|费用/.test(n)) icon = 'solar:document-text-bold';
+  else if (/CRM|同步|建单|工单|外呼|拨号/.test(n)) icon = 'solar:routing-2-bold';
+  else if (/情绪|投诉|升级|风险|监测/.test(n)) icon = 'solar:shield-warning-bold';
+  else if (/物流|订单|轨迹|查询/.test(n)) icon = 'solar:graph-up-bold';
+  else if (/知识|召回|润色|FAQ/.test(n)) icon = 'solar:book-bold';
+  else if (/对话|消息|客服/.test(n)) icon = 'solar:chat-round-bold';
+  else if (skill.kind === 'kb') icon = 'solar:book-bold';
+  else if (skill.kind === 'tool') icon = 'solar:database-bold';
   else {
     let h = 0;
     for (let i = 0; i < skill.id.length; i++) h = (h * 31 + skill.id.charCodeAt(i)) >>> 0;
-    Icon = SKILL_ICON_FALLBACKS[h % SKILL_ICON_FALLBACKS.length];
+    icon = SKILL_ICON_FALLBACKS[h % SKILL_ICON_FALLBACKS.length];
   }
 
   return (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-neutral-200 bg-neutral-50 text-neutral-700">
-      <Icon size={14} strokeWidth={2} />
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-neutral-100 text-neutral-700">
+      <Icon icon={icon} width={14} height={14} className="shrink-0" aria-hidden />
     </span>
   );
 }
@@ -169,21 +168,39 @@ function SkillCardAction({
   );
 }
 
+function isAiCreatedSkill(skill: Skill): boolean {
+  return skill.source === 'nl';
+}
+
 function SkillAppliedAgentTags({
   names,
   className,
+  aiCreated = false,
 }: {
   names: string[];
   className?: string;
+  aiCreated?: boolean;
 }) {
-  if (names.length === 0) return null;
+  if (!aiCreated && names.length === 0) return null;
 
   return (
     <div className={cn('flex flex-wrap gap-1', className)}>
+      {aiCreated ? (
+        <span
+          className={cn(badgeClass('live'), SKILL_BADGE_NO_STROKE, 'font-medium normal-case')}
+          title="由 AI 对话创建"
+        >
+          AI创建
+        </span>
+      ) : null}
       {names.map((name) => (
         <span
           key={name}
-          className={cn(badgeClass('neutral'), 'max-w-full truncate font-medium normal-case')}
+          className={cn(
+            badgeClass('neutral'),
+            SKILL_BADGE_NO_STROKE,
+            'max-w-full truncate font-medium normal-case',
+          )}
           title={`已应用于 ${name}`}
         >
           {name}
@@ -364,9 +381,12 @@ export const SkillPage: React.FC = () => {
       <div className="shrink-0 px-5 pt-5">
       <OnlinePageHeader title="数字员工技能">
         <div className="relative w-full sm:w-64 shrink-0">
-          <Search
-            size={14}
+          <Icon
+            icon="solar:magnifer-bold"
+            width={14}
+            height={14}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
+            aria-hidden
           />
           <input
             type="text"
@@ -392,7 +412,7 @@ export const SkillPage: React.FC = () => {
               aria-expanded={createMenuOpen}
               onClick={() => setCreateMenuOpen((v) => !v)}
             >
-              <Plus size={14} />
+              <Icon icon="solar:add-circle-bold" width={14} height={14} aria-hidden />
               <span>{SKILL_PAGE_COPY.createSkill}</span>
             </button>
             {createMenuOpen ? (
@@ -407,7 +427,13 @@ export const SkillPage: React.FC = () => {
                     onClick={() => openCreate('interactive')}
                     className="w-full text-left px-3 py-2.5 hover:bg-neutral-50 cursor-pointer flex items-start gap-2.5"
                   >
-                    <Sparkles size={15} className="text-neutral-700 shrink-0 mt-0.5" />
+                    <Icon
+                      icon="solar:stars-bold"
+                      width={15}
+                      height={15}
+                      className="text-neutral-700 shrink-0 mt-0.5"
+                      aria-hidden
+                    />
                     <span className="min-w-0">
                       <span className="block text-[13px] font-semibold text-neutral-900">
                         对话式创建
@@ -423,7 +449,13 @@ export const SkillPage: React.FC = () => {
                     onClick={() => openCreate('zip')}
                     className="w-full text-left px-3 py-2.5 hover:bg-neutral-50 cursor-pointer flex items-start gap-2.5"
                   >
-                    <UploadCloud size={15} className="text-neutral-700 shrink-0 mt-0.5" />
+                    <Icon
+                      icon="solar:upload-bold"
+                      width={15}
+                      height={15}
+                      className="text-neutral-700 shrink-0 mt-0.5"
+                      aria-hidden
+                    />
                     <span className="min-w-0">
                       <span className="block text-[13px] font-semibold text-neutral-900">
                         上传 ZIP 压缩包
@@ -495,10 +527,26 @@ export const SkillPage: React.FC = () => {
                     >
                       {s.name}
                     </h3>
-                    {s.status === 'draft' ? (
-                      <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded mt-0.5 inline-block">
-                        草稿态
-                      </span>
+                    {isAiCreatedSkill(s) || s.status === 'draft' ? (
+                      <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                        {isAiCreatedSkill(s) ? (
+                          <span
+                            className={cn(
+                              badgeClass('live'),
+                              SKILL_BADGE_NO_STROKE,
+                              'font-medium normal-case',
+                            )}
+                            title="由 AI 对话创建"
+                          >
+                            AI创建
+                          </span>
+                        ) : null}
+                        {s.status === 'draft' ? (
+                          <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded inline-block">
+                            草稿态
+                          </span>
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
                 </div>
@@ -601,7 +649,12 @@ export const SkillPage: React.FC = () => {
           </>
         }
       >
-        {boundConfirm ? <SkillAppliedAgentTags names={boundConfirmNames} /> : null}
+        {boundConfirm ? (
+          <SkillAppliedAgentTags
+            names={boundConfirmNames}
+            aiCreated={isAiCreatedSkill(boundConfirm.skill)}
+          />
+        ) : null}
       </Modal>
     </div>
   );

@@ -10,10 +10,7 @@ import { createPortal } from 'react-dom';
 import { ArrowUp, Loader2 } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import {
-  AI_ACCENT_TEXT,
-  AI_GRADIENT_BTN_BG,
   AI_GRADIENT_TEXT,
-  AI_LIGHT_BTN_BG,
   AI_REWRITE_CHIP,
 } from '@/lib/ui';
 
@@ -302,9 +299,6 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
               )}
             />
             <div className="absolute bottom-3 right-3 flex items-center gap-2">
-              {isRewriting ? (
-                <span className="text-[11px] text-neutral-400 tabular-nums">改写中…</span>
-              ) : null}
               <button
                 type="button"
                 disabled={isRewriting || !instruction.trim()}
@@ -396,30 +390,28 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
           }}
           className={cn(
             AI_REWRITE_CHIP,
-            'absolute z-[1]',
+            'absolute z-[1] border border-neutral-200 bg-white shadow-[0_1px_3px_rgba(17,17,17,0.08)]',
             multiline ? 'right-1.5 top-1.5' : 'right-1.5 top-1/2 -translate-y-1/2',
+            // 选中 / 悬停：不透明实底，避免下方文字透出或点穿
             isOpen
-              ? cn(AI_GRADIENT_BTN_BG, 'text-white opacity-100 shadow-[0_1px_0_rgba(0,0,0,0.05)]')
-              : cn(AI_LIGHT_BTN_BG, 'opacity-0 hover:bg-[rgba(21,101,191,0.12)]'),
+              ? 'opacity-100 bg-neutral-50'
+              : 'opacity-0 hover:bg-neutral-50',
             !isOpen && 'group-hover:opacity-100 group-focus-within:opacity-100',
             !isOpen &&
               'pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto',
+            isOpen && 'pointer-events-auto',
             (disabled || isRewriting) && 'opacity-50 cursor-not-allowed pointer-events-none',
           )}
         >
-          {isRewriting ? (
-            <Loader2 size={12} className={cn('animate-spin', isOpen ? 'text-white' : AI_ACCENT_TEXT)} />
-          ) : (
-            <img
-              src="/assets/ai-star-rewrite.svg"
-              alt=""
-              width={12}
-              height={12}
-              className={cn('size-3 shrink-0', isOpen && 'brightness-0 invert')}
-              aria-hidden
-            />
-          )}
-          <span className={cn(!isOpen && !isRewriting && AI_GRADIENT_TEXT)}>改写</span>
+          <img
+            src="/assets/ai-star-rewrite.svg"
+            alt=""
+            width={12}
+            height={12}
+            className="size-3 shrink-0"
+            aria-hidden
+          />
+          <span className={AI_GRADIENT_TEXT}>改写</span>
         </button>
       </div>
 
