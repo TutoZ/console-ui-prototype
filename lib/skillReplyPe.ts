@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 多轮对话底部「AI 帮写」快捷建议 — 按上下文动态生成若干回答方向；
+ * 多轮对话底部“AI 帮写”快捷建议 — 按上下文动态生成若干回答方向；
  * 点选后立刻发送完整草稿，由 AI 补全并弹出确认卡。
  */
 
@@ -78,7 +78,7 @@ export const SKILL_CONFIRM_LABEL_TO_FIELD_KEY: Record<string, string> = {
   补充资料: 'customNotes',
 };
 
-/** 从「重新设置要求」等带【标签】的文本中解析要点块 */
+/** 从“重新设置要求”等带【标签】的文本中解析要点块 */
 export function parseComposerTaggedBlocks(text: string): Array<{ label: string; body: string }> {
   const blocks: Array<{ label: string; body: string }> = [];
   const re = /【([^】]+)】[ \t]*\n([\s\S]*?)(?=\n\n【|$)/g;
@@ -162,7 +162,7 @@ function pickUnique(chips: SkillReplyPeChip[], limit = 4): SkillReplyPeChip[] {
 }
 
 /**
- * 根据当前对话与表单状态，动态生成底部「AI 帮写」建议芯片
+ * 根据当前对话与表单状态，动态生成底部“AI 帮写”建议芯片
  */
 export function buildDynamicSkillReplyPe(ctx: SkillReplyPeContext): SkillReplyPeChip[] {
   const title = (ctx.skillTitle || ctx.form?.cnName || '本技能').trim();
@@ -177,7 +177,7 @@ export function buildDynamicSkillReplyPe(ctx: SkillReplyPeContext): SkillReplyPe
       makeChip(
         'confirm-trigger-tight',
         '收紧触发条件',
-        `补触发边界：「${title}」仅在用户提供必要业务标识（如单号、手机号后四位）且诉求属于本技能范围时触发；标识不全时先追问，不直接查询。`,
+        `补触发边界：“${title}”仅在用户提供必要业务标识（如单号、手机号后四位）且诉求属于本技能范围时触发；标识不全时先追问，不直接查询。`,
       ),
       makeChip(
         'confirm-safety-strict',
@@ -187,7 +187,7 @@ export function buildDynamicSkillReplyPe(ctx: SkillReplyPeContext): SkillReplyPe
       makeChip(
         'confirm-chain-kb',
         '动作链挂知识库',
-        `生成动作链：步骤为「核验标识 → 查询状态 → 组织结论」；查询步骤需挂载相关知识库，结论话术面向用户可读。`,
+        `生成动作链：步骤为“核验标识 → 查询状态 → 组织结论”；查询步骤需挂载相关知识库，结论话术面向用户可读。`,
       ),
       makeChip(
         'confirm-example-real',
@@ -203,7 +203,7 @@ export function buildDynamicSkillReplyPe(ctx: SkillReplyPeContext): SkillReplyPe
       makeChip(
         'after-confirm-edit-trigger',
         '触发还要再改',
-        `补触发边界：「${title}」的触发条件我想再写具体一点，请补充必要标识与不应触发的场景。`,
+        `补触发边界：“${title}”的触发条件我想再写具体一点，请补充必要标识与不应触发的场景。`,
       ),
       makeChip(
         'after-confirm-edit-redline',
@@ -213,17 +213,17 @@ export function buildDynamicSkillReplyPe(ctx: SkillReplyPeContext): SkillReplyPe
       makeChip(
         'after-confirm-test',
         '先测一条用例',
-        `我想先测一条用例：用户说「${intro.slice(0, 24)}…」，看当前触发与回复是否合理。`,
+        `我想先测一条用例：用户说“${intro.slice(0, 24)}…”，看当前触发与回复是否合理。`,
       ),
     );
   }
 
-  if (/已更新表单「触发|触发条件|触发边界|不该使用/.test(latestAi)) {
+  if (/已更新表单“触发|触发条件|触发边界|不该使用/.test(latestAi)) {
     chips.push(
       makeChip(
         'next-after-trigger-safety',
         '接着写红线',
-        `补安全红线：围绕「${title}」写清禁止行为、内容红线，以及无法处理时的托底话术。`,
+        `补安全红线：围绕“${title}”写清禁止行为、内容红线，以及无法处理时的托底话术。`,
       ),
       makeChip(
         'next-after-trigger-forbid',
@@ -233,22 +233,22 @@ export function buildDynamicSkillReplyPe(ctx: SkillReplyPeContext): SkillReplyPe
       makeChip(
         'next-after-trigger-chain',
         '生成默认动作链',
-        `生成动作链：采用「核验诉求与业务标识 → 查询并组织结论」写入技能主体。`,
+        `生成动作链：采用“核验诉求与业务标识 → 查询并组织结论”写入技能主体。`,
       ),
     );
   }
 
-  if (/已更新表单「禁止|安全红线|托底|内容红线/.test(latestAi)) {
+  if (/已更新表单“禁止|安全红线|托底|内容红线/.test(latestAi)) {
     chips.push(
       makeChip(
         'next-after-safety-example',
         '补使用示例',
-        `补使用示例：写一组「${title}」相关用户问句 + 数字员工回复，体现先结论后依据、不编造进度。`,
+        `补使用示例：写一组“${title}”相关用户问句 + 数字员工回复，体现先结论后依据、不编造进度。`,
       ),
       makeChip(
         'next-after-safety-tone',
         '统一回答口径',
-        `补安全红线：回答口径统一为「先结论后依据」；禁止承诺未经核验的赔付或处理时效。`,
+        `补安全红线：回答口径统一为“先结论后依据”；禁止承诺未经核验的赔付或处理时效。`,
       ),
       makeChip(
         'next-after-safety-chain',
@@ -258,7 +258,7 @@ export function buildDynamicSkillReplyPe(ctx: SkillReplyPeContext): SkillReplyPe
     );
   }
 
-  if (/已更新表单「执行步骤|动作链/.test(latestAi)) {
+  if (/已更新表单“执行步骤|动作链/.test(latestAi)) {
     chips.push(
       makeChip(
         'next-after-chain-kb',
@@ -278,7 +278,7 @@ export function buildDynamicSkillReplyPe(ctx: SkillReplyPeContext): SkillReplyPe
     );
   }
 
-  if (/已更新表单「用户输入|使用示例|补充说明|产出物/.test(latestAi)) {
+  if (/已更新表单“用户输入|使用示例|补充说明|产出物/.test(latestAi)) {
     chips.push(
       makeChip(
         'next-after-io-trigger',
@@ -293,7 +293,7 @@ export function buildDynamicSkillReplyPe(ctx: SkillReplyPeContext): SkillReplyPe
       makeChip(
         'next-after-io-test',
         '跑一条测试',
-        `我想先测一条用例，验证示例里的用户说法能否正确触发「${title}」。`,
+        `我想先测一条用例，验证示例里的用户说法能否正确触发“${title}”。`,
       ),
     );
   }
@@ -303,17 +303,17 @@ export function buildDynamicSkillReplyPe(ctx: SkillReplyPeContext): SkillReplyPe
       makeChip(
         'grow-trigger',
         '写清触发边界',
-        `补触发边界：「${title}」在用户表达相关意图且提供必要业务标识时触发；写清不该触发的边界场景。`,
+        `补触发边界：“${title}”在用户表达相关意图且提供必要业务标识时触发；写清不该触发的边界场景。`,
       ),
       makeChip(
         'grow-safety',
         '写安全红线',
-        `补安全红线：围绕「${intro.slice(0, 30)}」写清禁止行为、内容红线与托底转人工策略。`,
+        `补安全红线：围绕“${intro.slice(0, 30)}”写清禁止行为、内容红线与托底转人工策略。`,
       ),
       makeChip(
         'grow-chain',
         '生成动作链',
-        `生成动作链：默认「核验诉求与业务标识 → 查询并组织结论」，如需可补充挂载知识库/接口说明。`,
+        `生成动作链：默认“核验诉求与业务标识 → 查询并组织结论”，如需可补充挂载知识库/接口说明。`,
       ),
       makeChip(
         'grow-example',
@@ -333,7 +333,7 @@ export function buildDynamicSkillReplyPe(ctx: SkillReplyPeContext): SkillReplyPe
       makeChip(
         'gap-trigger',
         '补全触发条件',
-        `补触发边界：请根据「${title}」写清何时该触发、何时不该触发，并明确必要业务标识（如单号）。`,
+        `补触发边界：请根据“${title}”写清何时该触发、何时不该触发，并明确必要业务标识（如单号）。`,
       ),
     );
   }
@@ -351,7 +351,7 @@ export function buildDynamicSkillReplyPe(ctx: SkillReplyPeContext): SkillReplyPe
       makeChip(
         'gap-chain',
         '生成动作链',
-        `生成动作链：按「${title}」业务目标设计核验 → 查询 → 结论三步，并说明每步输入输出。`,
+        `生成动作链：按“${title}”业务目标设计核验 → 查询 → 结论三步，并说明每步输入输出。`,
       ),
     );
   }
@@ -360,7 +360,7 @@ export function buildDynamicSkillReplyPe(ctx: SkillReplyPeContext): SkillReplyPe
       makeChip(
         'gap-example',
         '补使用示例',
-        `补使用示例：围绕「${title}」写用户问句与数字员工回复，含正常与缺少标识两种路径。`,
+        `补使用示例：围绕“${title}”写用户问句与数字员工回复，含正常与缺少标识两种路径。`,
       ),
     );
   }
@@ -377,7 +377,7 @@ export function buildDynamicSkillReplyPe(ctx: SkillReplyPeContext): SkillReplyPe
 
   if (chips.length === 0) {
     chips.push(
-      makeChip('fallback-trigger', '优化触发边界', `补触发边界：我想优化「${title}」的触发条件与禁止触发场景。`),
+      makeChip('fallback-trigger', '优化触发边界', `补触发边界：我想优化“${title}”的触发条件与禁止触发场景。`),
       makeChip('fallback-safety', '加强安全约束', `补安全红线：补充禁止行为与托底策略。`),
       makeChip('fallback-example', '补使用示例', `补使用示例：写一条更贴近业务的对话示例。`),
     );

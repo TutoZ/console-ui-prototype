@@ -2,8 +2,8 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * AI 数字员工智能孵化 — 对齐技能创建 CUI：
- * 全屏左右分栏 · 左侧自然语言对话 · 右侧复用员工培训配置 + 预览调试对话
+ * AI 数字员工智能孵化 — 左对话规划并直接写入草案，右侧复用员工培训页
+ *（入职培训配置 + 能力测试 / 培训存档）
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -14,28 +14,34 @@ import {
   Loader2,
   Plus,
   Sparkles,
-  X,
 } from '@/lib/icons';
 import {
   CHIP,
   CHIP_ACTIVE,
   NAV_ACTIVE_GRADIENT_BG,
-  SKILL_AOP_GRADIENT_TEXT,
   SKILL_AOP_TINT_BG,
   SKILL_AOP_TINT_BORDER,
 } from '@/lib/ui';
 import { cn } from '@/lib/utils';
+import { AGENT_AVATAR_PRESETS } from '@/lib/agentAvatarDisplay';
+import { defaultOpeningLineForAgent, defaultFallbackScriptForAgent } from '@/lib/agentDefaultCopy';
+import { LIFECYCLE_TERMS } from '@/lib/platformTerminology';
 import type { SkillThinkStep } from '@/lib/skillStudioMock';
+import {
+  createSavedSnapshot,
+  ensureAgentSnapshots,
+  savedSnapshotTitle,
+  snapshotToAgentUpdates,
+} from '../../lib/agentVersions';
 import { useApp } from '../../context/AppContext';
 import type { HiredAgent, KnowledgeBase, Skill } from '../../types';
 import { ResizableSplitPane } from '../common/ResizableSplitPane';
+import { SegmentedTabBar } from '../common/SegmentedTabs';
 import { OnboardingWorkspaceHeader } from '../onboarding/OnboardingWorkspaceHeader';
 import { OnboardingConfigPanel } from '../onboarding/OnboardingConfigPanel';
 import { OnboardingCapabilityTestPanel } from '../onboarding/OnboardingCapabilityTestPanel';
-import {
-  SkillRoundConfirmCard,
-  type SkillConfirmItem,
-} from '../skills/SkillRoundConfirmCard';
+import { AgentVersionPanel } from '../onboarding/AgentVersionPanel';
+import { ONBOARDING_WORKSPACE_TABS } from '@/lib/onboardingWorkspaceTabs';
 import { SkillThinkingCard } from '../skills/SkillThinkingCard';
 
 export type IncubationDraft = {
@@ -48,18 +54,7 @@ export type IncubationDraft = {
   knowledgeBases: Array<{ id: string; name: string; desc: string; sourceId?: string }>;
 };
 
-type ConfirmMsg = {
-  id: string;
-  kind: 'confirm';
-  title: string;
-  items: SkillConfirmItem[];
-  confirmed: boolean;
-  time: string;
-};
-
-type ChatMsg =
-  | { id: string; kind: 'user' | 'ai'; text: string; time: string }
-  | ConfirmMsg;
+type ChatMsg = { id: string; kind: 'user' | 'ai'; text: string; time: string };
 
 type HelpChip = { id: string; label: string; send: string };
 
@@ -69,6 +64,113 @@ const USER_BUBBLE = cn(
   SKILL_AOP_TINT_BORDER,
   'border',
 );
+
+/** AI 气泡 — 对齐 dongDesign-AI / B 端 AI 组件规范 regular-14 */
+const AI_BUBBLE =
+  'max-w-[92%] w-full px-3.5 py-3 rounded-2xl text-[14px] leading-[22px] bg-neutral-100 text-[#595959]';
+
+/** 一/二/三级标题 + 正文（dongDesign-AI 文本规范） */
+const AI_H1 = 'text-[18px] leading-[28px] font-semibold text-[#262626]';
+const AI_H2 = 'text-[16px] leading-[24px] font-semibold text-[#262626]';
+const AI_H3 = 'text-[14px] leading-[22px] font-semibold text-[#1c1d1f]';
+const AI_BODY = 'text-[14px] leading-[22px] text-[#595959]';
+const AI_MUTED = 'text-[14px] leading-[22px] text-[#8c8c8c]';
+
+/** 写入后的排版样例（便于对照标题层级） */
+const AI_TYPOGRAPHY_DEMO = [
+  '# 已写入右侧配置区',
+  '',
+  '草案要点已同步到右侧员工资料。下面是气泡内标题与正文字阶样例，便于对照 dongDesign-AI 规范。',
+  '',
+  '## 二级标题 · 你可以继续做什么',
+  '',
+  '在对话里继续改性格、职责或红线；也可以点上方“AI 帮写”快捷条，让我按场景扩写一版。',
+  '',
+  '### 三级标题 · 对话微调',
+  '直接说明想改哪一条，例如“把性格写得更共情”，我会立刻同步到右侧。',
+  '',
+  '### 三级标题 · 完成创建',
+  '点右上角“完成培训”结束帮写创建；之后可从员工卡进入“员工培训”。',
+  '',
+  '> 次要说明：一级 18/28 · 二级 16/24 · 三级与正文 14/22；正文色 #595959，标题 #262626 / #1c1d1f。',
+].join('\n');
+
+function renderInlineEmphasis(text: string, keyPrefix: string): React.ReactNode {
+  const parts = text.split(/([「『“][^」』”]*[」』”])/);
+  if (parts.length <= 1) return text;
+  return parts.map((part, i) =>
+    /^[「『“].*[」』”]$/.test(part) ? (
+      <span key={`${keyPrefix}-${i}`} className="font-semibold text-[#1c1d1f]">
+        {part}
+      </span>
+    ) : (
+      <React.Fragment key={`${keyPrefix}-${i}`}>{part}</React.Fragment>
+    ),
+  );
+}
+
+/** 轻量 Markdown：# / ## / ### / > 引用 / 空行分段 */
+function renderAiRichContent(content: string) {
+  const lines = content.replace(/\r\n/g, '\n').split('\n');
+  const blocks: React.ReactNode[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const raw = lines[i];
+    const line = raw.trimEnd();
+    if (!line.trim()) {
+      i += 1;
+      continue;
+    }
+    if (line.startsWith('### ')) {
+      blocks.push(
+        <h3 key={`h3-${i}`} className={AI_H3}>
+          {renderInlineEmphasis(line.slice(4), `h3-${i}`)}
+        </h3>,
+      );
+      i += 1;
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      blocks.push(
+        <h2 key={`h2-${i}`} className={AI_H2}>
+          {renderInlineEmphasis(line.slice(3), `h2-${i}`)}
+        </h2>,
+      );
+      i += 1;
+      continue;
+    }
+    if (line.startsWith('# ')) {
+      blocks.push(
+        <h1 key={`h1-${i}`} className={AI_H1}>
+          {renderInlineEmphasis(line.slice(2), `h1-${i}`)}
+        </h1>,
+      );
+      i += 1;
+      continue;
+    }
+    if (line.startsWith('> ')) {
+      blocks.push(
+        <p key={`q-${i}`} className={AI_MUTED}>
+          {renderInlineEmphasis(line.slice(2), `q-${i}`)}
+        </p>,
+      );
+      i += 1;
+      continue;
+    }
+    const para: string[] = [line];
+    i += 1;
+    while (i < lines.length && lines[i].trim() && !/^#{1,3}\s/.test(lines[i]) && !/^>\s/.test(lines[i])) {
+      para.push(lines[i]);
+      i += 1;
+    }
+    blocks.push(
+      <p key={`p-${i}`} className={AI_BODY}>
+        {renderInlineEmphasis(para.join('\n'), `p-${i}`)}
+      </p>,
+    );
+  }
+  return <div className="flex flex-col gap-2 whitespace-pre-line">{blocks}</div>;
+}
 
 const HELP_CHIPS: HelpChip[] = [
   { id: 'persona', label: '补充性格人设', send: '请把员工性格写得更具体，突出共情与专业边界' },
@@ -100,7 +202,7 @@ function emptyDraft(): IncubationDraft {
 
 function draftFromPrompt(prompt: string): IncubationDraft {
   const named =
-    prompt.match(/「(.+?)」/)?.[1]
+    prompt.match(/[「“](.+?)[」”]/)?.[1]
     || prompt.match(/(?:打造|创建)(.+?)(?:，|,|$)/)?.[1]?.trim()
     || '在线客服专员';
   const name = named.slice(0, 12) || '在线客服专员';
@@ -169,98 +271,6 @@ function draftFromPrompt(prompt: string): IncubationDraft {
   };
 }
 
-function draftToConfirmItems(draft: IncubationDraft): SkillConfirmItem[] {
-  return [
-    {
-      id: 'name',
-      label: `员工名称：${draft.name}`,
-      checked: true,
-      fieldLabel: '员工名称',
-      value: draft.name,
-    },
-    {
-      id: 'personality',
-      label: `员工性格：${draft.personality}`,
-      checked: true,
-      fieldLabel: '员工性格',
-      value: draft.personality,
-    },
-    {
-      id: 'description',
-      label: `员工描述：${draft.description}`,
-      checked: true,
-      fieldLabel: '员工描述',
-      value: draft.description,
-    },
-    {
-      id: 'duties',
-      label: `工作职责：${draft.duties.replace(/\n/g, '；')}`,
-      checked: true,
-      fieldLabel: '工作职责',
-      value: draft.duties,
-    },
-    {
-      id: 'prohibited',
-      label: `禁止行为：${draft.prohibited.replace(/\n/g, '；')}`,
-      checked: true,
-      fieldLabel: '禁止行为',
-      value: draft.prohibited,
-    },
-    ...draft.skills.map((sk, i) => ({
-      id: `skill_${sk.id}`,
-      label: `技能${i + 1}：${sk.name}`,
-      checked: true,
-      fieldLabel: `技能 · ${sk.name}`,
-      value: sk.desc,
-    })),
-    ...draft.knowledgeBases.map((kb, i) => ({
-      id: `kb_${kb.id}`,
-      label: `知识库${i + 1}：${kb.name}`,
-      checked: true,
-      fieldLabel: `知识库 · ${kb.name}`,
-      value: kb.desc,
-    })),
-  ];
-}
-
-function applyConfirmItems(base: IncubationDraft, items: SkillConfirmItem[]): IncubationDraft {
-  const next = { ...base, skills: [...base.skills], knowledgeBases: [...base.knowledgeBases] };
-  for (const item of items) {
-    if (!item.checked) continue;
-    const v = (item.value ?? '').trim();
-    if (item.id === 'name' && v) next.name = v.slice(0, 12);
-    else if (item.id === 'personality' && v) next.personality = v.slice(0, 80);
-    else if (item.id === 'description' && v) next.description = v.slice(0, 200);
-    else if (item.id === 'duties' && v) next.duties = v.slice(0, 1000);
-    else if (item.id === 'prohibited' && v) next.prohibited = v.slice(0, 1000);
-    else if (item.id.startsWith('skill_')) {
-      const sid = item.id.replace(/^skill_/, '');
-      next.skills = next.skills.map((s) =>
-        s.id === sid ? { ...s, desc: v || s.desc, name: item.fieldLabel?.replace(/^技能 · /, '') || s.name } : s,
-      );
-    } else if (item.id.startsWith('kb_')) {
-      const kid = item.id.replace(/^kb_/, '');
-      next.knowledgeBases = next.knowledgeBases.map((k) =>
-        k.id === kid ? { ...k, desc: v || k.desc, name: item.fieldLabel?.replace(/^知识库 · /, '') || k.name } : k,
-      );
-    }
-  }
-  // drop unchecked skills/kbs
-  const keptSkillIds = new Set(
-    items.filter((i) => i.checked && i.id.startsWith('skill_')).map((i) => i.id.replace(/^skill_/, '')),
-  );
-  const keptKbIds = new Set(
-    items.filter((i) => i.checked && i.id.startsWith('kb_')).map((i) => i.id.replace(/^kb_/, '')),
-  );
-  if (items.some((i) => i.id.startsWith('skill_'))) {
-    next.skills = next.skills.filter((s) => keptSkillIds.has(s.id));
-  }
-  if (items.some((i) => i.id.startsWith('kb_'))) {
-    next.knowledgeBases = next.knowledgeBases.filter((k) => keptKbIds.has(k.id));
-  }
-  return next;
-}
-
 function patchDraftByInstruction(draft: IncubationDraft, text: string): IncubationDraft {
   const next = { ...draft, skills: [...draft.skills], knowledgeBases: [...draft.knowledgeBases] };
   if (/性格|人设|语气/.test(text)) {
@@ -292,13 +302,88 @@ function patchDraftByInstruction(draft: IncubationDraft, text: string): Incubati
   return next;
 }
 
+/** 用户在请教写法，而非要求立刻改草案 */
+function isWritingHelpIntent(text: string): boolean {
+  return /怎么写|如何写|不会写|教我写|告诉我.*(写|填)|写什么|怎么填|怎么描述|给(个|一)?(示例|例子|范例|模板|参考)|示例怎么|范例|写法/.test(
+    text,
+  );
+}
+
+type WritingFieldKey = 'name' | 'personality' | 'description' | 'duties' | 'prohibited' | 'skill' | 'kb' | 'general';
+
+function detectWritingField(
+  text: string,
+  editHints: string[] = [],
+): WritingFieldKey {
+  const blob = `${text}\n${editHints.join('\n')}`;
+  if (/名称|叫什么|起名/.test(blob)) return 'name';
+  if (/性格|人设|语气|口吻/.test(blob)) return 'personality';
+  if (/描述|定位|简介|场景/.test(blob)) return 'description';
+  if (/职责|工作内容|日常|做什么/.test(blob)) return 'duties';
+  if (/禁止|红线|不能|不得/.test(blob)) return 'prohibited';
+  if (/技能/.test(blob)) return 'skill';
+  if (/知识库|FAQ|SOP|资料/.test(blob)) return 'kb';
+  return 'general';
+}
+
+function buildWritingHelpReply(
+  field: WritingFieldKey,
+  draft: IncubationDraft,
+  editHints: string[] = [],
+): string {
+  const role = draft.name.trim() || '在线客服专员';
+  const hintLine =
+    editHints.length > 0
+      ? `你正在改的是“${editHints.join('、')}”。可以按下面写法直接改，或复制后微调再发我。\n\n`
+      : '';
+
+  const guides: Record<WritingFieldKey, string> = {
+    name: `${hintLine}员工名称建议短、好记、能看出岗位：
+· 写法：${role} / 延保进度专员 / 高价值客户管家
+· 避免：太泛（如“助手”）或带版本号、内部代号`,
+    personality: `${hintLine}员工性格用“气质词 + 边界”写 1 句即可：
+· 示例：严谨专业、温和体贴；先共情再给结论，不越权承诺
+· 结构：3～6 个气质词 + 一句服务原则（共情 / 清晰 / 红线）
+· 当前可参考：${draft.personality || '严谨专业、温和体贴、共情力强且耐受力高'}`,
+    description: `${hintLine}员工描述写清“服务谁 + 干什么 + 边界”：
+· 示例：面向电商售后用户，处理订单/物流/退换咨询；核验身份后给可执行结论，超权事项转人工
+· 结构：对象 → 主场景 → 能力范围 → 升级条件
+· 当前可参考：${(draft.description || '面向业务场景的客户服务与流程协同').slice(0, 80)}`,
+    duties: `${hintLine}工作职责写成可执行的编号清单（建议 3～5 条）：
+1. 7×24 响应咨询，先结论后依据
+2. 识别意图并完成查询 / 办理 / 分流
+3. 监测情绪与高危诉求，必要时升级人工
+· 每条用动词开头，写清“做到什么程度”`,
+    prohibited: `${hintLine}禁止行为写“不得…”红线，建议 3 条起：
+1. 不得泄露敏感数据、后台接口或未授权内部信息
+2. 不得擅自承诺赔付、折扣或超出政策的权益
+3. 不得使用攻击性、歧视性或不专业用语
+· 可再补：不得编造未核验的时效 / 物流节点`,
+    skill: `${hintLine}技能写法：名称点明能力，描述写“输入 → 动作 → 产出”：
+· 名称示例：理赔进度查询与材料预审
+· 描述示例：对接保单与理赔工单，核验身份后返回当前节点、缺件清单与下一步指引
+· 一句模板：当用户提供【业务标识】时，【调用/核验】并返回【可读结论】`,
+    kb: `${hintLine}知识库写法：名称点明资料域，描述写用途：
+· 名称示例：2026版在线客服标准服务知识库
+· 描述示例：含标准化 FAQ、业务规则与应急预案，供检索召回
+· 可再补：业务红线 / 禁语清单 / 转接 SOP`,
+    general: `${hintLine}不会写也没关系，可以按“对象 → 场景 → 能力 → 红线”四句描述，例如：
+
+“面向京东延保用户，查询服务单进度并告知处理节点；需核验单号；不得承诺未核验时效或赔付，超权转人工。”
+
+你也可以直接说“帮我按这个场景生成一版”，或点选上方“AI 帮写”快捷条，我再帮你扩成完整草案。`,
+  };
+
+  return guides[field];
+}
+
 function buildThinkSteps(prompt: string): SkillThinkStep[] {
   return [
     { id: 's1', label: '解析岗位意图', detail: prompt.slice(0, 48) || '识别服务场景', status: 'pending' },
     { id: 's2', label: '规划主 Agent Prompt', detail: '名称 / 性格 / 职责 / 红线', status: 'pending' },
     { id: 's3', label: '拆解技能边界', detail: '技能表单草稿', status: 'pending' },
     { id: 's4', label: '规划知识库挂载', detail: '知识库表单草稿', status: 'pending' },
-    { id: 's5', label: '整理确认要点', detail: '等待你确认后写入右侧', status: 'pending' },
+    { id: 's5', label: '写入右侧配置', detail: '同步员工资料与资源挂载', status: 'pending' },
   ];
 }
 
@@ -344,67 +429,250 @@ function applySeedResources(
 
 const INCUBATION_WORKSPACE_TABS = [{ id: 'build' as const, label: '智能孵化' }];
 
+const INCUBATION_PLACEHOLDER_ID = 'h_incubation_placeholder';
+
+function createBlankIncubationAgent(): HiredAgent {
+  return {
+    id: INCUBATION_PLACEHOLDER_ID,
+    name: '未命名数字员工',
+    marketId: 'm_custom_customer_service',
+    agentId: 'AGENT_DRAFT',
+    avatar: AGENT_AVATAR_PRESETS[10],
+    avatarCustomized: true,
+    description: '',
+    skills: [],
+    knowledgeBases: [],
+    status: 'draft',
+    jobFamily: 'customer_service',
+    hiredAt: '',
+    buildMode: 'autonomous',
+    persona: '',
+    languageStyle: '',
+    constraints: '',
+    workflowNotes: '',
+    backgroundKnowledge: '',
+    openingLine: defaultOpeningLineForAgent('数字员工'),
+    fallbackScript: defaultFallbackScriptForAgent(),
+  };
+}
+
+/** 右侧直接复用正式培训页；规划完成前也可展示空白配置项 */
 function IncubationTrainingPane({
-  formReady,
   agent,
   knowledgeBases,
   skills,
   updateHiredAgent,
   showToast,
 }: {
-  formReady: boolean;
   agent: HiredAgent | null;
   knowledgeBases: KnowledgeBase[];
   skills: Skill[];
   updateHiredAgent: (id: string, updates: Partial<HiredAgent>) => void;
   showToast: (message: string) => void;
 }) {
-  if (!formReady || !agent) {
-    return (
-      <div className="w-full h-full flex flex-col overflow-hidden bg-white">
-        <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-center px-8">
-          <p className="text-[15px] font-medium text-neutral-800">
-            先在左侧
-            <span className={cn('font-bold mx-1', SKILL_AOP_GRADIENT_TEXT)}>对话确认</span>
-            草案要点
-          </p>
-          <p className="mt-2 text-[13px] text-neutral-500 max-w-sm leading-relaxed">
-            确认后将打开与员工培训相同的配置页，并可在右侧直接对话预览与调试。
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const [placeholderAgent, setPlaceholderAgent] = useState(createBlankIncubationAgent);
+  const [rightTab, setRightTab] = useState<'chat' | 'versions'>('chat');
+  const [configDirty, setConfigDirty] = useState(false);
+  const [configSavedAt, setConfigSavedAt] = useState<Date | null>(null);
+  const [previewSnapshotId, setPreviewSnapshotId] = useState<string | null>(null);
+  const [configSyncToken, setConfigSyncToken] = useState(0);
+
+  const displayAgent = agent ?? placeholderAgent;
+  const isPlaceholder = !agent || displayAgent.id === INCUBATION_PLACEHOLDER_ID;
+
+  useEffect(() => {
+    if (!agent) setPlaceholderAgent(createBlankIncubationAgent());
+    setRightTab('chat');
+    setConfigDirty(false);
+    setConfigSavedAt(null);
+    setPreviewSnapshotId(null);
+    setConfigSyncToken((t) => t + 1);
+  }, [agent?.id]);
+
+  const previewSnapshot = useMemo(() => {
+    if (isPlaceholder || !previewSnapshotId) return null;
+    return ensureAgentSnapshots(displayAgent).find((s) => s.id === previewSnapshotId) ?? null;
+  }, [displayAgent, isPlaceholder, previewSnapshotId]);
+
+  const patchAgent = (id: string, updates: Partial<HiredAgent>) => {
+    if (id === INCUBATION_PLACEHOLDER_ID || isPlaceholder) {
+      setPlaceholderAgent((prev) => ({ ...prev, ...updates }));
+      return;
+    }
+    updateHiredAgent(id, updates);
+  };
+
+  const handlePreviewSnapshot = (snapshotId: string) => {
+    if (isPlaceholder) return;
+    setPreviewSnapshotId(snapshotId);
+    setRightTab('versions');
+  };
+
+  const handleCancelPreview = () => setPreviewSnapshotId(null);
+
+  const handleApplySnapshot = (snapshotId: string) => {
+    if (isPlaceholder) return;
+    const snapshots = ensureAgentSnapshots(displayAgent);
+    const snap = snapshots.find((s) => s.id === snapshotId);
+    if (!snap) return;
+    updateHiredAgent(displayAgent.id, {
+      ...snapshotToAgentUpdates(snap),
+      publishedSnapshotId: snapshotId,
+    });
+    setPreviewSnapshotId(null);
+    setConfigSyncToken((t) => t + 1);
+    setConfigDirty(false);
+    showToast(`已切换至“${snap.title}”`);
+  };
+
+  const handleDeleteSnapshot = (snapshotId: string) => {
+    if (isPlaceholder) return;
+    const snapshots = ensureAgentSnapshots(displayAgent);
+    const snap = snapshots.find((s) => s.id === snapshotId);
+    if (!snap || snap.kind === 'baseline') return;
+    if (displayAgent.publishedSnapshotId === snapshotId) {
+      showToast('无法删除当前运行中的版本，请先应用其他版本。');
+      return;
+    }
+    updateHiredAgent(displayAgent.id, {
+      configSnapshots: snapshots.filter((s) => s.id !== snapshotId),
+    });
+    if (previewSnapshotId === snapshotId) setPreviewSnapshotId(null);
+    showToast(`已删除“${snap.title}”`);
+  };
+
+  const handleDiscardDraft = () => {
+    if (isPlaceholder) return;
+    const snapshots = ensureAgentSnapshots(displayAgent);
+    const published =
+      snapshots.find((s) => s.id === displayAgent.publishedSnapshotId) ??
+      snapshots.find((s) => s.kind === 'baseline');
+    if (!published) return;
+    updateHiredAgent(displayAgent.id, snapshotToAgentUpdates(published));
+    setPreviewSnapshotId(null);
+    setConfigSyncToken((t) => t + 1);
+    setConfigDirty(false);
+    showToast('已放弃未保存更改，恢复为当前运行版本。');
+  };
+
+  const handleConfigSaved = () => {
+    if (isPlaceholder) {
+      showToast('请先完成左侧规划，再保存培训存档');
+      return;
+    }
+    const snapshots = ensureAgentSnapshots(displayAgent);
+    const title = savedSnapshotTitle(displayAgent, skills);
+    const snapshot = createSavedSnapshot(displayAgent, snapshots, title);
+    updateHiredAgent(displayAgent.id, {
+      configSnapshots: [...snapshots, snapshot],
+      publishedSnapshotId: snapshot.id,
+    });
+    setConfigSavedAt(new Date());
+    setConfigDirty(false);
+    showToast(`已保存培训存档“${title}”`);
+  };
+
+  const chatLocked = isPlaceholder || !!previewSnapshotId;
 
   return (
     <ResizableSplitPane
-      storageKey="js_incubation_training_split"
-      defaultRatio={0.62}
+      storageKey="js_incubation_training_split_v2"
+      defaultRatio={0.6}
       minLeftPx={280}
       minRightPx={260}
       className="bg-paper h-full"
       left={
         <OnboardingConfigPanel
-          agent={agent}
+          agent={displayAgent}
           knowledgeBases={knowledgeBases}
           skills={skills}
           hasKbs={knowledgeBases.length > 0}
           hasSks={skills.length > 0}
-          updateHiredAgent={updateHiredAgent}
+          updateHiredAgent={patchAgent}
           showToast={showToast}
           onPersonaConfigured={() => {}}
           onKnowledgeBound={() => {}}
           onSkillBound={() => {}}
+          onConfigStateChange={({ isDirty, lastSavedAt }) => {
+            setConfigDirty(isDirty);
+            setConfigSavedAt(lastSavedAt);
+          }}
+          onConfigSaved={handleConfigSaved}
+          previewSnapshot={previewSnapshot}
+          configSyncToken={configSyncToken}
+          onCancelPreview={isPlaceholder ? undefined : handleCancelPreview}
+          onApplyPreview={
+            isPlaceholder || !previewSnapshot
+              ? undefined
+              : () => handleApplySnapshot(previewSnapshot.id)
+          }
         />
       }
       right={
-        <OnboardingCapabilityTestPanel
-          agent={agent}
-          knowledgeBases={knowledgeBases}
-          skills={skills}
-          showToast={showToast}
-          title="预览和调试"
-        />
+        <div className="flex flex-col h-full bg-paper overflow-hidden text-neutral-800 text-left min-h-0">
+          {rightTab === 'chat' ? (
+            <OnboardingCapabilityTestPanel
+              agent={displayAgent}
+              knowledgeBases={knowledgeBases}
+              skills={skills}
+              showToast={showToast}
+              locked={chatLocked}
+              lockPlaceholder={
+                isPlaceholder ? '请先完成左侧规划后再测试' : '预览模式中无法测试'
+              }
+              lockToast={
+                isPlaceholder
+                  ? '请先完成左侧规划后再进行能力测试'
+                  : `请先取消预览或应用其他${LIFECYCLE_TERMS.examVersion}，再进行${LIFECYCLE_TERMS.onboardTest}。`
+              }
+              headerLeft={
+                <SegmentedTabBar
+                  ariaLabel="预览面板"
+                  value={rightTab}
+                  onChange={(id) => setRightTab(id as 'chat' | 'versions')}
+                  items={[
+                    { id: 'chat', label: LIFECYCLE_TERMS.onboardTest },
+                    { id: 'versions', label: LIFECYCLE_TERMS.examVersion },
+                  ]}
+                />
+              }
+            />
+          ) : (
+            <>
+              <div className="px-4 py-2.5 bg-white border-b border-neutral-200 flex items-center justify-between shrink-0 gap-2 min-h-[54px]">
+                <SegmentedTabBar
+                  ariaLabel="预览面板"
+                  value={rightTab}
+                  onChange={(id) => setRightTab(id as 'chat' | 'versions')}
+                  items={[
+                    { id: 'chat', label: LIFECYCLE_TERMS.onboardTest },
+                    { id: 'versions', label: LIFECYCLE_TERMS.examVersion },
+                  ]}
+                />
+              </div>
+              {isPlaceholder ? (
+                <div className="flex-1 min-h-0 flex items-center justify-center px-6 text-center">
+                  <p className="text-[13px] text-neutral-500 leading-relaxed max-w-xs">
+                    完成左侧规划后，可在此查看与管理培训存档。
+                  </p>
+                </div>
+              ) : (
+                <AgentVersionPanel
+                  agent={displayAgent}
+                  knowledgeBases={knowledgeBases}
+                  skills={skills}
+                  isDirty={configDirty}
+                  lastSavedAt={configSavedAt}
+                  previewSnapshotId={previewSnapshotId}
+                  onPreview={handlePreviewSnapshot}
+                  onApplySnapshot={handleApplySnapshot}
+                  onDeleteSnapshot={handleDeleteSnapshot}
+                  onDiscardDraft={handleDiscardDraft}
+                />
+              )}
+            </>
+          )}
+        </div>
       }
     />
   );
@@ -437,8 +705,6 @@ export function EmployeeIncubationWorkspace({
     hiredAgents,
     skills: platformSkills,
     knowledgeBases: platformKbs,
-    setActiveOnboardingAgentId,
-    setActiveTab,
   } = useApp();
 
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -450,15 +716,6 @@ export function EmployeeIncubationWorkspace({
   const [thinking, setThinking] = useState(false);
   const [thinkSteps, setThinkSteps] = useState<SkillThinkStep[]>([]);
   const [chipSelections, setChipSelections] = useState<HelpChip[]>([]);
-  const [confirmEdit, setConfirmEdit] = useState<{
-    msgId: string;
-    items: Array<{
-      itemId: string;
-      itemIndex: number;
-      hint: string;
-      value: string;
-    }>;
-  } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const seededRef = useRef(false);
   const materializedRef = useRef(false);
@@ -485,7 +742,6 @@ export function EmployeeIncubationWorkspace({
     setThinking(false);
     setThinkSteps([]);
     setChipSelections([]);
-    setConfirmEdit(null);
     seededRef.current = false;
   }, [deleteHiredAgent]);
 
@@ -528,6 +784,8 @@ export function EmployeeIncubationWorkspace({
         await runThinkAnimation(buildThinkSteps(text));
         const nextDraft = applySeedResources(draftFromPrompt(text), seedSkills, seedKbs);
         setPendingDraft(nextDraft);
+        setDraft(nextDraft);
+        setFormReady(true);
         setThinking(false);
         setThinkSteps([]);
         const mountHint = [
@@ -541,18 +799,17 @@ export function EmployeeIncubationWorkspace({
           {
             id: uid('m'),
             kind: 'ai',
-            text: `已根据你的描述完成自主规划${mountHint ? `，并优先挂载你索引的${mountHint}` : ''}，整理了下方确认要点（含主 Agent、技能与知识库）。\n请核对后点击「确认」，我会写入右侧配置区；也可继续在对话里改写某一条。`,
+            text: `已根据你的描述完成自主规划${mountHint ? `，并优先挂载你索引的${mountHint}` : ''}，并写入右侧配置区（含主 Agent、技能与知识库）。\n可继续在对话里改写某一条，或点上方「AI 帮写」快捷补充。`,
             time: nowTime(),
           },
           {
             id: uid('m'),
-            kind: 'confirm',
-            title: '请确认数字员工草案要点',
-            items: draftToConfirmItems(nextDraft),
-            confirmed: false,
+            kind: 'ai',
+            text: AI_TYPOGRAPHY_DEMO,
             time: nowTime(),
           },
         ]);
+        showToast('已写入右侧配置区');
       })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -564,7 +821,7 @@ export function EmployeeIncubationWorkspace({
     el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [messages, thinking, thinkSteps]);
 
-  /** 确认草案后物化真实员工，右侧直接复用培训配置 + 预览调试 */
+  /** 首轮规划写入后物化真实员工，右侧直接复用培训配置 + 预览调试 */
   useEffect(() => {
     if (!open || !formReady || materializedRef.current) return;
     if (!draft.name.trim()) return;
@@ -629,12 +886,40 @@ export function EmployeeIncubationWorkspace({
     let text = raw.trim();
     if (!text || thinking) return;
 
-    if (confirmEdit) {
-      const summary = confirmEdit.items
-        .map((item) => `${item.itemIndex + 1}. ${item.hint}：${item.value || '（空）'}`)
-        .join('\n');
-      text = `请按我的要求改写以下确认要点，并更新草案：\n${summary}\n\n修改要求：${text}`;
-      setConfirmEdit(null);
+    const wantsWritingHelp = isWritingHelpIntent(text);
+
+    // 请教写法：只答写法，不改草案
+    if (wantsWritingHelp) {
+      const userMsg: ChatMsg = { id: uid('m'), kind: 'user', text, time: nowTime() };
+      setMessages((prev) => [...prev, userMsg]);
+      setInput('');
+      setChipSelections([]);
+      setThinking(true);
+
+      const field = detectWritingField(text, []);
+      const helpText = buildWritingHelpReply(field, pendingDraft ?? draft, []);
+      await runThinkAnimation([
+        {
+          id: 'h1',
+          label: '理解你的问题',
+          detail: '识别为写法请教，不改动草案',
+          status: 'pending',
+        },
+        {
+          id: 'h2',
+          label: '整理写法示例',
+          detail: field === 'general' ? '给出可照着写的模板' : `针对“${field}”给示例`,
+          status: 'pending',
+        },
+      ]);
+
+      setThinking(false);
+      setThinkSteps([]);
+      setMessages((prev) => [
+        ...prev,
+        { id: uid('m'), kind: 'ai', text: helpText, time: nowTime() },
+      ]);
+      return;
     }
 
     const userMsg: ChatMsg = { id: uid('m'), kind: 'user', text, time: nowTime() };
@@ -659,6 +944,8 @@ export function EmployeeIncubationWorkspace({
     await runThinkAnimation(buildThinkSteps(text));
 
     setPendingDraft(nextDraft);
+    setDraft(nextDraft);
+    setFormReady(true);
     setThinking(false);
     setThinkSteps([]);
 
@@ -669,46 +956,17 @@ export function EmployeeIncubationWorkspace({
       .filter(Boolean)
       .join('、');
     const aiText = isFirst
-      ? `已根据你的描述完成自主规划${mountHint ? `，并优先挂载你索引的${mountHint}` : ''}，整理了下方确认要点（含主 Agent、技能与知识库）。\n请核对后点击「确认」，我会写入右侧配置区；也可继续在对话里改写某一条。`
-      : `已按你的补充整理本轮变更要点。确认后会同步到右侧员工资料与技能/知识库。`;
+      ? `已根据你的描述完成自主规划${mountHint ? `，并优先挂载你索引的${mountHint}` : ''}，并写入右侧配置区（含主 Agent、技能与知识库）。\n可继续在对话里改写某一条，或点上方「AI 帮写」快捷补充。`
+      : `已按你的补充更新右侧员工资料与技能/知识库。`;
 
     setMessages((prev) => [
       ...prev,
       { id: uid('m'), kind: 'ai', text: aiText, time: nowTime() },
-      {
-        id: uid('m'),
-        kind: 'confirm',
-        title: isFirst ? '请确认数字员工草案要点' : '请确认本轮变更要点',
-        items: draftToConfirmItems(nextDraft),
-        confirmed: false,
-        time: nowTime(),
-      },
+      ...(isFirst
+        ? [{ id: uid('m'), kind: 'ai' as const, text: AI_TYPOGRAPHY_DEMO, time: nowTime() }]
+        : []),
     ]);
-  };
-
-  const handleConfirm = (msgId: string, items: SkillConfirmItem[]) => {
-    const source = pendingDraft ?? draft;
-    const next = applyConfirmItems(source, items);
-    setDraft(next);
-    setPendingDraft(next);
-    setFormReady(true);
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === msgId && m.kind === 'confirm'
-          ? { ...m, items, confirmed: true }
-          : m,
-      ),
-    );
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: uid('m'),
-        kind: 'ai',
-        text: `已写入右侧配置区。可继续对话微调，或点右上角「创建此员工」进入培训。`,
-        time: nowTime(),
-      },
-    ]);
-    showToast('已确认并写入右侧配置区');
+    showToast(isFirst ? '已写入右侧配置区' : '已同步右侧配置');
   };
 
   const toggleChip = (chip: HelpChip) => {
@@ -721,20 +979,18 @@ export function EmployeeIncubationWorkspace({
     inputRef.current?.focus();
   };
 
+  /** 结束帮写 Builder：落员工卡后关闭；不进入培训页（培训从员工卡“员工培训”进入） */
   const finalizeCreate = () => {
     if (!formReady || !draft.name.trim()) {
-      showToast('请先在对话中确认草案，再创建员工');
+      showToast('请先完成首轮规划，再完成创建');
       return;
     }
 
-    // 已物化：保留员工并进入正式培训页
     if (trainingAgentId && trainingAgent) {
-      setActiveOnboardingAgentId(trainingAgentId);
-      setActiveTab('training');
       trainingAgentIdRef.current = null;
       setTrainingAgentId(null);
       materializedRef.current = false;
-      showToast(`「${trainingAgent.name}」已就绪，继续完善入职培训`);
+      showToast(`“${trainingAgent.name}”已创建。需要培训时，从员工卡进入“员工培训”`);
       onClose();
       return;
     }
@@ -758,7 +1014,7 @@ export function EmployeeIncubationWorkspace({
       description: draft.description,
       jobFamily: 'customer_service',
       buildMode: 'autonomous',
-      enterTraining: true,
+      enterTraining: false,
     });
 
     updateHiredAgent(agent.id, {
@@ -769,7 +1025,7 @@ export function EmployeeIncubationWorkspace({
       workflowNotes: draft.duties,
     });
 
-    showToast(`「${agent.name}」已创建并挂载技能/知识库，进入员工培训`);
+    showToast(`“${agent.name}”已创建。需要培训时，从员工卡进入“员工培训”`);
     onClose();
   };
 
@@ -780,7 +1036,7 @@ export function EmployeeIncubationWorkspace({
   return createPortal(
     <div className="fixed inset-0 z-[120] h-screen w-screen flex flex-col bg-paper overflow-hidden text-neutral-800 animate-in fade-in duration-200">
       <OnboardingWorkspaceHeader
-        tabs={INCUBATION_WORKSPACE_TABS}
+        tabs={formReady ? ONBOARDING_WORKSPACE_TABS : INCUBATION_WORKSPACE_TABS}
         activeTabId="build"
         onTabChange={() => {}}
         onBack={onClose}
@@ -797,15 +1053,15 @@ export function EmployeeIncubationWorkspace({
             )}
           >
             <Check size={14} strokeWidth={2.5} />
-            创建此员工
+            {LIFECYCLE_TERMS.completeTraining}
           </button>
         }
       />
 
       <ResizableSplitPane
-        storageKey="js_incubation_split_nl_left"
-        defaultLeftPx={480}
-        defaultRatio={0.42}
+        storageKey="js_incubation_split_nl_left_v2"
+        defaultLeftPx={538}
+        defaultRatio={0.33}
         minLeftPx={320}
         minRightPx={480}
         className="bg-paper"
@@ -825,11 +1081,11 @@ export function EmployeeIncubationWorkspace({
                     </div>
                   </div>
                   <p className="text-[13px] leading-relaxed text-neutral-700">
-                    你好！我会像创建技能一样，用对话帮你规划数字员工的主 Prompt、技能边界与知识库，确认后右侧会打开培训配置页，并可对话预览与调试。
+                    你好！我会像创建技能一样，用对话帮你规划数字员工的主 Prompt、技能边界与知识库。规划完成后会直接写入右侧员工培训页，可继续配置、能力测试与保存培训存档。
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {[
-                      '帮我创建一个「食安险理赔专员」数字员工',
+                      '帮我创建一个“食安险理赔专员”数字员工',
                       '打造电商智能客服，处理退换货与物流查单',
                       '打造 IT 技术支持与故障自动派单助手',
                     ].map((s) => (
@@ -861,72 +1117,15 @@ export function EmployeeIncubationWorkspace({
                   return (
                     <div key={m.id} className="flex justify-start">
                       <div className="max-w-[92%] flex flex-col gap-1">
-                        <div className="px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed whitespace-pre-line bg-neutral-100 text-neutral-800">
-                          {m.text}
+                        <div className={AI_BUBBLE}>
+                          {renderAiRichContent(m.text)}
                         </div>
                         <span className="text-[10px] text-neutral-400">{m.time}</span>
                       </div>
                     </div>
                   );
                 }
-                if (m.kind !== 'confirm') return null;
-                return (
-                  <div key={m.id} className="w-full">
-                    <SkillRoundConfirmCard
-                      title={m.title}
-                      items={m.items}
-                      confirmed={m.confirmed}
-                      editingItemIds={
-                        confirmEdit?.msgId === m.id
-                          ? confirmEdit.items.map((item) => item.itemId)
-                          : []
-                      }
-                      onConfirm={(items) => handleConfirm(m.id, items)}
-                      onEditItem={(item, itemIndex) => {
-                        setChipSelections([]);
-                        const hint = item.fieldLabel || `要点 ${itemIndex + 1}`;
-                        const value = (
-                          item.value || item.label.replace(/^[^：:]+[：:]\s*/, '')
-                        ).trim();
-                        const nextItem = {
-                          itemId: item.id,
-                          itemIndex,
-                          hint,
-                          value,
-                        };
-                        setConfirmEdit((prev) => {
-                          if (prev?.msgId === m.id) {
-                            const exists = prev.items.some((row) => row.itemId === item.id);
-                            const nextItems = exists
-                              ? prev.items.filter((row) => row.itemId !== item.id)
-                              : [...prev.items, nextItem].sort(
-                                  (a, b) => a.itemIndex - b.itemIndex,
-                                );
-                            return nextItems.length === 0
-                              ? null
-                              : { msgId: m.id, items: nextItems };
-                          }
-                          return { msgId: m.id, items: [nextItem] };
-                        });
-                        inputRef.current?.focus();
-                      }}
-                      onBatchModeChange={(active) => {
-                        if (!active && confirmEdit?.msgId === m.id) {
-                          setConfirmEdit(null);
-                        }
-                      }}
-                      onItemsChange={(items) => {
-                        setMessages((prev) =>
-                          prev.map((msg) =>
-                            msg.id === m.id && msg.kind === 'confirm'
-                              ? { ...msg, items }
-                              : msg,
-                          ),
-                        );
-                      }}
-                    />
-                  </div>
-                );
+                return null;
               })}
 
               {thinking && thinkSteps.length > 0 ? (
@@ -962,39 +1161,6 @@ export function EmployeeIncubationWorkspace({
             ) : null}
 
             <div className="skill-ai-composer skill-ai-composer--dock p-3">
-              {confirmEdit ? (
-                <div className="flex flex-wrap items-center gap-1.5 pb-2 mb-1 border-b border-neutral-100">
-                  {confirmEdit.items.map((item) => (
-                    <span
-                      key={item.itemId}
-                      className="inline-flex items-center gap-1.5 h-7 pl-1.5 pr-2 rounded-md bg-neutral-100 border border-neutral-200 text-[12px] text-neutral-800 max-w-full"
-                      title={item.value}
-                    >
-                      <span className="w-5 h-5 rounded bg-neutral-800 text-white text-[11px] font-semibold tabular-nums flex items-center justify-center shrink-0">
-                        {item.itemIndex + 1}
-                      </span>
-                      <span className="truncate">编辑要点 · {item.hint}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setConfirmEdit((prev) => {
-                            if (!prev) return null;
-                            const nextItems = prev.items.filter((row) => row.itemId !== item.itemId);
-                            return nextItems.length === 0
-                              ? null
-                              : { ...prev, items: nextItems };
-                          });
-                        }}
-                        className="ml-0.5 text-neutral-400 hover:text-neutral-800 cursor-pointer shrink-0"
-                        aria-label={`移除 ${item.hint}`}
-                      >
-                        <X size={12} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-
               <textarea
                 ref={inputRef}
                 rows={3}
@@ -1003,24 +1169,15 @@ export function EmployeeIncubationWorkspace({
                 disabled={thinking}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Escape' && confirmEdit) {
-                    e.preventDefault();
-                    setConfirmEdit(null);
-                    return;
-                  }
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     void runUserTurn(input);
                   }
                 }}
                 placeholder={
-                  confirmEdit
-                    ? confirmEdit.items.length > 1
-                      ? `说明如何改写已选 ${confirmEdit.items.length} 条要点，发送后由 AI 更新…`
-                      : `说明如何改写「${confirmEdit.items[0].hint}」，发送后由 AI 更新…`
-                    : formReady
-                      ? '继续补充规则，或点上方「AI 帮写」快捷填充…'
-                      : '请描述数字员工的岗位职责与服务场景…'
+                  formReady
+                    ? '继续补充规则，或点上方“AI 帮写”快捷填充…'
+                    : '请描述数字员工的岗位职责与服务场景…'
                 }
                 className="w-full min-h-[72px] max-h-36 bg-transparent text-[14px] leading-[21px] outline-none resize-none text-neutral-800 placeholder:text-neutral-400"
               />
@@ -1042,7 +1199,7 @@ export function EmployeeIncubationWorkspace({
                     disabled={!canSend}
                     onClick={() => void runUserTurn(input)}
                     className="w-8 h-8 rounded-lg bg-neutral-900 hover:bg-neutral-800 disabled:bg-neutral-200 text-white transition flex items-center justify-center cursor-pointer disabled:cursor-not-allowed"
-                    title={confirmEdit ? '发给 AI 改写' : '发送'}
+                    title="发送"
                   >
                     {thinking ? (
                       <Loader2 size={14} className="animate-spin" />
@@ -1058,7 +1215,6 @@ export function EmployeeIncubationWorkspace({
         }
         right={
           <IncubationTrainingPane
-            formReady={formReady}
             agent={trainingAgent}
             knowledgeBases={platformKbs}
             skills={platformSkills}

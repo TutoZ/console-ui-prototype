@@ -567,7 +567,7 @@ export const EmployeeManagePage: React.FC = () => {
       setPreviewSnapshotId(null);
       setConfigSyncToken((t) => t + 1);
       setOnboardConfigDirty(false);
-      showToast(`已切换至「${snap.title}」`);
+      showToast(`已切换至“${snap.title}”`);
     };
 
     const handleDeleteSnapshot = (snapshotId: string) => {
@@ -582,7 +582,7 @@ export const EmployeeManagePage: React.FC = () => {
         configSnapshots: snapshots.filter((s) => s.id !== snapshotId),
       });
       if (previewSnapshotId === snapshotId) setPreviewSnapshotId(null);
-      showToast(`已删除「${snap.title}」`);
+      showToast(`已删除“${snap.title}”`);
     };
 
     const handleDiscardDraft = () => {
@@ -642,7 +642,7 @@ export const EmployeeManagePage: React.FC = () => {
           if (demoStep === 'A4') {
             showToast(ONBOARDING_TOAST_STEP4);
           } else {
-            showToast(`「${onboardingAgent.name}」培训已完成。需要接待时，请在员工卡片上点击「上岗」。`);
+            showToast(`“${onboardingAgent.name}”培训已完成。需要接待时，请在员工卡片上点击“上岗”。`);
           }
         }}
         disabled={!isQcOnboarding && onboardingChatLocked}
@@ -730,11 +730,11 @@ export const EmployeeManagePage: React.FC = () => {
               buildTourStep={buildTourOpen ? buildTourStep : null}
               onCreateSkill={() => {
                 try {
-                  sessionStorage.setItem('js_open_skill_create', '1');
+                  sessionStorage.setItem('js_home_create_mode', 'skill');
                 } catch {
                   /* ignore */
                 }
-                setActiveTab('skills');
+                setActiveTab('platformHome');
                 showToast('正在进入技能创建…');
               }}
             />
@@ -757,7 +757,7 @@ export const EmployeeManagePage: React.FC = () => {
                   lockToast={
                     previewSnapshotId
                       ? `请先取消预览或应用其他${LIFECYCLE_TERMS.examVersion}，再进行${LIFECYCLE_TERMS.onboardTest}。`
-                      : `请先点击左上角「保存」完成培训存档，再进行${LIFECYCLE_TERMS.onboardTest}。`
+                      : `请先点击左上角“保存”完成培训存档，再进行${LIFECYCLE_TERMS.onboardTest}。`
                   }
                   headerLeft={
                     <SegmentedTabBar
@@ -773,7 +773,7 @@ export const EmployeeManagePage: React.FC = () => {
                   hintBanner={
                     onboardingSaveRequired && !previewSnapshotId ? (
                       <div className="mx-4 mt-3 mb-0 rounded-[13px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900 leading-relaxed shrink-0">
-                        引导提示：请先在左侧点击「保存」完成培训存档，保存成功后再进行
+                        引导提示：请先在左侧点击“保存”完成培训存档，保存成功后再进行
                         {LIFECYCLE_TERMS.onboardTest}。
                       </div>
                     ) : null
@@ -1210,7 +1210,7 @@ export const EmployeeManagePage: React.FC = () => {
           const title =
             ensureAgentSnapshots(target).find((s) => s.id === snapshotId)?.title ?? '所选版本';
           setVersionSwitchAgentId(null);
-          showToast(`已切换至「${title}」`);
+          showToast(`已切换至“${title}”`);
         }}
         onOpenFullManager={(agentId) => {
           const idx = filtered.findIndex((a) => a.id === agentId);

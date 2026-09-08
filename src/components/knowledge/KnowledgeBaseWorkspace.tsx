@@ -119,7 +119,7 @@ function mockRecallHits(query: string, kb: KnowledgeBase): RecallHit[] {
   return [
     {
       title: `${kb.name} · 相关段落 A`,
-      snippet: `与「${query.slice(0, 24)}」相关的保障范围说明：第三者责任、医疗费用补偿及线上报案流程…`,
+      snippet: `与“${query.slice(0, 24)}”相关的保障范围说明：第三者责任、医疗费用补偿及线上报案流程…`,
       score: 0.89,
     },
     {
@@ -341,7 +341,7 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
       wordCount: kb.wordCount + Math.floor(2500 + Math.random() * 5000),
       updatedAt: uploadedAt.replace(/\//g, '-').slice(0, 16),
     });
-    showToast(`「${file.name}」已加入解析队列`);
+    showToast(`“${file.name}”已加入解析队列`);
     startParsing(newDoc.id);
   };
 

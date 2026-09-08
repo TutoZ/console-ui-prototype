@@ -236,7 +236,7 @@ export function mergeDraftFiles(
   }));
 }
 
-/** 创建页「规格确认」四要素摘要 */
+/** 创建页“规格确认”四要素摘要 */
 export function summarizeSkillSpec(draft: SkillStudioDraft, files: SkillStudioFile[]) {
   const refs = files.filter(
     (f) => f.path.startsWith('references/') && !f.path.endsWith('README.md'),
@@ -378,18 +378,18 @@ export const SKILL_FORM_FIELDS = {
     hint: '什么情况不启用（路由避让）',
     placeholder: '非京东延保、非本人订单',
     required: false,
-    limitHint: '管「是否接活」',
+    limitHint: '管“是否接活”',
   },
   userInputs: {
     label: '用户输入信息',
-    hint: '用户会提供的关键参数（讲「有什么」，非格式）',
+    hint: '用户会提供的关键参数（讲“有什么”，非格式）',
     placeholder: '服务单号、手机号后四位',
     required: true,
     limitHint: '与规范约束·输入格式分工',
   },
   outputs: {
     label: '产出物',
-    hint: '技能交付什么（讲「是什么」）',
+    hint: '技能交付什么（讲“是什么”）',
     placeholder: '进度节点、处理方、预计完成时间',
     required: true,
     limitHint: '与规范约束·红线分工',
@@ -443,7 +443,7 @@ export const SKILL_FORM_FIELDS = {
   },
   stepKnowledge: {
     label: '步骤知识',
-    hint: '这步依赖的关键规则 / 判断 / 边界；含分支时写「条件→跳步骤 N」',
+    hint: '这步依赖的关键规则 / 判断 / 边界；含分支时写“条件→跳步骤 N”',
     placeholder: '不在保→跳兜底步骤',
     required: false,
     limitHint: '含判断必填',
@@ -451,7 +451,7 @@ export const SKILL_FORM_FIELDS = {
   stepExample: {
     label: '步骤示例',
     hint: '这步的输入→输出样例；天然是 L3 golden 测试 fixtures',
-    placeholder: '输入「单号123」→输出「已校验，在保」',
+    placeholder: '输入“单号123”→输出“已校验，在保”',
     required: false,
   },
   forbiddenActs: {
@@ -477,7 +477,7 @@ export const SKILL_FORM_FIELDS = {
   },
   fallbackPolicy: {
     label: '兜底策略',
-    hint: '答不了/低置信时怎么办（降低「答不上来乱编」风险）',
+    hint: '答不了/低置信时怎么办（降低“答不上来乱编”风险）',
     placeholder: '不确定则转人工核实',
     required: false,
     limitHint: '恒显',
@@ -485,14 +485,14 @@ export const SKILL_FORM_FIELDS = {
   expressionStyle: {
     label: '表达风格',
     hint: '语气/长度上限/禁用词',
-    placeholder: '温和安抚、≤80 字、禁用「亲」',
+    placeholder: '温和安抚、≤80 字、禁用“亲”',
     required: false,
     limitHint: '恒显',
   },
   examples: {
     label: '示例',
     hint: '场景示例：用户问法+期望回复+注意点；也可填典型 I/O',
-    placeholder: '用户「单子三天没动静」→展示进度+转人工',
+    placeholder: '用户“单子三天没动静”→展示进度+转人工',
     required: false,
     limitHint: '推荐填，助生成+测试',
   },
@@ -611,7 +611,7 @@ export function draftToSkillElements(draft: SkillStudioDraft): SkillElementsForm
     ],
     forbiddenActs: '不得编造事实；不得泄露他人隐私',
     fallbackPolicy: '不确定时说明局限并转人工核实',
-    examples: `用户：「${draft.displayName}相关问题」→ 给出进度/结论与下一步`,
+    examples: `用户：“${draft.displayName}相关问题”→ 给出进度/结论与下一步`,
   };
 }
 
@@ -762,12 +762,12 @@ export function summarizeTestRun(cases: SkillTestCase[]): string {
   const fail = cases.filter((c) => c.status === 'failed').length;
   const uncertain = cases.filter((c) => c.status === 'uncertain').length;
   const rate = cases.length ? Math.round((pass / cases.length) * 100) : 0;
-  return `测试完成：通过率 ${rate}%（pass ${pass} / fail ${fail} / 不确定 ${uncertain}）。失败已按触发路由、行为场景、工具脚本、效果质量聚类；AOP 技能已定位到字段级。是否采纳优化建议？回复「采纳」即可写入表单。`;
+  return `测试完成：通过率 ${rate}%（pass ${pass} / fail ${fail} / 不确定 ${uncertain}）。失败已按触发路由、行为场景、工具脚本、效果质量聚类；AOP 技能已定位到字段级。是否采纳优化建议？回复“采纳”即可写入表单。`;
 }
 
 export function autoVersionNote(prevName: string, nextName: string, form: SkillElementsForm): string {
   const bits = [
-    prevName !== nextName ? `名称调整为「${nextName}」` : '',
+    prevName !== nextName ? `名称调整为“${nextName}”` : '',
     form.stepModules.filter((s) => s.instruction.trim()).length
       ? `更新 ${form.stepModules.filter((s) => s.instruction.trim()).length} 个执行步骤`
       : '',
@@ -934,13 +934,13 @@ export function buildOptimizeSuggestions(form: SkillElementsForm): SkillOptimize
   ];
 }
 
-/** 对话引导步骤文案（对齐参考包「一步一问、灌入中栏」） */
+/** 对话引导步骤文案（对齐参考包“一步一问、灌入中栏”） */
 export const GUIDE_STEP_PROMPTS = [
-  '说「我想创建一个技能」开始；或直接描述业务目标。',
-  '【1/4 技能定义】技能中文名、标识、能力简介、触发/禁止触发、输入与产出？也可说「采用延保进度默认配置」。',
-  '【2/4 技能主体】需要哪些常驻知识？执行分几步？也可说「生成标准主体」。',
-  '【3/4 规范约束】禁止行为、红线、兜底策略？也可说「采用安全默认约束」。',
-  '【4/4 补充与验收】补示例后，可到「技能测试」跑用例；失败建议可一键写回表单。',
+  '说“我想创建一个技能”开始；或直接描述业务目标。',
+  '【1/4 技能定义】技能中文名、标识、能力简介、触发/禁止触发、输入与产出？也可说“采用延保进度默认配置”。',
+  '【2/4 技能主体】需要哪些常驻知识？执行分几步？也可说“生成标准主体”。',
+  '【3/4 规范约束】禁止行为、红线、兜底策略？也可说“采用安全默认约束”。',
+  '【4/4 补充与验收】补示例后，可到“技能测试”跑用例；失败建议可一键写回表单。',
 ] as const;
 
 /** 将已有技能转为工作台草稿（编辑入口） */
@@ -996,7 +996,7 @@ export type SkillTestCase = {
   status: 'ready' | 'passed' | 'failed' | 'uncertain';
 };
 
-/** 新建时默认空列表；演示可点「AI 自动生成」 */
+/** 新建时默认空列表；演示可点“AI 自动生成” */
 export const INITIAL_SKILL_TEST_CASES: SkillTestCase[] = [];
 
 export const TEST_CASE_PAGE_SIZE = 30;
@@ -1324,7 +1324,7 @@ export function classifySkillIntent(intent: string): ClassifySkillResult {
   else if (has('净水器', '安装')) name = '净水器安装申请';
   else if (has('食安')) name = '食安险业务边界引导';
   else {
-    const first = text.replace(/[「」""]/g, '').slice(0, 18);
+    const first = text.replace(/[“”""]/g, '').slice(0, 18);
     if (first) name = first;
   }
 
@@ -1338,7 +1338,7 @@ export function classifySkillIntent(intent: string): ClassifySkillResult {
   if (goals.length === 0) goals.push('完成用户描述的业务能力');
 
   const typeLabel = uniq.map((a) => SKILL_ARCHETYPE_META[a].label.replace('型', '')).join(' + ');
-  const summary = `我理解这是一个「${typeLabel} Skill」。\n\n它需要解决：\n${goals
+  const summary = `我理解这是一个“${typeLabel} Skill”。\n\n它需要解决：\n${goals
     .map((g, i) => `${['①', '②', '③', '④', '⑤', '⑥'][i] || `${i + 1}.`} ${g}`)
     .join('\n')}`;
 
@@ -1730,7 +1730,7 @@ export function capabilityCardToElements(card: SkillCapabilityCard): SkillElemen
     card.fallbackScript || '异常时阻断并转人工专席核实';
   form.examples = card.triggers
     .slice(0, 3)
-    .map((t) => `用户：「${t}」→ 触发本技能`)
+    .map((t) => `用户：“${t}”→ 触发本技能`)
     .join('\n');
   if (card.uniqueEntry) {
     form.extraNotes = '路由优先级：高；冲突策略：优先于普通咨询类 Skill（唯一入口）';
@@ -1785,7 +1785,7 @@ export function buildIntentThinkPlan(intent: string): SkillThinkPlan {
       {
         id: 'type',
         label: '分析业务场景并确定技能边界与分组',
-        detail: `判定类型「${typeLabel}」；关注：${focus}`,
+        detail: `判定类型“${typeLabel}”；关注：${focus}`,
         status: 'pending',
       },
       {
@@ -1869,7 +1869,7 @@ export function buildSkillClarifyQuestions(intent: string): SkillClarifyQuestion
   return [
     {
       id: 'trigger-scene',
-      prompt: '这个技能主要在什么场景下触发？（对应「这个技能是什么」）',
+      prompt: '这个技能主要在什么场景下触发？（对应“这个技能是什么”）',
       required: true,
       selectedId: triggerDefault,
       options: [
@@ -1881,7 +1881,7 @@ export function buildSkillClarifyQuestions(intent: string): SkillClarifyQuestion
     },
     {
       id: 'execution-capability',
-      prompt: '执行时需要哪些能力？（对应「怎么做」）',
+      prompt: '执行时需要哪些能力？（对应“怎么做”）',
       required: true,
       selectedId: capabilityDefault,
       options: [
@@ -1893,7 +1893,7 @@ export function buildSkillClarifyQuestions(intent: string): SkillClarifyQuestion
     },
     {
       id: 'boundary-policy',
-      prompt: '遇到边界情况如何处理？（对应「规矩与底线」）',
+      prompt: '遇到边界情况如何处理？（对应“规矩与底线”）',
       required: true,
       selectedId: boundaryDefault,
       options: [
@@ -1905,7 +1905,7 @@ export function buildSkillClarifyQuestions(intent: string): SkillClarifyQuestion
     },
     {
       id: 'mounted-resources',
-      prompt: '是否已有可挂载的知识库或脚本？（对应「怎么做 / 其他补充」）',
+      prompt: '是否已有可挂载的知识库或脚本？（对应“怎么做 / 其他补充”）',
       required: false,
       selectedId: resourceDefault,
       options: [
@@ -1963,7 +1963,7 @@ export function buildNextQuestionThinkPlan(
   const map: Record<InterviewQuestionKind, { label: string; detail: string }> = {
     triggers: {
       label: '收敛触发说法',
-      detail: `围绕「${cardName}」筛出口语变体与易误触边界`,
+      detail: `围绕“${cardName}”筛出口语变体与易误触边界`,
     },
     unique_entry: {
       label: '评估路由优先级',

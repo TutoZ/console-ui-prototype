@@ -124,6 +124,31 @@ const USER_CHAT_BUBBLE = cn(
   'border',
 );
 
+/**
+ * AI 气泡正文 — 对齐 Figma B 端 AI 组件规范（2916:46264）
+ * regular-14 / lh 22 / jd-color-text-300 #595959；强调标签 medium-14 #1c1d1f
+ */
+const AI_CHAT_BUBBLE =
+  'max-w-[88%] px-3.5 py-2.5 rounded-2xl text-[14px] leading-[22px] whitespace-pre-line bg-neutral-100 text-[#595959]';
+/** 系统引导气泡 — Figma jd-color-text-200 */
+const SYSTEM_STATUS_CHAT_BUBBLE =
+  'max-w-[88%] px-3.5 py-2.5 rounded-2xl text-[14px] leading-[22px] whitespace-pre-line bg-neutral-100 text-[#8c8c8c]';
+
+/** 将“字段名”等书名号片段按规范强调（Semibold #1c1d1f） */
+function renderAiBubbleContent(content: string) {
+  const parts = content.split(/([「『“][^」』”]*[」』”])/);
+  if (parts.length <= 1) return content;
+  return parts.map((part, i) =>
+    /^[「『“].*[」』”]$/.test(part) ? (
+      <span key={i} className="font-semibold text-[#1c1d1f]">
+        {part}
+      </span>
+    ) : (
+      <React.Fragment key={i}>{part}</React.Fragment>
+    ),
+  );
+}
+
 /** 与 SkillRoundConfirmCard / 澄清卡一致的对话流卡片壳 */
 const SKILL_CHAT_CARD = 'rounded-lg border border-neutral-200 bg-neutral-50 overflow-hidden animate-in fade-in duration-200';
 const SKILL_CHAT_CARD_HEAD = 'flex items-center justify-between gap-2 px-3 py-3 min-w-0';
@@ -138,7 +163,7 @@ const SKILL_CHAT_SUGGESTION_ROW =
 const GOAL_INDEX_CHIP =
   'inline-flex items-center gap-1.5 h-7 max-w-[240px] pl-1.5 pr-1 rounded-[7px] bg-white border border-neutral-200 text-[12px] text-neutral-800 shrink-0';
 
-/** 表单必填标记（对齐主应用：星号，不用「必填」字样） */
+/** 表单必填标记（对齐主应用：星号，不用“必填”字样） */
 const REQUIRED_STAR = (
   <span className="text-rose-500 text-[12px] font-semibold leading-none shrink-0" aria-label="必填">
     *
@@ -181,7 +206,7 @@ interface BuildSkillModalProps {
   /** 智能创作入口带入的目标描述，进入后自动开聊 */
   initialPrompt?: string | null;
   onPublished?: (skill: Skill) => void;
-  /** 未进入多轮时的返回文案；默认「返回数字员工技能」 */
+  /** 未进入多轮时的返回文案；默认“返回数字员工技能” */
   closeLabel?: string;
 }
 
@@ -261,7 +286,7 @@ const AttachResourceMenu: React.FC<AttachResourceMenuProps> = ({
               还没有选择知识库或系统接口。
               <br />
               <span className="font-bold text-[10px] text-amber-900 mt-1 block">
-                请先在「技能定义」里选好知识库或系统接口。
+                请先在“技能定义”里选好知识库或系统接口。
               </span>
             </div>
           ) : (
@@ -333,37 +358,37 @@ const GOAL_LANDING_TIPS = [
   {
     label: '延保进度查询',
     hint: '核验服务单号，告知受理 / 检测 / 维修 / 寄回节点与下一步',
-    pe: '帮我做一个「延保进度查询」技能。用户问延保进度、修到哪一步、什么时候寄回时触发。需提供延保服务单号，可用手机号后四位核验。产出当前节点（受理 / 检测 / 维修 / 寄回）、预计完成时间与下一步指引。单号无效或查无结果时引导核对，不编造进度、不承诺未核验时效；要改单或索赔金额则转人工。',
+    pe: '帮我做一个“延保进度查询”技能。用户问延保进度、修到哪一步、什么时候寄回时触发。需提供延保服务单号，可用手机号后四位核验。产出当前节点（受理 / 检测 / 维修 / 寄回）、预计完成时间与下一步指引。单号无效或查无结果时引导核对，不编造进度、不承诺未核验时效；要改单或索赔金额则转人工。',
   },
   {
     label: '退换货自助',
     hint: '按订单与物流判断能否退换，说明寄回地址、时效与费用',
-    pe: '帮我做一个「退换货自助」技能。用户要退货、换货、仅退款时触发。输入订单号、商品状态与诉求类型。按签收时效、是否拆封、是否质量问题判断能否办理，给出寄回地址、运费承担与时效。不满足条件时说明原因并给替代方案。严禁越权承诺全额退款或绕过质检。',
+    pe: '帮我做一个“退换货自助”技能。用户要退货、换货、仅退款时触发。输入订单号、商品状态与诉求类型。按签收时效、是否拆封、是否质量问题判断能否办理，给出寄回地址、运费承担与时效。不满足条件时说明原因并给替代方案。严禁越权承诺全额退款或绕过质检。',
   },
   {
     label: '高危客诉安抚',
     hint: '识别辱骂 / 曝光 / 投诉监管，先共情再收集事实并升级',
-    pe: '帮我做一个「高危客诉安抚」技能。识别辱骂、威胁曝光、投诉监管等高风险话术后触发。先共情安抚，收集订单号、诉求与证据，明确处理边界。达到红线时礼貌转人工，并把关键信息交给坐席。不争辩、不刺激、不擅自承诺赔付或处罚结果。',
+    pe: '帮我做一个“高危客诉安抚”技能。识别辱骂、威胁曝光、投诉监管等高风险话术后触发。先共情安抚，收集订单号、诉求与证据，明确处理边界。达到红线时礼貌转人工，并把关键信息交给坐席。不争辩、不刺激、不擅自承诺赔付或处罚结果。',
   },
   {
     label: '物流异常催派',
     hint: '包裹停滞或派送失败时，判断催派 / 改址 / 转网点',
-    pe: '帮我做一个「物流异常催派」技能。用户反馈物流不更新、派送失败、滞留网点时触发。核验运单号与签收状态，判断可否催派、改址或转自提。告知预计时效与自助入口；无法处理则生成工单转人工。已签收却说没收到时走签收异常，不伪造轨迹。',
+    pe: '帮我做一个“物流异常催派”技能。用户反馈物流不更新、派送失败、滞留网点时触发。核验运单号与签收状态，判断可否催派、改址或转自提。告知预计时效与自助入口；无法处理则生成工单转人工。已签收却说没收到时走签收异常，不伪造轨迹。',
   },
   {
     label: '保价差额补退',
     hint: '核对价保规则与历史低价，计算可补差额与到账时效',
-    pe: '帮我做一个「保价差额补退」技能。用户申请价保、补差价时触发。核验订单、商品与活动规则，比对历史最低价并计算可补差额。符合则引导提交凭证并说明到账时效；不符合则解释原因与替代权益。不承诺规则外补差，金额需可核对。',
+    pe: '帮我做一个“保价差额补退”技能。用户申请价保、补差价时触发。核验订单、商品与活动规则，比对历史最低价并计算可补差额。符合则引导提交凭证并说明到账时效；不符合则解释原因与替代权益。不承诺规则外补差，金额需可核对。',
   },
   {
     label: '理赔资料预审',
     hint: '按险种核对保单 / 票据 / 事故证明，列出缺件不承诺赔付',
-    pe: '帮我做一个「理赔资料预审」技能。用户咨询理赔怎么报、要交什么材料时触发。按险种核对保单、票据、事故证明等清单，指出缺件与格式要求，说明审核时效。材料不齐给出补交清单。严禁承诺能否赔付或赔付金额，结论以审核为准。',
+    pe: '帮我做一个“理赔资料预审”技能。用户咨询理赔怎么报、要交什么材料时触发。按险种核对保单、票据、事故证明等清单，指出缺件与格式要求，说明审核时效。材料不齐给出补交清单。严禁承诺能否赔付或赔付金额，结论以审核为准。',
   },
   {
     label: '发票开具指引',
     hint: '说明能否开票、电子 / 专票类型与抬头修改路径',
-    pe: '帮我做一个「发票开具指引」技能。用户要开发票、改抬头、补开时触发。根据订单状态说明能否开票、电子票或专票、抬头信息要求，并引导自助开具。超期或订单未完成时说明原因与补救路径。不代填虚假抬头，专票需核验企业资质。',
+    pe: '帮我做一个“发票开具指引”技能。用户要开发票、改抬头、补开时触发。根据订单状态说明能否开票、电子票或专票、抬头信息要求，并引导自助开具。超期或订单未完成时说明原因与补救路径。不代填虚假抬头，专票需核验企业资质。',
   },
 ] as const;
 
@@ -550,7 +575,7 @@ export const BuildSkillModal: React.FC<BuildSkillModalProps> = ({
 
   // Form interactive edit states
   const [isFormDirty, setIsFormDirty] = useState(false);
-  /** 相对上次「保存草稿」是否有未落盘改动；干净时顶栏按钮置灰 */
+  /** 相对上次“保存草稿”是否有未落盘改动；干净时顶栏按钮置灰 */
   const [isDraftDirty, setIsDraftDirty] = useState(() => !draftSkillId);
   /** 本会话内已绑定的草稿 id（首次保存新建后不再重复建技能） */
   const [boundDraftSkillId, setBoundDraftSkillId] = useState<string | null>(draftSkillId ?? null);
@@ -569,7 +594,7 @@ export const BuildSkillModal: React.FC<BuildSkillModalProps> = ({
   const [collapsedChains, setCollapsedChains] = useState<number[]>([]);
   const [collapsedSteps, setCollapsedSteps] = useState<string[]>([]); // chainId-stepId format
   const [collapsedFormSections, setCollapsedFormSections] = useState<number[]>([2, 3, 4]);
-  /** 第 1 段「可用资料」默认收起，避免知识库长列表占满一屏 */
+  /** 第 1 段“可用资料”默认收起，避免知识库长列表占满一屏 */
   const [resourcesExpanded, setResourcesExpanded] = useState(false);
 
   // Clean up step attachments if resources are unmounted from Section 1
@@ -599,7 +624,7 @@ export const BuildSkillModal: React.FC<BuildSkillModalProps> = ({
     activeStepRef.current = sectionId;
     setActiveStep(sectionId);
     setCollapsedFormSections([1, 2, 3, 4].filter((id) => id !== sectionId));
-    // 切页后重置目标页滚动，避免停在中间造成「定位偏离」
+    // 切页后重置目标页滚动，避免停在中间造成“定位偏离”
     requestAnimationFrame(() => {
       const section = document.getElementById(`form-section-${sectionId}`);
       const scroller = section?.querySelector('.overflow-y-auto') as HTMLElement | null;
@@ -1086,7 +1111,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
   const [chatInput, setChatInput] = useState('');
   /** 底部快捷芯片：已点选回填后从建议条移除（无选中态） */
   const [composerConsumedChipIds, setComposerConsumedChipIds] = useState<string[]>([]);
-  /** 确认卡「重新设置要求」：回填输入框供二次编辑 */
+  /** 确认卡“重新设置要求”：回填输入框供二次编辑 */
   const [composerResetMode, setComposerResetMode] = useState(false);
   const [goalGhostTipIndex, setGoalGhostTipIndex] = useState(0);
   const [showGoalRewriteTab, setShowGoalRewriteTab] = useState(false);
@@ -1337,7 +1362,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     let wheelAcc = 0;
     let lastDir: -1 | 0 | 1 = 0;
     let lastWheelAt = 0;
-    /** 刚贴边时先吞掉两拍，避免「滚到边」顺带切页 */
+    /** 刚贴边时先吞掉两拍，避免“滚到边”顺带切页 */
     let edgePrimeCount = 0;
     let touchStartY: number | null = null;
     let touchStartScrollTop: number | null = null;
@@ -1727,7 +1752,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
   const [repairAttemptsSecurity, setRepairAttemptsSecurity] = useState(0);
 
   const [repairLog, setRepairLog] = useState<string[]>([]);
-  /** 发布版本弹窗（对齐设计稿，替代黑屏「自动校验与修复」） */
+  /** 发布版本弹窗（对齐设计稿，替代黑屏“自动校验与修复”） */
   const [showPublishVersionModal, setShowPublishVersionModal] = useState(false);
   const [publishVersionNote, setPublishVersionNote] = useState('');
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
@@ -2062,7 +2087,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     const skill = skills.find((s) => s.id === draftSkillId);
     if (!skill) return;
 
-    /** 编辑入口：跳过「描述技能目标」落地页，直接进入多轮 AOP */
+    /** 编辑入口：跳过“描述技能目标”落地页，直接进入多轮 AOP */
     setSkillGoalReady(true);
     setDraftConfirmed(true);
     setRightCollapsed(true);
@@ -2087,7 +2112,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
           {
             sender: 'ai',
             name: '技能设计助理',
-            content: `已载入「${skillLabel}」草稿，可直接对话优化右侧四张卡片，或测一条 / 校验发布。`,
+            content: `已载入“${skillLabel}”草稿，可直接对话优化右侧四张卡片，或测一条 / 校验发布。`,
             timestamp: new Date().toTimeString().substring(0, 5),
           },
         ]);
@@ -2105,7 +2130,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
       {
         sender: 'ai',
         name: '技能设计助理',
-        content: `已载入「${skillLabel}」，可直接对话优化右侧四张卡片，或测一条 / 校验发布。`,
+        content: `已载入“${skillLabel}”，可直接对话优化右侧四张卡片，或测一条 / 校验发布。`,
         timestamp: new Date().toTimeString().substring(0, 5),
       },
     ]);
@@ -2124,7 +2149,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
       return;
     }
     if (draftSkillId) {
-      // 等草稿快照灌入后再开始脏检测，避免载入过程误点亮「保存草稿」
+      // 等草稿快照灌入后再开始脏检测，避免载入过程误点亮“保存草稿”
       allowDraftDirtyTrackRef.current = false;
       const timer = window.setTimeout(() => {
         setIsDraftDirty(false);
@@ -2812,12 +2837,12 @@ ${usageExamples || '暂无调用示例'}
           .trim() || raw.trim()
       ).slice(0, 50) || extractedCn;
     const trigger =
-      `当用户表达「${extractedCn}」相关意图（如查询进度、办理状态、下一步怎么走），并提供必要业务标识（服务单号 / 订单号等）时触发；可用手机号后四位做轻量核验。`.slice(
+      `当用户表达“${extractedCn}”相关意图（如查询进度、办理状态、下一步怎么走），并提供必要业务标识（服务单号 / 订单号等）时触发；可用手机号后四位做轻量核验。`.slice(
         0,
         200,
       );
     const forbiddenCond =
-      `非「${extractedCn}」业务范围；缺少关键业务标识且用户拒绝补充；情绪严重失控、明确要求投诉升级，或需越权改单 / 承诺赔付时，不该使用本技能。`.slice(
+      `非“${extractedCn}”业务范围；缺少关键业务标识且用户拒绝补充；情绪严重失控、明确要求投诉升级，或需越权改单 / 承诺赔付时，不该使用本技能。`.slice(
         0,
         200,
       );
@@ -2840,7 +2865,7 @@ ${usageExamples || '暂无调用示例'}
         description:
           '解析用户意图是否属于本技能范围；检查服务单号 / 订单号等必要标识是否齐全；缺失时礼貌追问，齐全后做轻量核验（如手机号后四位）再进入查询。',
         example:
-          '用户：「帮我查一下延保修到哪了，单号 XB20260301。」→ 确认属进度查询，核验标识通过后进入查询步骤。',
+          '用户：“帮我查一下延保修到哪了，单号 XB20260301。”→ 确认属进度查询，核验标识通过后进入查询步骤。',
         associatedScripts: selectedScripts.length > 0 ? [selectedScripts[0]] : [],
         associatedKBs: [] as string[],
         associatedDocs: [] as string[],
@@ -2851,7 +2876,7 @@ ${usageExamples || '暂无调用示例'}
         description:
           '调用挂载脚本 / 知识库获取真实状态；将内部节点转成用户可理解的进度说明；给出下一步建议话术；异常或越权诉求则按托底策略阻断并转人工。',
         example:
-          '返回：「您的延保单当前在质检环节，预计 2 个工作日内寄回；如需加急请说明，我帮您转专席。」',
+          '返回：“您的延保单当前在质检环节，预计 2 个工作日内寄回；如需加急请说明，我帮您转专席。”',
         associatedScripts: [] as string[],
         associatedKBs: selectedKBs.length > 0 ? [selectedKBs[0]] : [],
         associatedDocs: [] as string[],
@@ -2868,19 +2893,19 @@ ${usageExamples || '暂无调用示例'}
         500,
       );
     const contentRedLines =
-      `不编造进度与时效；不泄露内部工单、仓库地址、接口细节；不输出未授权的客户隐私字段；不确定时说明「以系统实时状态为准」并引导核验或转人工。`.slice(
+      `不编造进度与时效；不泄露内部工单、仓库地址、接口细节；不输出未授权的客户隐私字段；不确定时说明“以系统实时状态为准”并引导核验或转人工。`.slice(
         0,
         500,
       );
     const usageExamples = [
       `用户："帮我查一下延保进度，单号 XB20260301。"`,
-      `数字员工：启用「${extractedCn}」，核验单号后返回当前节点、预计时效与下一步建议。`,
+      `数字员工：启用“${extractedCn}”，核验单号后返回当前节点、预计时效与下一步建议。`,
       ``,
       `用户："修到哪一步了？什么时候寄回？"`,
       `数字员工：确认标识后说明当前环节与寄回预估；若系统无时效则如实说明并给出跟进方式。`,
     ].join('\n');
     const customNotes =
-      `高峰或接口延迟时，3 秒内先告知用户「正在查询，请稍候」；同一会话内已核验的标识可复用，避免重复追问；多单并存时请用户确认目标单号再继续。`;
+      `高峰或接口延迟时，3 秒内先告知用户“正在查询，请稍候”；同一会话内已核验的标识可复用，避免重复追问；多单并存时请用户确认目标单号再继续。`;
     const actionChainSummary = [
       `1. ${step1Name}`,
       `说明：${generatedSteps[0].description}`,
@@ -2898,10 +2923,10 @@ ${usageExamples || '暂无调用示例'}
       side: {
         enId: extractedEn,
         generatedSteps,
-        knowledgeContent: `围绕「${extractedCn}」完成标识核验、状态查询与可读结论输出；优先使用已挂载脚本取数，知识库补充话术与规则口径。`,
+        knowledgeContent: `围绕“${extractedCn}”完成标识核验、状态查询与可读结论输出；优先使用已挂载脚本取数，知识库补充话术与规则口径。`,
         knowledgeDesc:
           '执行前先核验必要标识；查询结果须转成用户可理解的节点说明；异常与越权统一走托底与内容红线。',
-        answerTone: '先结论后依据，语气克制清晰；涉及时效用「预计」表述，避免绝对承诺。',
+        answerTone: '先结论后依据，语气克制清晰；涉及时效用“预计”表述，避免绝对承诺。',
         outputConstraints: '结论须简明，含状态与下一步；严禁泄露后台地址与内部字段。',
       },
       confirmItems: [
@@ -2943,7 +2968,7 @@ ${usageExamples || '暂无调用示例'}
             clarifyNote
               ? '已收到补充信息，并据此拆解技能草案。'
               : '已按你的目标拆解技能草案。',
-            { sender: 'system_status', content: '请确认下方要点后点击「确认执行」' },
+            { sender: 'system_status', content: '请确认下方要点后点击“确认执行”' },
             {
               sender: 'skill_confirm',
               content: JSON.stringify({
@@ -3134,7 +3159,7 @@ ${usageExamples || '暂无调用示例'}
         } else {
           aiBubbles = [
             '未识别到【字段名】格式的要点，请补充标注后再发送改写。',
-            '也可以说「补触发」「补红线」「生成动作链」按需修改。',
+            '也可以说“补触发”“补红线”“生成动作链”按需修改。',
           ];
         }
         pushAiTurn(aiBubbles);
@@ -3171,7 +3196,7 @@ ${usageExamples || '暂无调用示例'}
         setCnName(extractedCn);
         setEnId(extractedEn);
         setBusinessProblem(raw.slice(0, 50));
-        setTriggerCond(`当用户表达「${raw.slice(0, 18)}」相关意图且提供必要标识时`);
+        setTriggerCond(`当用户表达“${raw.slice(0, 18)}”相关意图且提供必要标识时`);
         setForbiddenCond('非本技能业务范围；缺少关键上下文时');
         setCoreInputIn('用户诉求与必要业务标识（如单号、手机号后四位）');
         setCoreInputOut('结构化结论或进度说明 + 下一步引导');
@@ -3185,15 +3210,15 @@ ${usageExamples || '暂无调用示例'}
         openFormSection(1);
         setChatStep(1);
         aiBubbles = [
-          '好的。请直接描述业务能力，例如「查询京东延保服务单进度并告知处理节点」。',
-          '也可以点选下方示例。说完第一轮后，我会把「技能定义」写到右侧。',
+          '好的。请直接描述业务能力，例如“查询京东延保服务单进度并告知处理节点”。',
+          '也可以点选下方示例。说完第一轮后，我会把“技能定义”写到右侧。',
         ];
       } else if ((chatStep === 0 || chatStep === 1) && looksLikeIntent && !looksLikePeChip) {
         const extractedCn = fillDefinition(userText);
         aiBubbles = [
-          `第一轮已写入「技能定义」：${extractedCn}。`,
+          `第一轮已写入“技能定义”：${extractedCn}。`,
           { sender: 'system_status', content: '已更新第 1 张卡片，下一轮进入技能主体' },
-          '第二轮请告诉我技能怎么执行：步骤、知识或点「采用默认动作链」。',
+          '第二轮请告诉我技能怎么执行：步骤、知识或点“采用默认动作链”。',
         ];
       } else if (chatStep === 2 && !looksLikePeChip) {
         const generatedSteps = [
@@ -3220,16 +3245,16 @@ ${usageExamples || '暂无调用示例'}
         setActionChains([{ id: 1, name: '标准闭环动作链', steps: generatedSteps }]);
         setKnowledgeContent(
           useRoundDefault
-            ? `围绕「${cnName || '本技能'}」核验标识、查询状态并给出可读结论。`
+            ? `围绕“${cnName || '本技能'}”核验标识、查询状态并给出可读结论。`
             : userText.slice(0, 400),
         );
         setKnowledgeDesc('执行前先核验必要标识；查询结果需转成用户可理解的节点说明。');
         openFormSection(2);
         setChatStep(3);
         aiBubbles = [
-          `第二轮已写入「技能主体」：${generatedSteps[0].name} → ${generatedSteps[1].name}。`,
+          `第二轮已写入“技能主体”：${generatedSteps[0].name} → ${generatedSteps[1].name}。`,
           { sender: 'system_status', content: '已更新第 2 张卡片' },
-          '第三轮请约定红线与兜底，或点「采用高安全防护线」。',
+          '第三轮请约定红线与兜底，或点“采用高安全防护线”。',
         ];
       } else if (chatStep === 3 && !looksLikePeChip) {
         const extractedNotAllowed = useRoundDefault
@@ -3243,9 +3268,9 @@ ${usageExamples || '暂无调用示例'}
         openFormSection(3);
         setChatStep(4);
         aiBubbles = [
-          `第三轮已写入「规范约束」：${extractedNotAllowed}`,
+          `第三轮已写入“规范约束”：${extractedNotAllowed}`,
           { sender: 'system_status', content: '已更新第 3 张卡片' },
-          '第四轮请补一条示例或备注，或点「采用默认说明」。',
+          '第四轮请补一条示例或备注，或点“采用默认说明”。',
         ];
       } else if (chatStep === 4 && !looksLikePeChip) {
         const extractedExamples =
@@ -3257,8 +3282,8 @@ ${usageExamples || '暂无调用示例'}
         openFormSection(4);
         setChatStep(5);
         aiBubbles = [
-          '第四轮已写入「补充说明」。四张卡片已齐。',
-          { sender: 'system_status', content: '可点「展开配置」核对草案' },
+          '第四轮已写入“补充说明”。四张卡片已齐。',
+          { sender: 'system_status', content: '可点“展开配置”核对草案' },
           '需要时点右上角展开配置核对；确认后可测一条或校验发布。',
         ];
       } else if (
@@ -3293,7 +3318,7 @@ ${usageExamples || '暂无调用示例'}
           const instructional =
             cleaned.length < 16 || /请根据|写清何时|我想优化|再写具体/.test(cleaned);
           const extractedTrigger = instructional
-            ? `当用户表达「${cnName || '该业务'}」相关意图，并提供必要业务标识（如单号）时`
+            ? `当用户表达“${cnName || '该业务'}”相关意图，并提供必要业务标识（如单号）时`
             : cleaned.slice(0, 200);
           const nextForbidden = '非本技能范围、缺少关键标识、情绪严重失控或客诉升级时不该使用';
           setTriggerCond(extractedTrigger);
@@ -3303,7 +3328,7 @@ ${usageExamples || '暂无调用示例'}
             toConfirmItem('triggerCond', '触发条件', extractedTrigger),
             toConfirmItem('forbiddenCond', '不该使用的情况', nextForbidden),
           ];
-          aiBubbles = [`已更新表单「触发条件 / 不该使用的情况」。`, '请确认本轮变更要点。'];
+          aiBubbles = [`已更新表单“触发条件 / 不该使用的情况”。`, '请确认本轮变更要点。'];
         } else if (topic === 'io') {
           didPatch = true;
           const nextIn =
@@ -3322,7 +3347,7 @@ ${usageExamples || '暂无调用示例'}
             toConfirmItem('coreInputIn', '用户输入信息', nextIn),
             toConfirmItem('coreInputOut', '产出物', nextOut),
           ];
-          aiBubbles = ['已更新表单「用户输入信息 / 产出物」。', '请确认本轮变更要点。'];
+          aiBubbles = ['已更新表单“用户输入信息 / 产出物”。', '请确认本轮变更要点。'];
         } else if (topic === 'chain') {
           didPatch = true;
           const generatedSteps = [
@@ -3366,7 +3391,7 @@ ${usageExamples || '暂无调用示例'}
             ),
           ];
           aiBubbles = [
-            `已更新表单「执行步骤」：${generatedSteps[0].name} → ${generatedSteps[1].name}`,
+            `已更新表单“执行步骤”：${generatedSteps[0].name} → ${generatedSteps[1].name}`,
             '请确认本轮变更要点。',
           ];
         } else if (topic === 'safety') {
@@ -3387,7 +3412,7 @@ ${usageExamples || '暂无调用示例'}
             toConfirmItem('contentRedLines', '内容红线', nextRedLines),
             toConfirmItem('fallback', '托底策略', nextFallback),
           ];
-          aiBubbles = ['已更新表单「禁止行为 / 内容红线 / 托底策略」。', '请确认本轮变更要点。'];
+          aiBubbles = ['已更新表单“禁止行为 / 内容红线 / 托底策略”。', '请确认本轮变更要点。'];
         } else if (topic === 'examples') {
           didPatch = true;
           const nextExamples =
@@ -3402,12 +3427,12 @@ ${usageExamples || '暂无调用示例'}
             toConfirmItem('usageExamples', '使用示例', nextExamples),
             toConfirmItem('customNotes', '补充资料', nextNotes),
           ];
-          aiBubbles = ['已更新表单「使用示例 / 补充资料」。', '请确认本轮变更要点。'];
+          aiBubbles = ['已更新表单“使用示例 / 补充资料”。', '请确认本轮变更要点。'];
         } else if (!draftConfirmed) {
-          aiBubbles = ['草案要点已在下方确认卡中，请核对后点「确认执行」写入右侧。', '若要改某一类，可说「补触发 / 补红线 / 生成动作链 / 补示例」。'];
+          aiBubbles = ['草案要点已在下方确认卡中，请核对后点“确认执行”写入右侧。', '若要改某一类，可说“补触发 / 补红线 / 生成动作链 / 补示例”。'];
         } else {
           aiBubbles = [
-            '可以说「补触发」「补红线」「生成动作链」「补示例」按需修改。',
+            '可以说“补触发”“补红线”“生成动作链”“补示例”按需修改。',
             '也可以直接测一条或校验发布。',
           ];
         }
@@ -3432,7 +3457,7 @@ ${usageExamples || '暂无调用示例'}
         }
       } else {
         aiBubbles = [
-          '用一句话描述业务能力即可，例如「查询京东延保服务单进度」。',
+          '用一句话描述业务能力即可，例如“查询京东延保服务单进度”。',
           '也可以点选下方示例。四轮对话会依次写入右侧卡片。',
         ];
       }
@@ -3624,7 +3649,7 @@ ${usageExamples || '暂无调用示例'}
     const isDuplicateSkillName = trimmedCnName.length > 0 && skills.some(s => s.name.trim() === trimmedCnName && s.id !== draftSkillId);
     if (isDuplicateSkillName) {
       errorFields.push('field-cnName');
-      errorMsgs.push(`技能名称「${trimmedCnName}」与现有技能库重复，请修改`);
+      errorMsgs.push(`技能名称“${trimmedCnName}”与现有技能库重复，请修改`);
       sectionsToExpand.add(1);
     } else if (!trimmedCnName) {
       errorFields.push('field-cnName');
@@ -3692,7 +3717,7 @@ ${usageExamples || '暂无调用示例'}
         if (st.name && st.name.trim().length > 0 && stepNames.filter(n => n === st.name.trim()).length > 1) {
           if (!errorFields.includes(fId)) {
             errorFields.push(fId);
-            errorMsgs.push(`技能主体：步骤 [${idx + 1}] 名称「${st.name.trim()}」与其他步骤重复`);
+            errorMsgs.push(`技能主体：步骤 [${idx + 1}] 名称“${st.name.trim()}”与其他步骤重复`);
             sectionsToExpand.add(2);
           }
         }
@@ -3792,10 +3817,10 @@ ${usageExamples || '暂无调用示例'}
     }
     setIsFormDirty(false);
     setIsDraftDirty(false);
-    showToast('已保存到「我的技能」');
+    showToast('已保存到“我的技能”');
   };
 
-  // Run auto fix sub-sequence（合计约 10s，与顶栏「发布中」加载态同步）
+  // Run auto fix sub-sequence（合计约 10s，与顶栏“发布中”加载态同步）
   const runAutoFixSequence = () => {
     const addLog = (msg: string) => {
       setRepairLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -4027,8 +4052,8 @@ ${usageExamples || '暂无调用示例'}
         return {
           id: `case-ai-${Date.now()}-${idx}`,
           source: 'ai' as const,
-          input: `测试输入：关于「${cnName || '智能技能'}」的第 ${idx} 条模拟测试请求（${typeName}）`,
-          oracle: `AI 自动判定：符合「${cnName || '智能技能'}」的${typeName}规则且执行合规`,
+          input: `测试输入：关于“${cnName || '智能技能'}”的第 ${idx} 条模拟测试请求（${typeName}）`,
+          oracle: `AI 自动判定：符合“${cnName || '智能技能'}”的${typeName}规则且执行合规`,
           status: 'ready' as const,
         };
       });
@@ -4370,7 +4395,7 @@ ${usageExamples || '暂无调用示例'}
         type="button"
         onClick={handleSaveAsDraft}
         disabled={!isDraftDirty}
-        title={isDraftDirty ? '保存到「我的技能」' : '已保存，修改后可再次保存'}
+        title={isDraftDirty ? '保存到“我的技能”' : '已保存，修改后可再次保存'}
         className={outlineBtn}
       >
         保存草稿
@@ -5514,8 +5539,12 @@ return (
 
                 return (
                   <div key={msgKey} className="flex justify-start">
-                    <div className="max-w-[88%] px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed whitespace-pre-line bg-neutral-100 text-neutral-800">
-                      {msg.content}
+                    <div
+                      className={
+                        msg.sender === 'system_status' ? SYSTEM_STATUS_CHAT_BUBBLE : AI_CHAT_BUBBLE
+                      }
+                    >
+                      {renderAiBubbleContent(msg.content)}
                     </div>
                   </div>
                 );
@@ -5638,16 +5667,16 @@ return (
                   }}
                   placeholder={
                     hasPendingClarify
-                      ? '请先在上方「补充信息」卡片中提交或跳过…'
+                      ? '请先在上方“补充信息”卡片中提交或跳过…'
                       : confirmEditTarget
                         ? confirmEditTarget.items.length > 1
                           ? `说明如何改写已选 ${confirmEditTarget.items.length} 条要点，发送后由 AI 更新…`
-                          : `说明如何改写「${confirmEditTarget.items[0].hint}」，发送后由 AI 更新…`
+                          : `说明如何改写“${confirmEditTarget.items[0].hint}”，发送后由 AI 更新…`
                           : composerResetMode
                           ? '可继续补充或修改各【要点】内容，回车发送…'
                           : draftConfirmed
-                            ? '继续补充规则，或点上方「AI 帮写」快捷填充…'
-                            : '说明想改哪张卡片，或点上方「AI 帮写」快捷填充…'
+                            ? '继续补充规则，或点上方“AI 帮写”快捷填充…'
+                            : '说明想改哪张卡片，或点上方“AI 帮写”快捷填充…'
                   }
                   className="w-full min-h-[44px] max-h-40 overflow-y-auto bg-transparent text-[14px] leading-[22px] pb-2 outline-none resize-none placeholder:text-[#B0B2B8] text-[#1C1D1F]"
                 />
@@ -5854,7 +5883,7 @@ return (
                                 <p className="text-[10px] font-bold text-rose-600 flex items-center gap-1 mt-1">
                                   <AlertCircle size={11} />
                                   {skills.some((s) => s.name.trim() === cnName.trim() && s.id !== draftSkillId)
-                                    ? `技能名称「${cnName.trim()}」与现有技能重名，请修改`
+                                    ? `技能名称“${cnName.trim()}”与现有技能重名，请修改`
                                     : '技能名称为必填项，请输入名称'}
                                 </p>
                               ) : null
@@ -7226,7 +7255,7 @@ return (
                         发布版本
                       </h3>
                       <p className="text-[12px] text-neutral-500 mt-1 leading-relaxed">
-                        为技能「{enId.trim() || cnName.trim() || '未命名技能'}」发布新版本
+                        为技能“{enId.trim() || cnName.trim() || '未命名技能'}”发布新版本
                       </p>
                     </div>
                   </div>
@@ -7480,7 +7509,7 @@ return (
           overlayClassName="z-[260]"
           maxWidth="max-w-sm"
           title="确定返回？"
-          description="未保存的内容将丢失，可先点「保存草稿」"
+          description="未保存的内容将丢失，可先点“保存草稿”"
           footer={
             <>
               <button

@@ -261,7 +261,7 @@ export function resolveQcFlowNextStep(input: {
     return {
       kind: 'hire',
       title: '先雇佣质检数字员工',
-      desc: '市场雇佣「会话质检专员」，完成培训后上岗。',
+      desc: '市场雇佣“会话质检专员”，完成培训后上岗。',
       action: 'market',
     };
   }
@@ -269,7 +269,7 @@ export function resolveQcFlowNextStep(input: {
     return {
       kind: 'online',
       title: '让质检员上岗',
-      desc: '培训完成后，在员工卡片点击「上岗」，才能执行计划。',
+      desc: '培训完成后，在员工卡片点击“上岗”，才能执行计划。',
       action: 'employees',
     };
   }

@@ -29,7 +29,7 @@ export function TypewriterAiReply({
 }: {
   html: string;
   className?: string;
-  /** 仅对「本轮刚完成」的助手消息为 true（历史/恢复会话为 false） */
+  /** 仅对“本轮刚完成”的助手消息为 true（历史/恢复会话为 false） */
   active: boolean;
   onComplete?: () => void;
 }) {

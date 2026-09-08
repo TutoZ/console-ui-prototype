@@ -4,7 +4,7 @@ import {
 } from "./chatRefImage";
 
 /** 用户是否要求根据已有分镜脚本批量出静帧 */
-/** 从用户短句推断希望生成的分镜格数，如「出 4 格」「四张分镜」 */
+/** 从用户短句推断希望生成的分镜格数，如“出 4 格”“四张分镜” */
 export function inferStoryboardShotCountFromUserPlain(
   userPlain: string
 ): number | null {
@@ -36,7 +36,7 @@ export function inferStoryboardShotCountFromUserPlain(
 }
 
 /**
- * 从用户话里解析「第几格 / 第几张」分镜（1-based），如「第一张」「第 2 格」「第3镜」。
+ * 从用户话里解析“第几格 / 第几张”分镜（1-based），如“第一张”“第 2 格”“第3镜”。
  */
 export function parseRequestedStoryboardPanelIndex(
   userPlain: string
@@ -95,7 +95,7 @@ export function userWantsSingleStoryboardPanelReference(
 }
 
 /**
- * 去掉「生成分镜图第 N 张的…」等套话，保留实际画面需求（作文生图 / 编辑 prompt）。
+ * 去掉“生成分镜图第 N 张的…”等套话，保留实际画面需求（作文生图 / 编辑 prompt）。
  */
 export function stripStoryboardPanelDirectiveForImagePrompt(
   userPlain: string
@@ -137,10 +137,10 @@ export function userWantsStoryboardBatchImages(userPlain: string): boolean {
   );
 }
 
-/** 匹配「1. xxx」「1、xxx」「1) xxx」「（1）xxx」等 */
+/** 匹配“1. xxx”“1、xxx”“1) xxx”“（1）xxx”等 */
 const LINE_RE =
   /^\s*(?:[（(](\d{1,2})[）)]\s*[\.、:：]?\s*|(\d{1,2})\s*[\.、\):：])\s*(.+)$/;
-/** 「镜头1：…」「第2镜：…」「第3格 …」等常见分镜写法 */
+/** “镜头1：…”“第2镜：…”“第3格 …”等常见分镜写法 */
 const SHOT_LINE_RE =
   /^\s*(?:镜头|镜|格|场|第)\s*(\d{1,2})\s*(?:镜|格|场)?\s*[：:\s]\s*(.+)$/;
 
@@ -172,7 +172,7 @@ export function extractNumberedShotsFromAssistantText(
 }
 
 /**
- * 按用户话里的「六张」「4 格」等与已抽到的分镜条对齐预览行数（不足补空行，便于与加载格数一致）
+ * 按用户话里的“六张”“4 格”等与已抽到的分镜条对齐预览行数（不足补空行，便于与加载格数一致）
  */
 export function expandStoryboardDraftsToUserIntent(
   shots: string[],

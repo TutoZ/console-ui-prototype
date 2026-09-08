@@ -1087,12 +1087,12 @@ function buildKnowledgeEntries(kbName: string): {
 
   const hitPreview =
     kbName.includes('意图')
-      ? '标签「转人工」置信阈值 ≥ 0.90；命中后优先走承接策略，非直接派单。'
+      ? '标签“转人工”置信阈值 ≥ 0.90；命中后优先走承接策略，非直接派单。'
       : kbName.includes('理赔')
         ? '食物中毒类理赔适用条款第4.2条。餐品送达后 36 小时内建议就医，需诊断证明、病历和医疗票据等材料。'
         : kbName.includes('理算')
           ? 'FS-Amount：赔付金额 = min(实际损失, 保额剩余) − 免赔额；超额需人工复核。'
-          : `来自「${kbName}」的高相关片段，用于本轮回答与策略判断。`;
+          : `来自“${kbName}”的高相关片段，用于本轮回答与策略判断。`;
 
   return {
     breadcrumb: ['员工挂载库', '知识库', kbName],
@@ -1137,7 +1137,7 @@ function buildProcessEntries(name: string): {
   return {
     breadcrumb: ['员工挂载库', '流程', name],
     query: name,
-    hitPreview: `定位流程节点「${name}」，读取分支条件后继续决策。`,
+    hitPreview: `定位流程节点“${name}”，读取分支条件后继续决策。`,
     entries: [
       { id: 'p1', name: '流程总览.md', kind: 'file' },
       { id: 'p2', name: `${name}.md`, kind: 'file', hit: true, score: 'match' },
@@ -2231,7 +2231,7 @@ export function FoodSafetyCapabilityPanel({
     if (activeTurnId) {
       return FOOD_SAFETY_CAPABILITY_STAGES.find((s) => s.turnId === activeTurnId) ?? null;
     }
-    // 进线前空态：直接展示「主动共识 / 先安抚」思维链，不再放空白占位
+    // 进线前空态：直接展示“主动共识 / 先安抚”思维链，不再放空白占位
     return FOOD_SAFETY_CAPABILITY_STAGES.find((s) => s.turnId === 'pre') ?? null;
   }, [activeTurnId]);
 

@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 技能表单字段 + 「改写」：悬浮叠在输入框上（不占文案位），点击后在下方浮层输入指令并写回。
+ * 技能表单字段 + “改写”：悬浮叠在输入框上（不占文案位），点击后在下方浮层输入指令并写回。
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';

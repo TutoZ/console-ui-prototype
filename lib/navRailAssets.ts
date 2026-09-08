@@ -46,7 +46,7 @@ export const NAV_RAIL_SVG_MARKUP: Partial<Record<NavDomain, string>> = {
   followup: followupSvg,
 };
 
-/** 「更多」入口（非业务域） */
+/** “更多”入口（非业务域） */
 export const NAV_RAIL_MORE_SVG = moreSvg;
 
 /** 主墨色路径（激活态套渐变） */
@@ -59,7 +59,7 @@ const NAV_BLUE_MUTED = 'rgba(0,0,0,0.5)';
  * 准备窄轨 SVG：
  * - 蓝色强调统一为黑色 50% 透明
  * - 激活态：黑色路径套用与文案相同的渐变
- * - 极短描边圆点（如「更多」三点）先转成实心圆，避免悬停渐变后消失
+ * - 极短描边圆点（如“更多”三点）先转成实心圆，避免悬停渐变后消失
  */
 export function prepareNavRailSvg(
   markup: string,

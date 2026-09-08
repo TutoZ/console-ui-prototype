@@ -8,7 +8,7 @@ type WorkflowVarPickerProps = {
   className?: string;
   /**
    * variable：知识检索等 — 左侧分组级联
-   * branch：条件分支「节点 | 工具」Tab
+   * branch：条件分支“节点 | 工具”Tab
    */
   mode?: 'variable' | 'branch';
   /**

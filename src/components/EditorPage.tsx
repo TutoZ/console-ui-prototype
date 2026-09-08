@@ -201,7 +201,7 @@ async function copyChatContentToClipboard(rawHtml: string, plainText: string): P
 
 function CollapsibleMessage({
   contentKey,
-  /** 仅对超长助手回复折叠；阈值过小会导致正常段落也出现「展开」 */
+  /** 仅对超长助手回复折叠；阈值过小会导致正常段落也出现“展开” */
   maxHeight = 520,
   children,
 }: {
@@ -235,7 +235,7 @@ function CollapsibleMessage({
     const check = () => {
       const node = boxRef.current;
       if (!node) return;
-      // 用「解除 max-height 后的真实高度」判断，避免已处于折叠态时 scrollHeight 与阈值比较失真
+      // 用“解除 max-height 后的真实高度”判断，避免已处于折叠态时 scrollHeight 与阈值比较失真
       const natural = measureNaturalScrollHeight(node);
       setCollapsible(natural > threshold);
     };
@@ -254,7 +254,7 @@ function CollapsibleMessage({
     };
   }, [contentKey, maxHeight]);
 
-  /** 折叠态下再校一次：短内容不应出现「展开」或视错觉上的被裁切 */
+  /** 折叠态下再校一次：短内容不应出现“展开”或视错觉上的被裁切 */
   React.useLayoutEffect(() => {
     if (!collapsible || expanded) return;
     const el = boxRef.current;
@@ -1213,7 +1213,7 @@ const CHAT_STARTER_PROMPT_GROUPS: ChatStarterGroup[] = [
         title: "运动模式 App 开屏海报",
         desc: "根据参考图的整体风格和构图延展运营图…",
         fullText:
-          "运动健康 App 开屏海报：沿用参考图的霓虹跑道与暗色 UI 风格，突出「开始训练」按钮与心率曲线小元素，竖版。",
+          "运动健康 App 开屏海报：沿用参考图的霓虹跑道与暗色 UI 风格，突出“开始训练”按钮与心率曲线小元素，竖版。",
         images: [
           "https://images.unsplash.com/photo-1616469829581-73993eb86b02?w=400&h=600&fit=crop",
           "https://images.unsplash.com/photo-1551650975-87deedd944c3?w=400&h=600&fit=crop",
@@ -1295,7 +1295,7 @@ export function EditorPage({
   const [regenerateBusyId, setRegenerateBusyId] = useState<string | null>(
     null
   );
-  /** 发送后先展示加载态，再切换为圆形「停止」按钮，避免与参考交互不一致 */
+  /** 发送后先展示加载态，再切换为圆形“停止”按钮，避免与参考交互不一致 */
   const [chatSendSlotPhase, setChatSendSlotPhase] = useState<
     "idle" | "loading" | "stop"
   >("idle");
@@ -1363,7 +1363,7 @@ export function EditorPage({
     };
   }, []);
 
-  /** 全局「当前会话」指针与侧栏 chatSessionId 一致（含项目下多线程 UUID） */
+  /** 全局“当前会话”指针与侧栏 chatSessionId 一致（含项目下多线程 UUID） */
   useEffect(() => {
     try {
       localStorage.setItem(CREAGIC_SESSION_LS_KEY, chatSessionId);
@@ -1720,7 +1720,7 @@ export function EditorPage({
     drawingStrokeWidth?: number;
   } | null>(null);
   const objectDragGroupRef = useRef<Set<string>>(new Set());
-  /** 单击画布可引用图：记录指针用于 mouseup 判定轻点；仅设「待加入参考图」灰显，双击才写入输入框 */
+  /** 单击画布可引用图：记录指针用于 mouseup 判定轻点；仅设“待加入参考图”灰显，双击才写入输入框 */
   const canvasRefImagePointerRef = useRef<{
     objectId: string;
     url: string;
@@ -3107,7 +3107,7 @@ export function EditorPage({
       const userMessage: Message = { role: "user", content: userContent };
       setReplyTypewriterMsgId(null);
       const aiMsgId = Math.random().toString(36).slice(2, 11);
-      /** 先展示「思考中」；意图路由完成后再挂上具体 pipeline（文生图 / 对话 / 编排等） */
+      /** 先展示“思考中”；意图路由完成后再挂上具体 pipeline（文生图 / 对话 / 编排等） */
       const initialAIMessage: Message = {
         id: aiMsgId,
         role: "ai",
@@ -3307,7 +3307,7 @@ export function EditorPage({
         }
       }
 
-      /** 上文已谈到可生图，用户短句「生成吧」等 → 直接文生图，并从上一则助手正文抽 prompt */
+      /** 上文已谈到可生图，用户短句“生成吧”等 → 直接文生图，并从上一则助手正文抽 prompt */
       if (
         !storyboardBatchShots &&
         isShortAffirmToGenerateImage(userPlain) &&
@@ -3325,7 +3325,7 @@ export function EditorPage({
       }
 
       /**
-       * 智能编排兜底：若当前命中「视觉跟进」且上一轮已处于生图语境，
+       * 智能编排兜底：若当前命中“视觉跟进”且上一轮已处于生图语境，
        * 则强制改走生图管线，避免“调整色调/换风格”被继续当作编排文本处理。
        */
       const hasRecentImageGenerationContext =
@@ -3352,7 +3352,7 @@ export function EditorPage({
         );
       }
 
-      /** 基于「第 N 格分镜图」单张衍生：将该格静帧 URL 作为 referenceImageUrl，prompt 用去掉格序套话后的画面需求 */
+      /** 基于“第 N 格分镜图”单张衍生：将该格静帧 URL 作为 referenceImageUrl，prompt 用去掉格序套话后的画面需求 */
       if (wantsSinglePanelStoryboardRef && storyboardPanelRefUrlEarly) {
         imageIntent = true;
         useQuickChat = false;
@@ -3364,8 +3364,8 @@ export function EditorPage({
       }
 
       /**
-       * 路由器常把「生成一条小狗」等判成 plan/chat，随后编排/快聊用助手长文当生图 prompt，与用户短句无关。
-       * 本地已识别为单轮出图、且非分镜批量、非「仅确认生成」类短句时，强制直出图并只用用户原文（去 chip 噪声）。
+       * 路由器常把“生成一条小狗”等判成 plan/chat，随后编排/快聊用助手长文当生图 prompt，与用户短句无关。
+       * 本地已识别为单轮出图、且非分镜批量、非“仅确认生成”类短句时，强制直出图并只用用户原文（去 chip 噪声）。
        */
       if (
         (intentRouteMode === "plan" ||
@@ -3403,7 +3403,7 @@ export function EditorPage({
         !wantsSinglePanelStoryboardRef
       ) {
         const sm = getEditorSkillById(selectedSkillRef.current);
-        /** 仅当 manifest 显式 skipDirectImageWhenRouted:true 时先对话；默认仍直出图（避免「已给提示词却只说在生成」） */
+        /** 仅当 manifest 显式 skipDirectImageWhenRouted:true 时先对话；默认仍直出图（避免“已给提示词却只说在生成”） */
         if (sm?.workflow?.skipDirectImageWhenRouted === true) {
           imageIntent = false;
           if (import.meta.env.DEV) {
@@ -3415,7 +3415,7 @@ export function EditorPage({
         }
       }
 
-      /** 明确「生视频 / 生成短片」等：直连 /api/videos，不走仅文字编排 */
+      /** 明确“生视频 / 生成短片”等：直连 /api/videos，不走仅文字编排 */
       const directVideoIntent =
         !storyboardBatchShots && isDirectVideoGenerationRequest(userPlain);
       if (directVideoIntent) {
@@ -3726,7 +3726,7 @@ export function EditorPage({
               },
             ],
             content: formatAiReplyToHtml(
-              `已根据上一则分镜脚本顺序生成 **${urls.length}** 张静帧，并已加入画布。可点击预览继续调整某一格，或在对话里指定「第 X 格改成…」。`
+              `已根据上一则分镜脚本顺序生成 **${urls.length}** 张静帧，并已加入画布。可点击预览继续调整某一格，或在对话里指定“第 X 格改成…”。`
             ),
             images: urls,
             image: urls[urls.length - 1],
@@ -4228,7 +4228,7 @@ export function EditorPage({
               /^(请)?(直接)?(现在|马上|立刻)?\s*(生成|出图|画|来一张)/i.test(
                 userPlain.trim()
               );
-            /** 编排结束时：已具备出图条件则自动调用文生图（含「确认生成」类 CTA），无需再点一次发送 */
+            /** 编排结束时：已具备出图条件则自动调用文生图（含“确认生成”类 CTA），无需再点一次发送 */
             const shouldAutoGenerateImage =
               data.source !== "agent" &&
               forceGenerateByUserText &&
@@ -6217,7 +6217,7 @@ export function EditorPage({
                     className="group/card relative cursor-pointer rounded-[13px] border border-neutral-100 bg-white shadow-sm transition-colors hover:bg-neutral-50/90"
                   >
                     <div className="relative min-h-[96px] px-4 py-3">
-                      {/* 默认：左文右图，与参考稿一致；无「使用」按钮 */}
+                      {/* 默认：左文右图，与参考稿一致；无“使用”按钮 */}
                       <div className="relative z-0 transition-opacity duration-200 group-hover/card:pointer-events-none group-hover/card:opacity-0">
                         <div className="flex min-h-[80px] items-center">
                           <div className="min-w-0 flex-1 pr-[118px] text-left">
@@ -7715,7 +7715,7 @@ const VideoGenerator = ({
           <span className="text-xs font-bold">视频生成器</span>
         </div>
         <div className="absolute right-4 top-4 max-w-[200px] text-right text-[10px] font-bold leading-tight text-neutral-400">
-          当前为「关键帧概念」静图；完整视频需另接模型
+          当前为“关键帧概念”静图；完整视频需另接模型
         </div>
         {submitBusy ? (
           <div className="absolute inset-3">

@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 「在线客服」域及通用配置列表页统一布局（接待记录 / 员工知识 / 账号管理等）
+ * “在线客服”域及通用配置列表页统一布局（接待记录 / 员工知识 / 账号管理等）
  */
 
 import React from 'react';
@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 export const ONLINE_PAGE = cn(PAGE, 'overflow-y-auto custom-scrollbar');
 
 /**
- * 非 PAGE 壳时页头外层顶边距，与「数字员工技能」等 ONLINE_PAGE（p-5）对齐。
+ * 非 PAGE 壳时页头外层顶边距，与“数字员工技能”等 ONLINE_PAGE（p-5）对齐。
  */
 export const PAGE_HEADER_INSET = 'px-5 pt-5';
 

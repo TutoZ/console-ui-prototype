@@ -35,9 +35,9 @@ description: 京小灵（JoyServing）B 端管理台 UI 设计规范 Skill。覆
 
 | 语义 | 文字 | 底色 | 描边 | 典型用法 |
 |---|---|---|---|---|
-| 成功 / 在岗 / 开箱即用 | `#009966` | `#ECFDF5` | `#A4F4CF`（60%） | 「上岗」按钮、开箱即用 tag |
+| 成功 / 在岗 / 开箱即用 | `#009966` | `#ECFDF5` | `#A4F4CF`（60%） | “上岗”按钮、开箱即用 tag |
 | 在线状态点 | `#00AC6B` | — | 白色 2px 外圈 | 头像右下角圆点；离线用 `#737373` |
-| 信息 / 休息 / 实时 | `#0050D2` | `#F0F7FF` | `#91C5FF` | 「休息」按钮、AI 自动徽章 |
+| 信息 / 休息 / 实时 | `#0050D2` | `#F0F7FF` | `#91C5FF` | “休息”按钮、AI 自动徽章 |
 | 警告 / 定制 / 待处理 | `#B45309` | `#FFFBEB` | `#FDE68A`（60%） | 专属定制 tag、排队计数 |
 | 提醒圆点 | `#FBBF24` | — | 白色 1.5px 外圈 | 按钮角标小红点（9px） |
 | 危险 / 删除 | `rose-600` | `rose-50` | — | 删除 hover：`hover:text-rose-600 hover:bg-rose-50` |
@@ -223,7 +223,7 @@ description: 京小灵（JoyServing）B 端管理台 UI 设计规范 Skill。覆
 2. 名称：`text-sm font-semibold text-neutral-900 text-center line-clamp-2`
 3. Tag：开箱即用 `bg-[#ECFDF5] text-[#009966] border border-[#A4F4CF]/60`；专属定制 `bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A]/60`；公共 `text-[9px] font-semibold px-1.5 py-px rounded`
 4. 描述：`text-[11px] text-neutral-500 text-center line-clamp-2 flex-1`
-5. 整宽按钮 `w-full h-8`：未雇佣→主按钮「立即雇佣」；已雇佣→次级「再次雇佣」；定制→描边「帮我定制一位」
+5. 整宽按钮 `w-full h-8`：未雇佣→主按钮“立即雇佣”；已雇佣→次级“再次雇佣”；定制→描边“帮我定制一位”
 
 ### 7.6 Banner 引导横幅（首页顶部）
 
@@ -249,7 +249,7 @@ description: 京小灵（JoyServing）B 端管理台 UI 设计规范 Skill。覆
     <h2 className="text-sm font-extrabold text-neutral-900 mb-4">创建知识库</h2>
     <div className="text-xs space-y-4">{/* 表单内容 */}</div>
     <div className="flex gap-2 justify-end mt-6 pt-3 border-t border-neutral-100">
-      {/* 次级按钮「取消」 + 主按钮「确定」 */}
+      {/* 次级按钮“取消” + 主按钮“确定” */}
     </div>
   </div>
 </div>
@@ -273,7 +273,7 @@ const badge = 'inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.
 
 ### 7.9 分页（列表超 10 条时出现）
 
-`flex justify-between text-[10px] text-neutral-400`：左侧「共 N 条」；右侧「上一页」「下一页」描边小按钮（`px-2 py-1 rounded-md border border-[#E5E5E5] disabled:opacity-40`）+ 当前页墨黑块（`px-2 py-1 rounded-md bg-neutral-800 text-white font-bold`）+「10 条/页」。
+`flex justify-between text-[10px] text-neutral-400`：左侧“共 N 条”；右侧“上一页”“下一页”描边小按钮（`px-2 py-1 rounded-md border border-[#E5E5E5] disabled:opacity-40`）+ 当前页墨黑块（`px-2 py-1 rounded-md bg-neutral-800 text-white font-bold`）+“10 条/页”。
 
 ### 7.10 彩色卡片图标 CardIcon（管理页卡片左上角）
 

@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * JoySupport（京小灵）共享样式 — 以「我的数字员工」首页（ui.md / EmployeeHomeRelay）为唯一标准。
+ * JoySupport（京小灵）共享样式 — 以“我的数字员工”首页（ui.md / EmployeeHomeRelay）为唯一标准。
  *
  * 约定：
  * - 画布白底；描边 #ECECEC（Tailwind: border-neutral-200）
@@ -112,7 +112,7 @@ export const NAV_ACTIVE_GRADIENT_TEXT =
 export const NAV_ACTIVE_GRADIENT_BG =
   'bg-[linear-gradient(135deg,#000000_0%,#1565BF_100%)]';
 
-/** AOP 技能创建中间态 — 与顶栏「数字员工技能」激活渐变一致 */
+/** AOP 技能创建中间态 — 与顶栏“数字员工技能”激活渐变一致 */
 export const SKILL_AOP_GRADIENT_TEXT = NAV_ACTIVE_GRADIENT_TEXT;
 export const SKILL_AOP_GRADIENT_BG = NAV_ACTIVE_GRADIENT_BG;
 export const SKILL_AOP_TINT_BG = 'bg-[rgba(21,101,191,0.08)]';
@@ -128,13 +128,13 @@ export const SKILL_AOP_SEND_BTN =
 export const SKILL_AOP_PRIMARY_BTN =
   'rounded-lg bg-[linear-gradient(135deg,#000000_0%,#1565BF_100%)] text-white font-medium hover:opacity-90 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed';
 
-/** 「改写」等 AI 轻按钮：与顶栏/发送钮同色系（黑 → #1565BF） */
+/** “改写”等 AI 轻按钮：与顶栏/发送钮同色系（黑 → #1565BF） */
 export const AI_LIGHT_BTN_BG = 'bg-[rgba(21,101,191,0.08)]';
 export const AI_GRADIENT_TEXT = NAV_ACTIVE_GRADIENT_TEXT;
 export const AI_GRADIENT_BTN_BG = NAV_ACTIVE_GRADIENT_BG;
 export const AI_ACCENT_TEXT = SKILL_AOP_ACCENT_TEXT;
 
-/** 表单内嵌「改写」小按钮 */
+/** 表单内嵌“改写”小按钮 */
 export const AI_REWRITE_CHIP =
   'inline-flex items-center justify-center gap-1 h-6 px-2.5 rounded-[7px] text-[12px] leading-none font-normal border-0 cursor-pointer transition';
 
@@ -198,9 +198,9 @@ export function badgeClass(tone: BadgeTone = 'neutral') {
 
 /**
  * 确认流状态角标 — SkillRoundConfirmCard / SkillChatConfirmDock
- * - confirmed：确认卡标题「已确认」— emerald-100 / emerald-800 · 18px 高
- * - confirmedSoft：草案卡内联「已确认」— emerald-50 / emerald-700 · 10px
- * - pending：配对「待确认」— amber-50 / amber-700
+ * - confirmed：确认卡标题“已确认”— emerald-100 / emerald-800 · 18px 高
+ * - confirmedSoft：草案卡内联“已确认”— emerald-50 / emerald-700 · 10px
+ * - pending：配对“待确认”— amber-50 / amber-700
  */
 export const confirmStatusBadgeTones = {
   confirmed: 'bg-emerald-100 text-emerald-800',

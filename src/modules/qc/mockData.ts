@@ -294,7 +294,7 @@ export const initialAuditTasks: AuditTask[] = [
     tags: ['中途转人工', '负向言语引导'],
     appealReason: "当时客户情绪十分激动，不接受在线常规退款方式，我是在礼貌引导客户查阅用户自主退款手册，并在其自主决定。我绝无拒绝服务之意，由于客户持续追问才使用这套说辞引导。申请豁免服务红线扣分。",
     appealTime: "2026-07-10 02:45",
-    reviewComment: "触发严禁红线：含有疑似服务禁语「你自己看着办」，扣除20分。触发负面情绪倾向。",
+    reviewComment: "触发严禁红线：含有疑似服务禁语“你自己看着办”，扣除20分。触发负面情绪倾向。",
     scoreBreakdown: {
       greeting: 10,
       compliance: 35,
@@ -320,7 +320,7 @@ export const initialAuditTasks: AuditTask[] = [
     sentiment: "negative",
     status: "warning",
     aiScore: 58,
-    reviewComment: "触发严重红线：含有承诺保本等违规话术。AI引擎标注：「投资理财是不可能亏的」严重违反适当性原则。",
+    reviewComment: "触发严重红线：含有承诺保本等违规话术。AI引擎标注：“投资理财是不可能亏的”严重违反适当性原则。",
     scoreBreakdown: {
       greeting: 10,
       compliance: 18,
@@ -356,7 +356,7 @@ export const initialAuditTasks: AuditTask[] = [
     },
     transcript: [
       { role: "user", text: "理财产品能拿来做质押贷款吗？怎么收利息？", time: "10:15:12" },
-      { role: "agent", text: "您好，部分特定的理财产品是支持质押贷款的。贷款利率通常在质押理财收益率基础上微调。您可以登录手机银行「贷款-理财质押贷」查看可质押额度。投资有风险，办理前请先阅读适当性评估及产品细则。", time: "10:17:30" }
+      { role: "agent", text: "您好，部分特定的理财产品是支持质押贷款的。贷款利率通常在质押理财收益率基础上微调。您可以登录手机银行“贷款-理财质押贷”查看可质押额度。投资有风险，办理前请先阅读适当性评估及产品细则。", time: "10:17:30" }
     ]
   },
   {
@@ -424,7 +424,7 @@ export const initialCoachingTasks: CoachingTask[] = [
     issueType: "禁语违规",
     status: "to_be_coached",
     assignedTime: "2026-07-09 18:00",
-    coachingPlan: "1. 重点纠偏「承诺保本」红线，重温金融消费者权益保护条例。\n2. 罚没该单提成，进行适当性合规案例口头模拟通关演练。\n3. 安排本周合规考试补测。"
+    coachingPlan: "1. 重点纠偏“承诺保本”红线，重温金融消费者权益保护条例。\n2. 罚没该单提成，进行适当性合规案例口头模拟通关演练。\n3. 安排本周合规考试补测。"
   },
   {
     id: "coach-2",
@@ -437,7 +437,7 @@ export const initialCoachingTasks: CoachingTask[] = [
     issueType: "态度冷漠",
     status: "coaching",
     assignedTime: "2026-07-09 11:30",
-    coachingPlan: "1. 针对「你自己看着办」负面话术纠正，演练在愤怒客户追问下的情绪隔离和温柔抚慰技巧。\n2. 要求其录音自我旁听并记录300字复盘心得。",
+    coachingPlan: "1. 针对“你自己看着办”负面话术纠正，演练在愤怒客户追问下的情绪隔离和温柔抚慰技巧。\n2. 要求其录音自我旁听并记录300字复盘心得。",
     agentFeedback: "已收到辅导要求。当时由于连续值班8小时，情绪管理有些松懈，后续会注意合理调整，已完成录音分析和案例总结。"
   },
   {

@@ -7,7 +7,7 @@
 
 export const ONBOARDING_STEP_COUNT = 4;
 
-/** A5 仅作「向导已完成」内部态，不在步骤列表展示 */
+/** A5 仅作“向导已完成”内部态，不在步骤列表展示 */
 export type OnboardingDemoStep = 'A1' | 'A2' | 'A3' | 'A4' | 'A5';
 
 export const ONBOARDING_DEMO_STEPS: OnboardingDemoStep[] = [

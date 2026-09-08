@@ -148,7 +148,7 @@ export const SubUserApplicationCard: React.FC<{
           <p className="text-[11px] text-neutral-500">
             {compactFooter
               ? '审批后将自动创建子用户'
-              : '提示：点击「通过」将自动创建子用户并绑定相关账号'}
+              : '提示：点击“通过”将自动创建子用户并绑定相关账号'}
           </p>
           <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
             <button

@@ -223,7 +223,7 @@ export function navigateToJobFamilyCapability(
   return domain;
 }
 
-/** 「派发任务」：跳到岗位对应左侧业务域（客服进管理区·员工分配） */
+/** “派发任务”：跳到岗位对应左侧业务域（客服进管理区·员工分配） */
 export function navigateToJobFamilyApp(
   family: JobFamily,
   api: JobFamilyNavApi,

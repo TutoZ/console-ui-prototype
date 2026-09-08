@@ -6,7 +6,7 @@ export const CREDITS_PER_VIDEO_SECOND = 10;
 export const CREDITS_PER_IMAGE = 10;
 /** @deprecated 与 CREDITS_PER_IMAGE 对齐，供旧代码 import */
 export const CREDITS_PER_IMAGE_MB = CREDITS_PER_IMAGE;
-/** 画布「生视频」关键帧当前仍走图像接口，按估算时长计费（秒） */
+/** 画布“生视频”关键帧当前仍走图像接口，按估算时长计费（秒） */
 export const DEFAULT_VIDEO_KEYFRAME_BILL_SECONDS = 6;
 /** 预估费用不足时阻止发送（按单次生图计） */
 export const MIN_ESTIMATED_IMAGE_CHARGE = CREDITS_PER_IMAGE;

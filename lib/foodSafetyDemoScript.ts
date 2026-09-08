@@ -115,7 +115,7 @@ export const FOOD_SAFETY_OPENING_LINE =
 /**
  * 三幕对话（对齐 5 拍口播；聊天侧只呈现对客话术，能力侧呈现幕后动作）
  *
- * 口播1  短开场「以保险售后为例」→ 切入思维链页
+ * 口播1  短开场“以保险售后为例”→ 切入思维链页
  * 口播2  思维链：主动预测 → 左侧主动开口问用户（用户尚未发言）
  * 口播3  用户发言后：先安抚（读数字员工.md）→ SOP/知识库告知规则
  * 口播4  用户申请推进流程 → 无侵入查业务系统 → 给出处理结果
@@ -167,7 +167,7 @@ export const FOOD_SAFETY_DEMO_TURNS: FoodSafetyDemoTurn[] = [
     isOrderSelect: true,
     // 先安抚加急，再给出查单结果（两句分泡）
     agentLead: '知道您这边很着急，我已全力为您加急查询。',
-    agent: `已在业务系统完成查询：「${FOOD_SAFETY_DEMO_ORDER.product}」，订单 ${FOOD_SAFETY_DEMO_ORDER.orderNoMasked}，状态${FOOD_SAFETY_DEMO_ORDER.status}，实付 ${FOOD_SAFETY_DEMO_ORDER.amount}。请打开我的 - 理赔 - 理赔申请提交。`,
+    agent: `已在业务系统完成查询：“${FOOD_SAFETY_DEMO_ORDER.product}”，订单 ${FOOD_SAFETY_DEMO_ORDER.orderNoMasked}，状态${FOOD_SAFETY_DEMO_ORDER.status}，实付 ${FOOD_SAFETY_DEMO_ORDER.amount}。请打开我的 - 理赔 - 理赔申请提交。`,
     thinkMs: 11016,
   },
   {
@@ -309,7 +309,7 @@ function normalizeChatText(raw: string): string {
 }
 
 /**
- * 优先匹配「当前下一幕」；仅当下一幕未命中时，才在剩余幕中按最长关键词匹配。
+ * 优先匹配“当前下一幕”；仅当下一幕未命中时，才在剩余幕中按最长关键词匹配。
  */
 export function matchFoodSafetyDemoTurn(
   userText: string,

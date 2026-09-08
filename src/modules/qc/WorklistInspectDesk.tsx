@@ -202,7 +202,7 @@ export const WorklistInspectDesk: React.FC<WorklistInspectDeskProps> = ({
                 业务小白快速通关指南
               </span>
               <h3 className="text-xs font-black text-white flex items-center gap-1.5">
-                如何理解和使用「人工审核工作台（一审复核）」？
+                如何理解和使用“人工审核工作台（一审复核）”？
                 <Sparkles size={12} className="text-amber-400 animate-pulse" />
               </h3>
               <p className="text-[10px] text-neutral-300 leading-relaxed max-w-5xl">

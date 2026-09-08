@@ -112,7 +112,7 @@ export function savedSnapshotTitle(agent: HiredAgent, skills: Skill[]): string {
   if (kbCount > 0) return '员工知识配备后';
   if (skillCount > 0) {
     const first = skills.find((s) => agent.skills.includes(s.id));
-    return first ? `员工技能「${first.name}」配备后` : '员工技能配备后';
+    return first ? `员工技能“${first.name}”配备后` : '员工技能配备后';
   }
   if (agent.persona || agent.openingLine) return '入职标签配置后';
   return '配置已保存';

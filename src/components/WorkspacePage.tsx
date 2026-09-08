@@ -1019,7 +1019,7 @@ export const WorkspacePage: React.FC = () => {
             <div className="mx-3 mt-2 bg-neutral-800 text-white px-3 py-2 rounded-lg flex items-center justify-between text-[11px] animate-in slide-in-from-top-3 duration-300 shrink-0">
               <div className="flex items-center gap-2 font-medium min-w-0">
                 <AlertCircle size={14} className="text-neutral-400 animate-bounce shrink-0" />
-                <span className="truncate">向导：点击「何家豪」后使用【真人接管】接起会话。</span>
+                <span className="truncate">向导：点击“何家豪”后使用【真人接管】接起会话。</span>
               </div>
               <button onClick={() => setDemoStep('B2')} className="bg-white text-black px-2.5 py-0.5 rounded-md text-[10px] font-bold shrink-0 cursor-pointer">跳过</button>
             </div>

@@ -4,6 +4,8 @@
  *
  * 京小灵平台 — 统一对外文案词表（拟人化职场语言）
  * 修改用户可见文案时优先对照本表，避免同一概念多套叫法。
+ *
+ * 文案标点：禁止直角引号「」；强调专名用弯引号“”。
  */
 
 /** 生命周期与状态 */
@@ -140,9 +142,9 @@ export const EMPLOYEE_RESOURCE_TERMS = {
   emptyKb: '还没配备知识',
   emptySkill: '还没配备技能',
   configKbHint:
-    '入职培训时，为这名员工配备接待时可检索的知识资料。可「配备知识库」从团队选用，或「新建知识库」上传文档。',
+    '入职培训时，为这名员工配备接待时可检索的知识资料。可“配备知识库”从团队选用，或“新建知识库”上传文档。',
   configSkillHint:
-    '入职培训时，为这名员工配备可调用的流程与工具能力。可「配备技能」从团队选用，或「新建技能」自行创建。',
+    '入职培训时，为这名员工配备可调用的流程与工具能力。可“配备技能”从团队选用，或“新建技能”自行创建。',
   onboardingTags: '入职标签',
   openingLine: '开场白',
   openingLineHint: '同事接待客户时的第一句话',
@@ -218,7 +220,7 @@ export const SKILL_PAGE_COPY = {
   subscribe: '订阅',
   subscribed: '已订阅',
   unsubscribe: '取消订阅',
-  subscribeSuccess: '已订阅，可在「我的技能」中查看',
+  subscribeSuccess: '已订阅，可在“我的技能”中查看',
   unsubscribeSuccess: '已取消订阅',
   deleteMine: '删除',
   editSkill: '编辑',
@@ -291,13 +293,13 @@ export const ORG_COPY = {
   bulkBindHint:
     '选择一个已上岗的数字员工，勾选要协同的值班同事，系统会追加到各同事的配备列表（不会覆盖已有配备）。',
   bulkBindSuccess: (agentName: string, count: number) =>
-    `已将「${agentName}」批量配备给 ${count} 位值班同事。`,
+    `已将“${agentName}”批量配备给 ${count} 位值班同事。`,
   approvalFlowManage: '审批流程管理',
   bindStaffSuccess: (name: string) =>
     `已成功配备值班同事 [${name}]。超出双线保障时系统会自动转接给该接管人！`,
   transferChannelDesc: '会话转入客服工作台，由已配备的值班同事接力接待',
   transferChannelHint:
-    '会话将出现在导航栏底部「客服工作台」，由值班同事接管继续服务',
+    '会话将出现在导航栏底部“客服工作台”，由值班同事接管继续服务',
 } as const;
 
 /** 客服工作台 — 会话系统消息 */

@@ -97,7 +97,7 @@ export const AgentVersionPanel: React.FC<AgentVersionPanelProps> = ({
   return (
     <div className="flex-1 overflow-y-auto p-4 custom-scrollbar min-h-0 bg-paper">
       <p className="text-[10px] text-neutral-500 leading-relaxed mb-3">
-        保存后将写入培训存档。可「查看」历史{LIFECYCLE_TERMS.examVersion}预览左侧内容，「应用」切换为当前上岗版本。
+        保存后将写入培训存档。可“查看”历史{LIFECYCLE_TERMS.examVersion}预览左侧内容，“应用”切换为当前上岗版本。
       </p>
 
       <div className="flex items-center gap-1.5 mb-3">

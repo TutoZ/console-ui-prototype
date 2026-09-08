@@ -46,7 +46,7 @@ export function deleteSessionFromIndex(id: string): void {
   }
 }
 
-/** 删除某项目下所有本地对话线程（含旧版「会话 id = 项目 id」单线程） */
+/** 删除某项目下所有本地对话线程（含旧版“会话 id = 项目 id”单线程） */
 export function deleteChatsForProject(projectId: string): void {
   const pid = projectId.trim();
   if (!pid) return;

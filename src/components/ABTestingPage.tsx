@@ -308,7 +308,7 @@ export const ABTestingPage: React.FC = () => {
   };
 
   const handleDelete = (test: ABTest) => {
-    if (!confirm(`确定删除实验「${test.name}」吗？`)) return;
+    if (!confirm(`确定删除实验“${test.name}”吗？`)) return;
     deleteABTest(test.id);
     showToast('实验已删除。');
   };
@@ -361,7 +361,7 @@ export const ABTestingPage: React.FC = () => {
         <div className="mb-3 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-[13px] flex items-center justify-between text-[11px] text-emerald-800">
           <div className="flex items-center gap-1.5 font-medium min-w-0">
             <AlertCircle size={14} className="shrink-0" />
-            <span className="truncate">选中实验后，点击「运行仿真」快速生成对比数据。</span>
+            <span className="truncate">选中实验后，点击“运行仿真”快速生成对比数据。</span>
           </div>
           <button
             type="button"

@@ -57,7 +57,7 @@ export const RoleManagePage: React.FC = () => {
     createRole(name);
     setNewRoleName('');
     setIsCreatingRole(false);
-    showToast(`角色「${name}」已创建，请配置权限后保存。`);
+    showToast(`角色“${name}”已创建，请配置权限后保存。`);
   };
 
   return (
@@ -211,7 +211,7 @@ export const RoleManagePage: React.FC = () => {
             maxLength={20}
           />
           <p className="text-[10px] text-neutral-500 mt-2">
-            新建角色默认仅开通「客服工作台」，其余权限可在右侧勾选。
+            新建角色默认仅开通“客服工作台”，其余权限可在右侧勾选。
           </p>
         </div>
       </Modal>

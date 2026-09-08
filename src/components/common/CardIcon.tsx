@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 统一的卡片图标：参考清言/智谱技能市场的「彩色圆角方块」App 图标风格。
+ * 统一的卡片图标：参考清言/智谱技能市场的“彩色圆角方块”App 图标风格。
  * - variant="solid"：饱和渐变底 + 白色字形（用于字母 / IconPark 图标）
  * - variant="soft" ：浅色渐变底（用于 emoji 头像，保证 emoji 可读且整体有彩色感）
  * - variant="ai"   ：统一墨色底板 + 白字形，不按 seed 上色（技能等 AI 能力入口）

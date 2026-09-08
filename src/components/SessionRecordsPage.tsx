@@ -183,7 +183,7 @@ const SESSION_CHAT_BUBBLE =
 export type SessionRecordsPageProps = {
   /** 嵌入质检台等：去掉顶部分段导航与外层 PAGE 滚动外壳 */
   embedded?: boolean;
-  /** 操作列文案，默认「查看记录」 */
+  /** 操作列文案，默认“查看记录” */
   viewRecordLabel?: string;
   /** 案例库页：仅展示已加入案例库的会话 */
   caseLibraryOnly?: boolean;

@@ -1,5 +1,5 @@
 /**
- * 结合「上一则助手 + 当前短句」判断是否应直接文生图（不再走编排追问）。
+ * 结合“上一则助手 + 当前短句”判断是否应直接文生图（不再走编排追问）。
  */
 
 import { stripRefChipPlainNoise } from "./chatRefImage";
@@ -48,7 +48,7 @@ export function mergeExtractedImagePromptWithUser(
       3800
     );
   }
-  // 用户句置前：部分模型对长助手摘录过重，易忽略文末「须优先满足」
+  // 用户句置前：部分模型对长助手摘录过重，易忽略文末“须优先满足”
   return `【用户本回合要求（最高优先级｜不得改题）】\n${uc}\n\n【可从下列摘录延展（须与上文一致）】\n${extr}`.slice(
     0,
     3800
@@ -59,7 +59,7 @@ export function mergeExtractedImagePromptWithUser(
 export const ASSISTANT_PROMISED_IMAGE_GENERATION_RE =
   /请稍等|稍后|我将|马上|即将|正在为您|为您完成这幅作品|为你完成这幅作品|图片正在|正在生成中|正在为您生成|正在生成|生成中[，。、\s]|马上出图|立刻生成|开始生成|正在绘制|为您绘制|帮您绘制|正在出图|已为您开始|已提交生成|稍候|片刻|请稍候|这就去生成|这就为您|去生成|帮您出图/i;
 
-/** 助手侧是否已出现「可以/准备生图、给出生图提示」等语义 */
+/** 助手侧是否已出现“可以/准备生图、给出生图提示”等语义 */
 export function assistantOfferedOrPreparedImageGeneration(
   assistantPlain: string
 ): boolean {
@@ -71,7 +71,7 @@ export function assistantOfferedOrPreparedImageGeneration(
 }
 
 /**
- * 用户短句确认「那就生成吧」类（避免长句里误判）
+ * 用户短句确认“那就生成吧”类（避免长句里误判）
  * 须与 assistantOfferedOrPreparedImageGeneration 或 creagicPlanReady 等并用。
  */
 export function isShortAffirmToGenerateImage(userPlain: string): boolean {
@@ -100,7 +100,7 @@ export function isShortAffirmToGenerateImage(userPlain: string): boolean {
 }
 
 /**
- * 从上一则助手纯文本里抽生图可用的 prompt：优先 ``` 块，其次「提示词：」段，否则取尾部描述。
+ * 从上一则助手纯文本里抽生图可用的 prompt：优先 ``` 块，其次“提示词：”段，否则取尾部描述。
  */
 export function extractImagePromptFromLastAssistant(
   assistantPlain: string,

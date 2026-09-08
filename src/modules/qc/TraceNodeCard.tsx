@@ -5,7 +5,7 @@ import {
   Sparkles, CheckCircle2, AlertCircle, FileText, Clock, Code
 } from '@/lib/icons';
 
-/* ── 内联 Trace 数据类型（复刻自「会话链路轨迹分析器」） ── */
+/* ── 内联 Trace 数据类型（复刻自“会话链路轨迹分析器”） ── */
 export interface HistoryMessage {
   role: 'customer' | 'agent' | 'system' | 'tool' | 'function';
   name?: string;

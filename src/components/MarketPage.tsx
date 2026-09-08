@@ -33,7 +33,7 @@ const FILTER_OPTIONS = [
   { key: 'custom' as const, label: '联系定制' },
 ] as const;
 
-/** 与「我的数字员工」分类栏一致 */
+/** 与“我的数字员工”分类栏一致 */
 const TYPE_OPTIONS = [
   { key: 'all' as const, label: '全部类型' },
   { key: 'customer_service' as const, label: JOB_FAMILY_FULL_LABELS.customer_service },
@@ -101,7 +101,7 @@ export const MarketPage: React.FC = () => {
         onHire={() => handleHire(agent.id)}
         onCustomRequest={() => {
           showToast(
-            `已收到您的定制需求。专属顾问将尽快联系您，为「${agent.name}」出具整合方案。`,
+            `已收到您的定制需求。专属顾问将尽快联系您，为“${agent.name}”出具整合方案。`,
           );
           handleHire(agent.id);
         }}

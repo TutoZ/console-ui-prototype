@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 技能创建首轮反问 — 「补充信息」选择题卡
+ * 技能创建首轮反问 — “补充信息”选择题卡
  */
 
 import React, { useEffect, useMemo, useState } from 'react';

@@ -33,7 +33,7 @@ export type WorkflowKbInput = {
   value: string;
 };
 
-/** 单条知识库召回设置（对齐截图「知识库设置」） */
+/** 单条知识库召回设置（对齐截图“知识库设置”） */
 export type WorkflowKbItemSettings = {
   /** 最大召回数量 1–20，默认 10 */
   maxRecall: number;
@@ -93,7 +93,7 @@ export type WorkflowBranchCondition = {
   left: string;
   operator: BranchCompareOp;
   right: string;
-  /** 右值模式，默认「引用」 */
+  /** 右值模式，默认“引用” */
   rightMode: BranchRightMode;
   /** 与下一条条件的连接逻辑（最后一条可忽略） */
   joinNext: BranchJoinLogic;

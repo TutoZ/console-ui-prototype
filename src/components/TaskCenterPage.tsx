@@ -218,7 +218,7 @@ export const TaskCenterPage: React.FC<{ embedded?: boolean }> = ({ embedded = fa
   };
 
   const discardTask = (task: Task) => {
-    if (confirm(`确定终止任务「${task.name}」吗？终止后将停止执行并收入历史记录。`)) {
+    if (confirm(`确定终止任务“${task.name}”吗？终止后将停止执行并收入历史记录。`)) {
       deleteTask(task.id);
       showToast(TASK_CENTER_COPY.discardedToast);
     }

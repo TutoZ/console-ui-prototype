@@ -18,7 +18,7 @@ const TOAST_COOLDOWN_MS = 4500;
 /** 相同文案在窗口内只出一次 */
 const TOAST_DEDUP_MS = 8000;
 
-/** Sonner 在 hover/expanded 时会暂停计时；强制到时关闭避免「粘住」 */
+/** Sonner 在 hover/expanded 时会暂停计时；强制到时关闭避免“粘住” */
 let forceDismissTimer: ReturnType<typeof setTimeout> | null = null;
 let lastShownAt = 0;
 let lastMessage = '';

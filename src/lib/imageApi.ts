@@ -16,7 +16,7 @@ export async function generateImageWithPrompt(
     imageAspectBucket?: string | null;
     /** 上游 images/generations 的 model，缺省由服务端环境变量决定 */
     imageModel?: string | null;
-    /** 一次生成张数（1～10），可与 prompt 中「四张」等同时生效 */
+    /** 一次生成张数（1～10），可与 prompt 中“四张”等同时生效 */
     imageCount?: number | null;
   },
   options?: { signal?: AbortSignal; timeoutMs?: number }
@@ -183,7 +183,7 @@ async function resolveImageUrlForLiblibApi(imageUrl: string): Promise<string> {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       throw new Error(
-        `无法在浏览器内拉取该图片（${msg}）。请改用「导出/插入本地图」或截图粘贴到画布后再试（跨域/防盗链会阻止转为 data:image）。`
+        `无法在浏览器内拉取该图片（${msg}）。请改用“导出/插入本地图”或截图粘贴到画布后再试（跨域/防盗链会阻止转为 data:image）。`
       );
     }
     if (!r.ok) {

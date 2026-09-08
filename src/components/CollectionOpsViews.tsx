@@ -76,7 +76,7 @@ function collectionGroupMeta(groupId: CollectionNavGroupId) {
   };
 }
 
-/** 对齐「数字员工技能」页内子 Tab */
+/** 对齐“数字员工技能”页内子 Tab */
 function CollectionPageSubTabs({
   tabs,
   value,

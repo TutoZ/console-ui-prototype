@@ -12,7 +12,7 @@ export type NarrationCue = {
   durationMs: number;
   /** 字幕展示文案（产品原句） */
   text: string;
-  /** 合成口播；缺省等于 text。「SOP」→「S O P」 */
+  /** 合成口播；缺省等于 text。“SOP”→“S O P” */
   speakText?: string;
   audioId: string;
 };
@@ -30,7 +30,7 @@ export const NARRATION_INTRO_LEAD_MS = 1200;
 /**
  * 口播映射（与左右对话串行）
  * 1 intro：短开场
- * 2 pre_act1：思维链「主动预测」→ 左侧主动开口
+ * 2 pre_act1：思维链“主动预测”→ 左侧主动开口
  * 3 act1：用户发言后 → 先安抚 → 再 SOP/知识库
  * 4 act2 / 5 act3
  */

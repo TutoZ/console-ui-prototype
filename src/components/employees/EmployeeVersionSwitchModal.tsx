@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 员工卡「版本切换」快捷弹窗 — 列表内一键应用培训存档。
+ * 员工卡“版本切换”快捷弹窗 — 列表内一键应用培训存档。
  */
 
 import React, { useMemo } from 'react';
@@ -50,7 +50,7 @@ export const EmployeeVersionSwitchModal: React.FC<EmployeeVersionSwitchModalProp
       open={open}
       onClose={onClose}
       title={LIFECYCLE_TERMS.switchVersion}
-      description={`为「${agent.name}」选择要上岗的培训存档`}
+      description={`为“${agent.name}”选择要上岗的培训存档`}
       maxWidth="max-w-md"
       footer={
         <>

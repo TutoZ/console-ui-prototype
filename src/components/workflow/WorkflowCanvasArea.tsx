@@ -71,7 +71,7 @@ function BranchFieldChip({ value, className }: { value: string; className?: stri
   );
 }
 
-/** 条件行：左值 | 运算符 | 右值；组内用蓝色「且/或」连接 */
+/** 条件行：左值 | 运算符 | 右值；组内用蓝色“且/或”连接 */
 function BranchCardConditionRow({
   condition,
   showJoin,

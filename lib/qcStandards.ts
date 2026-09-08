@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 质检标准 = 用户自配的指标树（对齐 QC WorkflowEditor「质检模板配置」下钻）
+ * 质检标准 = 用户自配的指标树（对齐 QC WorkflowEditor“质检模板配置”下钻）
  * 不是固定 QualityTemplate 列表。
  */
 
@@ -26,7 +26,7 @@ export function createEmptyStandardTree(): QcStandardTree {
   return { categories: [] };
 }
 
-/** 培训示例种子（可整棵删改，仅作起点，不是「选模板」） */
+/** 培训示例种子（可整棵删改，仅作起点，不是“选模板”） */
 export function createExampleStandardTree(): QcStandardTree {
   return createComplianceStarterTree();
 }
@@ -57,7 +57,7 @@ export function createComplianceStarterTree(): QcStandardTree {
             selectedModel: 'qwen-max',
             llmDimension: 'session',
             prompt:
-              '判断客服是否在理财推荐时做了保本保收益口头承诺。命中违规输出「违规」，否则输出「未命中」。',
+              '判断客服是否在理财推荐时做了保本保收益口头承诺。命中违规输出“违规”，否则输出“未命中”。',
           },
         ],
       },
@@ -113,7 +113,7 @@ export function createProcessStarterTree(): QcStandardTree {
             selectedModel: 'qwen-max',
             llmDimension: 'session',
             prompt:
-              '判断客服在涉及账户/资金操作前是否完成必要的身份核验话术。未核验输出「违规」，已核验输出「未命中」。',
+              '判断客服在涉及账户/资金操作前是否完成必要的身份核验话术。未核验输出“违规”，已核验输出“未命中”。',
           },
           {
             id: newId('item'),
@@ -244,7 +244,7 @@ export const QC_OPERATOR_TYPES: { value: QcOperatorType; label: string; disabled
   { value: '工作流质检', label: '工作流质检（暂未开放）', disabled: true },
 ];
 
-/** 提示词参考（对齐 QC 下钻「参考模板」——填入当前项，不是整棵标准模板） */
+/** 提示词参考（对齐 QC 下钻“参考模板”——填入当前项，不是整棵标准模板） */
 export const QC_PROMPT_PRESETS: { label: string; prompt: string }[] = [
   {
     label: '通用质检模板',

@@ -85,7 +85,7 @@ function extractFirstHttpUrl(text: string): string | null {
   const m = t.match(/https?:\/\/[^\s<>"'`]+/i);
   if (!m?.[0]) return null;
   let u = m[0].trim();
-  u = u.replace(/[，。；：！？、）】》〉」』”’.,;:!?)\]}]+$/g, "");
+  u = u.replace(/[，。；：！？、）】》〉”』”’.,;:!?)\]}]+$/g, "");
   return u || null;
 }
 
@@ -604,4 +604,4 @@ export function formatAiReplyToHtml(text: string): string {
 }
 
 /** System 提示中附加给模型的结构化说明（与 LOVART_REPLY_FENCE 一致） */
-export const LOVART_STRUCTURED_OUTPUT_GUIDE = `你可在答复末尾用**唯一**一个代码块输出结构化结果，fence 名必须为 lovart-reply（全小写），内容为 JSON。字段均为可选：title, subtitle, summary；sections（传统分节：每项可含 heading, level 取 h2|h3|h4, paragraphs, bullets）；**blocks**（**有序混合流**，与 sections 可同时存在，按数组顺序渲染；用于同一轮内交替输出文字/图/视频/表）：blocks 为对象数组，每项含 type 字段：type 为 heading 时还需 text（可含「1. xxx」编号标题）与可选 level(h2|h3|h4)；type 为 text 时需 content（一段中文，可含 **加粗**）；type 为 image 时需 url（必填，须为 https 可公开访问的图片地址），可选 alt、caption；type 为 video 时需 url（https 视频直链，如 .mp4），可选 poster（封面图 url）、caption；type 为 table 时需 headers（表头字符串数组）与 rows（二维字符串数组，列数与 headers 一致）。图片/视频 URL 须真实可播放；若无现成链接可省略该块、仅用文字说明。suggestions（1～4 条中文后续方向）将用作快捷按钮。JSON 必须用双引号；若使用 lovart-reply，快捷选项只放在 suggestions 里，**不要**再写 \`\`\`cta\`\`\`。也可在 lovart-reply 前先写自然语言，再输出该 JSON。`;
+export const LOVART_STRUCTURED_OUTPUT_GUIDE = `你可在答复末尾用**唯一**一个代码块输出结构化结果，fence 名必须为 lovart-reply（全小写），内容为 JSON。字段均为可选：title, subtitle, summary；sections（传统分节：每项可含 heading, level 取 h2|h3|h4, paragraphs, bullets）；**blocks**（**有序混合流**，与 sections 可同时存在，按数组顺序渲染；用于同一轮内交替输出文字/图/视频/表）：blocks 为对象数组，每项含 type 字段：type 为 heading 时还需 text（可含“1. xxx”编号标题）与可选 level(h2|h3|h4)；type 为 text 时需 content（一段中文，可含 **加粗**）；type 为 image 时需 url（必填，须为 https 可公开访问的图片地址），可选 alt、caption；type 为 video 时需 url（https 视频直链，如 .mp4），可选 poster（封面图 url）、caption；type 为 table 时需 headers（表头字符串数组）与 rows（二维字符串数组，列数与 headers 一致）。图片/视频 URL 须真实可播放；若无现成链接可省略该块、仅用文字说明。suggestions（1～4 条中文后续方向）将用作快捷按钮。JSON 必须用双引号；若使用 lovart-reply，快捷选项只放在 suggestions 里，**不要**再写 \`\`\`cta\`\`\`。也可在 lovart-reply 前先写自然语言，再输出该 JSON。`;

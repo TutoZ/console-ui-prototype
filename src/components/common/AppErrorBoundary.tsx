@@ -61,7 +61,7 @@ export class AppErrorBoundary extends React.Component<{ children: React.ReactNod
         >
           <h1 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px' }}>页面渲染出错</h1>
           <p style={{ fontSize: 13, color: '#737373', margin: '0 0 12px', lineHeight: 1.6 }}>
-            应用在渲染时抛出异常。下面是错误详情，可截图反馈；也可点击「清除数据并重载」尝试自动恢复。
+            应用在渲染时抛出异常。下面是错误详情，可截图反馈；也可点击“清除数据并重载”尝试自动恢复。
           </p>
           <pre
             style={{

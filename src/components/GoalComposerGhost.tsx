@@ -13,8 +13,8 @@ export type GoalComposerGhostVariant = 'skill' | 'employee';
 
 export function formatGoalGhostText(label: string, variant: GoalComposerGhostVariant) {
   return variant === 'employee'
-    ? `帮我创建一个「${label}」数字员工`
-    : `帮我做一个「${label}」技能`;
+    ? `帮我创建一个“${label}”数字员工`
+    : `帮我做一个“${label}”技能`;
 }
 
 export function GoalComposerGhost({

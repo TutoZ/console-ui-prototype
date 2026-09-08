@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 对话气泡内的「处理过程」折叠 — 对齐 JoyServing 设计规范；
+ * 对话气泡内的“处理过程”折叠 — 对齐 JoyServing 设计规范；
  * 短标题纯文本；参数/结果等过长内容用 PANEL 卡片 + JSON 块承载。
  */
 
@@ -61,13 +61,13 @@ function isLongField(text: string): boolean {
 function summarizeReasoning(text: string): { text: string; detail?: string } {
   const agent = text.match(/数字员工【([^】]+)】/)?.[1];
   const scenario = text.match(/场景：([^。]+)/)?.[1];
-  const persona = text.match(/入职标签「([^」]+)/)?.[1];
+  const persona = text.match(/入职标签“([^”]+)/)?.[1];
   const parts: string[] = [];
   if (agent) parts.push(`激活 ${agent}`);
   if (scenario) parts.push(scenario);
   const line = parts.join(' · ') || '理解用户诉求';
   const detail = persona
-    ? `按入职标签「${persona}${persona.length >= 36 ? '…' : ''}」理解诉求。`
+    ? `按入职标签“${persona}${persona.length >= 36 ? '…' : ''}”理解诉求。`
     : undefined;
   return { text: line, detail };
 }
@@ -119,7 +119,7 @@ function buildSkillReadWriteDetail(
         {
           type: 'text',
           text:
-            `已读取技能「${skillLabel}」定义并完成一次调用。\n` +
+            `已读取技能“${skillLabel}”定义并完成一次调用。\n` +
             `步骤：1) 校验入参 2) 匹配业务规则 3) 生成结构化结果 4) 回写执行摘要。`,
         },
       ],
@@ -239,7 +239,7 @@ function buildDisplaySteps(steps: ThoughtStep[], userQuery?: string): DisplaySte
             content: [
               {
                 type: 'text',
-                text: `已检索「${label}」相关片段，并写入本轮上下文。`,
+                text: `已检索“${label}”相关片段，并写入本轮上下文。`,
               },
             ],
           },
@@ -254,7 +254,7 @@ function buildDisplaySteps(steps: ThoughtStep[], userQuery?: string): DisplaySte
       const skillId = step.resourceId ?? slugify(label);
       const isTransfer = meta?.kind === 'tool' || /转人工|transfer/i.test(label);
 
-      // 在首次技能调用前插入「读取技能」——参数/结果都较完整
+      // 在首次技能调用前插入“读取技能”——参数/结果都较完整
       if (!injectedSkillRw && !isTransfer) {
         injectedSkillRw = true;
         out.push({
@@ -297,7 +297,7 @@ function buildDisplaySteps(steps: ThoughtStep[], userQuery?: string): DisplaySte
             content: [
               {
                 type: 'text',
-                text: `技能「${label}」执行完成，已生成可回复草稿。`,
+                text: `技能“${label}”执行完成，已生成可回复草稿。`,
               },
             ],
             ...(meta?.tag ? { tag: meta.tag } : {}),
@@ -326,7 +326,7 @@ function buildDisplaySteps(steps: ThoughtStep[], userQuery?: string): DisplaySte
 function JsonCard({ value }: { value: Record<string, unknown> }) {
   return (
     <div className={cn(PANEL, 'bg-neutral-50 px-2.5 py-2 max-h-48 overflow-y-auto custom-scrollbar')}>
-      {/* 等宽技术内容：10px，对齐规范「最微字 / ID」 */}
+      {/* 等宽技术内容：10px，对齐规范“最微字 / ID” */}
       <pre className="text-[10px] leading-relaxed text-neutral-800 font-mono whitespace-pre-wrap break-words">
         {JSON.stringify(value, null, 2)}
       </pre>

@@ -408,7 +408,7 @@ export const QC_SAMPLE_META: Record<string, QcSampleMeta> = {
   },
   qc_sample_absolute: {
     sceneTitle: '绝对化表述',
-    testFocus: '测能否识别「一定」「肯定」等绝对化用语',
+    testFocus: '测能否识别“一定”“肯定”等绝对化用语',
   },
   qc_sample_attitude: {
     sceneTitle: '服务态度',

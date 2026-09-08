@@ -589,7 +589,7 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
       setActiveRightTab('details');
       setShowTranscriptModal(true);
       setRecordIndex(6);
-      // 有纠错权限的账号进入即为可编辑态，可直接修改结果后点「纠错保存」（编辑态由 hasCorrectPermission 派生，无需再置位）
+      // 有纠错权限的账号进入即为可编辑态，可直接修改结果后点“纠错保存”（编辑态由 hasCorrectPermission 派生，无需再置位）
       setCorrectNote('');
       setCorrectSaved(false);
       setItemNotes({});
@@ -610,17 +610,17 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
   const [mockHit4, setMockHit4] = useState('未命中');
   // 当前登录账号是否具备"纠错"权限（由权限配置授予）。有权限时 AI 结果页直接可修改结果。
   const [hasCorrectPermission] = useState(true);
-  // 编辑态直接由「纠错」权限驱动：有权限 = 进入即可直接修改结果（无需先点纠错按钮），改完点底部「纠错保存」提交。
+  // 编辑态直接由“纠错”权限驱动：有权限 = 进入即可直接修改结果（无需先点纠错按钮），改完点底部“纠错保存”提交。
   const isCorrectionMode = hasCorrectPermission;
-  // 人工纠错备注（有权限账号可填写，随「纠错保存」一并提交）
+  // 人工纠错备注（有权限账号可填写，随“纠错保存”一并提交）
   const [correctNote, setCorrectNote] = useState('');
   // 纠错保存反馈态
   const [correctSaved, setCorrectSaved] = useState(false);
-  // 各质检项/评分项的人工修改备注（key=项名称）。仅当前编辑会话内暂存，点「纠错」提交入历史后清空，再次进入不回显。
+  // 各质检项/评分项的人工修改备注（key=项名称）。仅当前编辑会话内暂存，点“纠错”提交入历史后清空，再次进入不回显。
   const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
-  // 已提交入历史的人工纠错备注记录（点击「纠错」后追加，展示于「历史记录」的人工纠错记录表）
+  // 已提交入历史的人工纠错备注记录（点击“纠错”后追加，展示于“历史记录”的人工纠错记录表）
   const [submittedNotes, setSubmittedNotes] = useState<{ user: string; time: string; type: string; field: string; from: string; to: string; note: string }[]>([]);
-  // 项名称 → { 修改类型, 全链路修改项名称（有一级项则「一级/二级」，无二级则仅一级） } 的映射，用于人工纠错记录展示
+  // 项名称 → { 修改类型, 全链路修改项名称（有一级项则“一级/二级”，无二级则仅一级） } 的映射，用于人工纠错记录展示
   const itemFieldMeta: Record<string, { type: string; fullField: string }> = {
     '服务禁语核查': { type: '质检类', fullField: '合规标准 / 服务禁语核查' },
     '过度承诺判定': { type: '质检类', fullField: '合规标准 / 过度承诺判定' },
@@ -635,7 +635,7 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
     '情绪标签': { type: '分类标签', fullField: '情绪标签' },
     '服务意图': { type: '分类标签', fullField: '服务意图' },
   };
-  // 点击底部「纠错」：将各项人工修改备注 + 整体纠错说明汇总写入历史记录，并清空当前页备注（不回显）
+  // 点击底部“纠错”：将各项人工修改备注 + 整体纠错说明汇总写入历史记录，并清空当前页备注（不回显）
   const submitCorrection = () => {
     const now = new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-');
     const rows: { user: string; time: string; type: string; field: string; from: string; to: string; note: string }[] = [];
@@ -673,13 +673,13 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
     }
   };
   // 消息维度命中打标（演示态）：key=消息在 transcript 中的索引，value=命中的质检项列表。
-  // 质检项名称展示规则：一级项直接展示一级名称；二级项按「一级名称 | 二级名称」展示。scope 标识作用范围。
+  // 质检项名称展示规则：一级项直接展示一级名称；二级项按“一级名称 | 二级名称”展示。scope 标识作用范围。
   const msgLevelHits: Record<number, { name: string; scope: string }[]> = {
     2: [{ name: '合规标准 | 过度承诺判定', scope: '消息维度（含上文）' }],
     1: [{ name: '流程规范 | 身份核验', scope: '消息维度' }],
   };
   const [dataAccessChatState, setDataAccessChatState] = useState<'idle' | 'loading' | 'success'>('idle');
-  // 对话框内选中的数字员工，默认选中「质检类数字员工」
+  // 对话框内选中的数字员工，默认选中“质检类数字员工”
   const [selectedDigitalStaff, setSelectedDigitalStaff] = useState('质检类数字员工');
 
   
@@ -3057,7 +3057,7 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
                               </button>
                             )}
 
-                            {/* 消息维度命中打标：当质检项作用于「消息维度/消息维度（含上文）」时，在对应消息下方展示命中的质检项名称 */}
+                            {/* 消息维度命中打标：当质检项作用于“消息维度/消息维度（含上文）”时，在对应消息下方展示命中的质检项名称 */}
                             {msgLevelHits[idx] && msgLevelHits[idx].some(hit => (hit.name.includes('身份核验') ? mockHit3 : hit.name.includes('过度承诺') ? mockHit2 : '命中') === '命中') && (
                               <div className={`mt-2 flex flex-wrap gap-1.5 ${isUser ? 'justify-start' : 'justify-end'}`}>
                                 {msgLevelHits[idx].map((hit, hi) => {
@@ -4028,7 +4028,7 @@ export const WorkflowEditor = forwardRef<WorkflowEditorHandle, WorkflowEditorPro
                             )}
                           </div>
 
-                          {/* 底部：人工纠错备注 + 纠错保存（仅具备「纠错」权限账号可见） */}
+                          {/* 底部：人工纠错备注 + 纠错保存（仅具备“纠错”权限账号可见） */}
                           {hasCorrectPermission && (
                             <div className="bg-white border border-neutral-200 rounded-[13px] shadow-xxs p-4 space-y-3">
                               <div className="flex items-center gap-2">

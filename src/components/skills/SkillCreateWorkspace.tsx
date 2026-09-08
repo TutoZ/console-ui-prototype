@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * 智能创建技能 — 自然语言输入页。
- * 对齐瓴羊 AgentOne「空白技能 / createSkill」：用一句话描述能力，再生成技能草稿。
+ * 对齐瓴羊 AgentOne“空白技能 / createSkill”：用一句话描述能力，再生成技能草稿。
  * 用于员工技能中心与入职培训配备。
  */
 
@@ -23,7 +23,7 @@ export interface SkillCreatePayload {
 export interface SkillCreateWorkspaceProps {
   /**
    * 入职场景传入员工名；团队技能中心可不传。
-   * 有值时文案为「配备给该员工」，无值时为「加入团队技能」。
+   * 有值时文案为“配备给该员工”，无值时为“加入团队技能”。
    */
   agentName?: string;
   onBack: () => void;
@@ -95,7 +95,7 @@ export const SkillCreateWorkspace: React.FC<SkillCreateWorkspaceProps> = ({
   };
 
   const title = forAgent
-    ? `描述你想让「${agentName}」具备的能力`
+    ? `描述你想让“${agentName}”具备的能力`
     : '用自然语言创建技能';
   const subtitle = forAgent
     ? '用自然语言说明技能用途与触发场景，发送后将自动创建并配备给这名员工'

@@ -20,9 +20,9 @@ export const FOOD_SAFETY_AGENT_DEFAULTS = {
   languageStyle: '专业严谨、温和耐心、少用晦涩术语',
   constraints: '不承诺必然赔付；不提供法律意见；超出保单条款时如实说明并转人工',
   backgroundKnowledge:
-    '已绑定食安险 FAQ、产品说明手册与理赔流程员工知识；回答须优先引用上述材料，并区分「保障范围 / 保费 / 理赔材料」三类问题。',
+    '已绑定食安险 FAQ、产品说明手册与理赔流程员工知识；回答须优先引用上述材料，并区分“保障范围 / 保费 / 理赔材料”三类问题。',
   workflowNotes:
-    '触发「理赔、吃坏、报案」等关键词时调用食安险快速理赔测算器；情绪升级时转人工坐席。',
+    '触发“理赔、吃坏、报案”等关键词时调用食安险快速理赔测算器；情绪升级时转人工坐席。',
 } as const;
 
 /** 质检数字员工默认培训配置 */
@@ -182,7 +182,7 @@ export const INITIAL_HIRED_AGENTS: HiredAgent[] = [
       {
         id: 'snap_food_v02',
         code: 'V_10302',
-        title: '员工技能「情绪安抚」配备后',
+        title: '员工技能“情绪安抚”配备后',
         savedAt: '2026-06-18 16:40:00',
         kind: 'saved',
         config: {
@@ -272,7 +272,7 @@ export const INITIAL_HIRED_AGENTS: HiredAgent[] = [
   }
 ];
 
-/** 母版升级演示种子版本 —  bump 后重置「食安险客服专员」的母版同步状态 */
+/** 母版升级演示种子版本 —  bump 后重置“食安险客服专员”的母版同步状态 */
 export const TEMPLATE_DEMO_SEED_VERSION = 'v1-master-upgrade';
 
 export const KB_SEED_VERSION = 'v2-20-fix';

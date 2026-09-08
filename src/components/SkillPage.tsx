@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Icon, addCollection } from '@iconify/react';
 import solarIcons from '@iconify-json/solar/icons.json';
 import { useApp } from '../context/AppContext';
+import { Plus, Search, Sparkles, UploadCloud } from '@/lib/icons';
 import { ListPagination, LIST_PAGE_SIZE, paginateItems } from './common/ListPagination';
 import {
   SkillStudioWorkspace,
@@ -27,7 +28,7 @@ addCollection(solarIcons as Parameters<typeof addCollection>[0]);
 
 type SkillListTab = 'mine' | 'market';
 
-/** 对齐「我的数字员工」卡片底栏按钮（描边 / 主操作蓝） */
+/** 对齐“我的数字员工”卡片底栏按钮（描边 / 主操作蓝） */
 const SKILL_CARD_BTN =
   'h-7 min-w-0 px-2 rounded-[6px] border shadow-[0_1px_0_rgba(0,0,0,0.05)] text-[11px] font-medium cursor-pointer transition flex items-center justify-center disabled:opacity-70 disabled:pointer-events-none';
 const SKILL_CARD_BTN_OUTLINE = cn(
@@ -218,6 +219,7 @@ export const SkillPage: React.FC = () => {
     unsubscribeSkill,
     hiredAgents,
     showToast,
+    setActiveTab,
   } = useApp();
   const [skillTab, setSkillTab] = useState<SkillListTab>('mine');
   const [search, setSearch] = useState('');
@@ -258,7 +260,7 @@ export const SkillPage: React.FC = () => {
     if (skillTab === 'mine') {
       return s.type === 'mine' || s.type === 'subscribed';
     }
-    // 市场：保留已订阅项，便于按钮原地变为「已订阅」
+    // 市场：保留已订阅项，便于按钮原地变为“已订阅”
     return s.type === 'market' || s.type === 'subscribed';
   });
 
@@ -330,8 +332,17 @@ export const SkillPage: React.FC = () => {
     : [];
 
   const openCreate = (mode: 'interactive' | 'zip') => {
-    setCreateMode(mode);
     setCreateMenuOpen(false);
+    if (mode === 'interactive') {
+      try {
+        sessionStorage.setItem('js_home_create_mode', 'skill');
+      } catch {
+        /* ignore */
+      }
+      setActiveTab('platformHome');
+      return;
+    }
+    setCreateMode(mode);
     setStudioTarget('create');
   };
 
@@ -342,11 +353,10 @@ export const SkillPage: React.FC = () => {
         const seed = sessionStorage.getItem('js_skill_create_seed_prompt');
         if (seed) {
           sessionStorage.removeItem('js_skill_create_seed_prompt');
-          setCreateSeedPrompt(seed);
-        } else {
-          setCreateSeedPrompt(null);
+          sessionStorage.setItem('js_home_create_seed', seed);
         }
-        openCreate('interactive');
+        sessionStorage.setItem('js_home_create_mode', 'skill');
+        setActiveTab('platformHome');
       }
     } catch {
       /* ignore */
@@ -381,12 +391,9 @@ export const SkillPage: React.FC = () => {
       <div className="shrink-0 px-5 pt-5">
       <OnlinePageHeader title="数字员工技能">
         <div className="relative w-full sm:w-64 shrink-0">
-          <Icon
-            icon="solar:magnifer-bold"
-            width={14}
-            height={14}
+          <Search
+            size={14}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
-            aria-hidden
           />
           <input
             type="text"
@@ -412,7 +419,7 @@ export const SkillPage: React.FC = () => {
               aria-expanded={createMenuOpen}
               onClick={() => setCreateMenuOpen((v) => !v)}
             >
-              <Icon icon="solar:add-circle-bold" width={14} height={14} aria-hidden />
+              <Plus size={14} />
               <span>{SKILL_PAGE_COPY.createSkill}</span>
             </button>
             {createMenuOpen ? (
@@ -427,13 +434,7 @@ export const SkillPage: React.FC = () => {
                     onClick={() => openCreate('interactive')}
                     className="w-full text-left px-3 py-2.5 hover:bg-neutral-50 cursor-pointer flex items-start gap-2.5"
                   >
-                    <Icon
-                      icon="solar:stars-bold"
-                      width={15}
-                      height={15}
-                      className="text-neutral-700 shrink-0 mt-0.5"
-                      aria-hidden
-                    />
+                    <Sparkles size={15} className="text-neutral-700 shrink-0 mt-0.5" />
                     <span className="min-w-0">
                       <span className="block text-[13px] font-semibold text-neutral-900">
                         对话式创建
@@ -449,13 +450,7 @@ export const SkillPage: React.FC = () => {
                     onClick={() => openCreate('zip')}
                     className="w-full text-left px-3 py-2.5 hover:bg-neutral-50 cursor-pointer flex items-start gap-2.5"
                   >
-                    <Icon
-                      icon="solar:upload-bold"
-                      width={15}
-                      height={15}
-                      className="text-neutral-700 shrink-0 mt-0.5"
-                      aria-hidden
-                    />
+                    <UploadCloud size={15} className="text-neutral-700 shrink-0 mt-0.5" />
                     <span className="min-w-0">
                       <span className="block text-[13px] font-semibold text-neutral-900">
                         上传 ZIP 压缩包

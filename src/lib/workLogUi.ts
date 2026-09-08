@@ -43,7 +43,7 @@ export function resolveWorkLogResource(step: ThoughtStep): WorkLogResourceMeta |
   const msg = step.message;
 
   if (step.type === 'search') {
-    const doc = msg.match(/[《「]([^》」]+)[》」]/)?.[1];
+    const doc = msg.match(/[《“]([^》”]+)[》”]/)?.[1];
     if (doc) {
       return { kind: 'doc', kindLabel: '文档', name: doc };
     }
@@ -59,7 +59,7 @@ export function resolveWorkLogResource(step: ThoughtStep): WorkLogResourceMeta |
   }
 
   if (/技能|计算器|测算/.test(msg)) {
-    const skill = msg.match(/\[([^\]]+)\]/)?.[1] ?? msg.match(/调用[「「]?([^，。；]+)/)?.[1]?.trim();
+    const skill = msg.match(/\[([^\]]+)\]/)?.[1] ?? msg.match(/调用[「“]?([^，。；]+)/)?.[1]?.trim();
     return {
       kind: 'skill',
       kindLabel: '技能',
@@ -81,7 +81,7 @@ export function resolveWorkLogResource(step: ThoughtStep): WorkLogResourceMeta |
     return { kind: 'tool', kindLabel: '工具', name: '待办工单' };
   }
 
-  const tool = msg.match(/调用[「「]?([^，。；]+)/)?.[1]?.trim();
+  const tool = msg.match(/调用[「“]?([^，。；]+)/)?.[1]?.trim();
   return {
     kind: 'tool',
     kindLabel: '工具',

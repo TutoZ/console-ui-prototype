@@ -368,7 +368,7 @@ export const DataSourcesView: React.FC<DataSourcesViewProps> = ({
     } else {
       // 启动 → 直接执行 + 提示
       toggleSourceStatus(id);
-      showToast(`已启动「${src.agentName || src.name}」的数据接入`);
+      showToast(`已启动“${src.agentName || src.name}”的数据接入`);
     }
   };
   // 删除：二次确认
@@ -383,10 +383,10 @@ export const DataSourcesView: React.FC<DataSourcesViewProps> = ({
     const { type, id, name } = confirmAction;
     if (type === 'pause') {
       toggleSourceStatus(id);
-      showToast(`已暂停「${name}」的数据接入`);
+      showToast(`已暂停“${name}”的数据接入`);
     } else if (type === 'delete') {
       setDataSources(prev => prev.filter(s => s.id !== id));
-      showToast(`已删除「${name}」`);
+      showToast(`已删除“${name}”`);
     }
     setConfirmAction(null);
   };
@@ -1351,8 +1351,8 @@ export const DataSourcesView: React.FC<DataSourcesViewProps> = ({
                 </h3>
                 <p className="text-[11px] text-neutral-500 mt-1 leading-relaxed">
                   {confirmAction.type === 'delete'
-                    ? <>删除后「{confirmAction.name}」将不再接入数据，且不可恢复，请谨慎操作。</>
-                    : <>暂停后「{confirmAction.name}」将停止实时接入新数据，可随时重新启动。</>}
+                    ? <>删除后“{confirmAction.name}”将不再接入数据，且不可恢复，请谨慎操作。</>
+                    : <>暂停后“{confirmAction.name}”将停止实时接入新数据，可随时重新启动。</>}
                 </p>
               </div>
             </div>

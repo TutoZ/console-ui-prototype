@@ -259,7 +259,7 @@ const DS_EXEC_STEPS: ThoughtStep[] = [
     id: 'ds-1',
     time: '12:00:01',
     type: 'search',
-    message: '检索知识库「售后政策」',
+    message: '检索知识库“售后政策”',
     resourceKind: 'kb',
     resourceName: '售后政策库',
   },
@@ -2110,7 +2110,7 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section
           id="atom-button"
           source="BTN_INK / SOFT / OUTLINE / DANGER · Loading=disabled+LoadingCircle"
-          desc="悬停态按源码模拟（主按钮 opacity-90 等）。加载态：禁用 + 内嵌圆环加载（14），可选文案「提交中…」。"
+          desc="悬停态按源码模拟（主按钮 opacity-90 等）。加载态：禁用 + 内嵌圆环加载（14），可选文案“提交中…”。"
           dos={[
             '主 CTA 用 BTN_INK',
             '取消用 BTN_SOFT 或 OUTLINE',
@@ -2462,7 +2462,7 @@ export const ComponentLibraryPage: React.FC = () => {
           source="首页空态 · OnlineEmptyRow · 无结果"
           desc="三种空态不可混用：插画引导、表格空行、搜索无结果。"
           dos={['首页无数据用插画+主 CTA', '表格无数据用 OnlineEmptyRow']}
-          donts={['不要在表格里放大插画', '无搜索结果不要假装「系统错误」']}
+          donts={['不要在表格里放大插画', '无搜索结果不要假装“系统错误”']}
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <SpecPanel className="flex flex-col items-center py-10 text-center">
@@ -2604,7 +2604,7 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section
           id="pattern-dual-nav"
           source="PrimaryNavRail + SecondarySideNav"
-          desc="VersionSwitcher 选「双侧导航」时启用；默认混合布局仍走顶栏二级导航。"
+          desc="VersionSwitcher 选“双侧导航”时启用；默认混合布局仍走顶栏二级导航。"
           dos={['A/B 对比测试用', '一级域在窄轨，二级在侧栏']}
           donts={['不要当作默认权威方案', '不要与顶栏导航同时出现']}
         >
@@ -2762,7 +2762,7 @@ export const ComponentLibraryPage: React.FC = () => {
             </div>
           </div>
           <p className="mt-2 text-[11px] text-neutral-500">
-            升级类提示见下方「母版升级提示 MasterTemplateUpgradeBanner」。
+            升级类提示见下方“母版升级提示 MasterTemplateUpgradeBanner”。
           </p>
         </Section>
 
@@ -2855,7 +2855,7 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section
           id="pattern-table"
           source="ListPagination（真实控件）"
-          desc="行 hover 浅底；分页为「上一页 · 当前/总页 · 下一页」。"
+          desc="行 hover 浅底；分页为“上一页 · 当前/总页 · 下一页”。"
           dos={['超过 10 条再出分页', '状态列用 badgeClass']}
           donts={['不要做成 1 2 3 页码条（非本产品）', '行内不要堆过多按钮']}
         >
@@ -2901,7 +2901,7 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section
           id="pattern-exec-fold"
           source="common/ExecutionProcessFold"
-          desc="对话气泡内「处理过程」折叠；员工管理、客户体验页在用。"
+          desc="对话气泡内“处理过程”折叠；员工管理、客户体验页在用。"
           dos={['running 时默认展开 + LoadingCircle', 'done 后显示步数 + CheckCircle']}
           donts={['不要用灰色 pulse 替代圆环加载']}
         >
@@ -3233,7 +3233,7 @@ export const ComponentLibraryPage: React.FC = () => {
               className={BTN_INK}
               disabled={!formName.trim()}
               onClick={() => {
-                showToast(`已创建「${formName.trim()}」`, 'success');
+                showToast(`已创建“${formName.trim()}”`, 'success');
                 setModalOpen(false);
                 setFormName('');
               }}
@@ -3337,7 +3337,7 @@ export const ComponentLibraryPage: React.FC = () => {
         }
       >
         <p className="text-[12px] text-neutral-600">
-          确认删除「本平台客服会话 · 日常抽检」？
+          确认删除“本平台客服会话 · 日常抽检”？
         </p>
       </Modal>
 
@@ -3390,7 +3390,7 @@ export const ComponentLibraryPage: React.FC = () => {
         }
       >
         <p className="text-[12px] text-neutral-600 leading-relaxed">
-          计划创建后默认为暂停。点击卡片「开始」才会抽检。数据可在「查看数据」中核对。
+          计划创建后默认为暂停。点击卡片“开始”才会抽检。数据可在“查看数据”中核对。
         </p>
       </Modal>
 

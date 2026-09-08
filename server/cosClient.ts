@@ -157,7 +157,7 @@ export async function tryDownloadBufferIfCosPublicUrl(imageUrl: string): Promise
 
 /**
  * 从本账号 COS 公网 URL 解析对象 Key（虚拟主机、路径风格、或与 TENCENT_COS_PUBLIC_BASE 同源）。
- * 供火山引擎等「服务端拉 URL」场景复用。
+ * 供火山引擎等“服务端拉 URL”场景复用。
  */
 export function parseCosObjectKeyFromHttpUrl(imageUrl: string): string | null {
   const vh = parseCosVirtualHostedKey(imageUrl);

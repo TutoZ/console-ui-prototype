@@ -173,7 +173,7 @@ export interface HiredAgent {
   publishedSnapshotId?: string;
   /** 已同步的市场母版能力版本 */
   syncedTemplateVersion?: string;
-  /** 用户对某母版版本选择「暂不处理」后不再提示 */
+  /** 用户对某母版版本选择“暂不处理”后不再提示 */
   templateUpgradeDismissedVersion?: string;
 }
 
@@ -276,7 +276,7 @@ export interface Task {
   actionCommand: string; // Instruction string
   /** 商家端任务 / 顾客端任务 */
   audience?: 'b' | 'c';
-  /** 上次执行耗时展示，如「12s」或「-」 */
+  /** 上次执行耗时展示，如“12s”或“-” */
   durationLabel?: string;
 }
 
@@ -315,7 +315,7 @@ export interface ThoughtStep {
   /** 结构化资源：工具 / 知识库 / 文档 / 技能 / 组件 */
   resourceKind?: WorkLogResourceKind;
   resourceName?: string;
-  /** 资源副标签，如「极敏感型情绪」 */
+  /** 资源副标签，如“极敏感型情绪” */
   resourceTag?: string;
 }
 

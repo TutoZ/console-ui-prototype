@@ -108,7 +108,7 @@ export const OnboardingKnowledgePanel: React.FC<{
     });
     closeCreateModal();
     setSelectedKbId(kb.id);
-    showToast(`已创建员工知识「${kb.name}」`);
+    showToast(`已创建员工知识“${kb.name}”`);
   };
 
   const handleQuickUpload = (file: File) => {
@@ -126,7 +126,7 @@ export const OnboardingKnowledgePanel: React.FC<{
       });
       setUploadingName(null);
       setSelectedKbId(kb.id);
-      showToast(`已根据「${file.name}」快捷创建「${kb.name}」`);
+      showToast(`已根据“${file.name}”快捷创建“${kb.name}”`);
     }, pickMockLatencyMs('upload'));
   };
 
@@ -183,8 +183,8 @@ export const OnboardingKnowledgePanel: React.FC<{
             <h2 className="text-sm font-extrabold text-neutral-900">员工知识</h2>
             <p className="text-[11px] text-neutral-500 mt-1">
               {bound.length === 0
-                ? `为「${agent.name}」创建知识库并上传文档，即可用于回答检索`
-                : `「${agent.name}」已配备 ${bound.length} 份员工知识，可继续上传或进入管理`}
+                ? `为“${agent.name}”创建知识库并上传文档，即可用于回答检索`
+                : `“${agent.name}”已配备 ${bound.length} 份员工知识，可继续上传或进入管理`}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -288,7 +288,7 @@ export const OnboardingKnowledgePanel: React.FC<{
             <div>
               <p className="text-xs font-semibold text-neutral-800">{KB_PAGE_COPY.emptyList}</p>
               <p className="text-[10px] text-neutral-500 mt-1 leading-relaxed">
-                可直接上传文件快捷创建，或点击「新建知识库」填写名称与解析配置；也可「{EMPLOYEE_RESOURCE_TERMS.pickKb}」。
+                可直接上传文件快捷创建，或点击“新建知识库”填写名称与解析配置；也可“{EMPLOYEE_RESOURCE_TERMS.pickKb}”。
               </p>
             </div>
           </div>
@@ -426,7 +426,7 @@ export const OnboardingKnowledgePanel: React.FC<{
         confirmLabel={EMPLOYEE_RESOURCE_TERMS.confirmAssign}
         emptyHint={
           bindableKbs.length === 0
-            ? '团队暂无可指定的知识库，请先在「员工知识」新建'
+            ? '团队暂无可指定的知识库，请先在“员工知识”新建'
             : SEARCH_COPY.noKb
         }
         items={bindableKbs.map((kb) => ({
@@ -480,7 +480,7 @@ export const OnboardingSkillsPanel: React.FC<{
     });
     setCreateMode(null);
     onSkillBound?.();
-    showToast(`已创建并配备技能「${skill.name}」`);
+    showToast(`已创建并配备技能“${skill.name}”`);
   };
 
   useEffect(() => {
@@ -506,13 +506,13 @@ export const OnboardingSkillsPanel: React.FC<{
   const handleQuickUpload = (file: File) => {
     const skillName = (file.name.replace(/\.[^.]+$/, '') || file.name).slice(0, 30);
     window.setTimeout(() => {
-      const skill = createSkill(skillName, `从「${file.name}」导入的工作流技能包。`, 'mine');
+      const skill = createSkill(skillName, `从“${file.name}”导入的工作流技能包。`, 'mine');
       updateHiredAgent(agent.id, {
         skills: [...(agent.skills || []), skill.id],
       });
       setCreateMode(null);
       onSkillBound?.();
-      showToast(`已根据「${file.name}」创建技能「${skill.name}」`);
+      showToast(`已根据“${file.name}”创建技能“${skill.name}”`);
     }, 3500);
   };
 
@@ -548,7 +548,7 @@ export const OnboardingSkillsPanel: React.FC<{
           confirmLabel={EMPLOYEE_RESOURCE_TERMS.confirmAssign}
           emptyHint={
             bindableSkills.length === 0
-              ? '团队暂无可指定的技能，请先在「员工技能」新建'
+              ? '团队暂无可指定的技能，请先在“员工技能”新建'
               : SEARCH_COPY.noSkill
           }
           items={bindableSkills.map((sk) => ({
@@ -572,8 +572,8 @@ export const OnboardingSkillsPanel: React.FC<{
               <h2 className="text-sm font-extrabold text-neutral-900">员工技能</h2>
               <p className="text-[11px] text-neutral-500 mt-1">
                 {bound.length === 0
-                  ? `为「${agent.name}」新建或选用技能，赋能流程与工具调用`
-                  : `「${agent.name}」已配备 ${bound.length} 项员工技能，可继续新建或选用技能`}
+                  ? `为“${agent.name}”新建或选用技能，赋能流程与工具调用`
+                  : `“${agent.name}”已配备 ${bound.length} 项员工技能，可继续新建或选用技能`}
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -651,7 +651,7 @@ export const OnboardingSkillsPanel: React.FC<{
                       updateHiredAgent(agent.id, {
                         skills: agent.skills.filter((id) => id !== sk.id),
                       });
-                      showToast(`已移除「${sk.name}」`);
+                      showToast(`已移除“${sk.name}”`);
                     }}
                     className="text-neutral-500 hover:text-destructive p-1 cursor-pointer shrink-0"
                     title={EMPLOYEE_RESOURCE_TERMS.removeAssigned}
@@ -670,7 +670,7 @@ export const OnboardingSkillsPanel: React.FC<{
               <div>
                 <p className="text-xs font-semibold text-neutral-800">还没有员工技能？</p>
                 <p className="text-[10px] text-neutral-500 mt-1 leading-relaxed">
-                  点击「{EMPLOYEE_RESOURCE_TERMS.createSkill}」本地上传或智能创建，也可「{EMPLOYEE_RESOURCE_TERMS.pickSkill}」。
+                  点击“{EMPLOYEE_RESOURCE_TERMS.createSkill}”本地上传或智能创建，也可“{EMPLOYEE_RESOURCE_TERMS.pickSkill}”。
                 </p>
               </div>
             </div>
@@ -687,7 +687,7 @@ export const OnboardingSkillsPanel: React.FC<{
         confirmLabel={EMPLOYEE_RESOURCE_TERMS.confirmAssign}
         emptyHint={
           bindableSkills.length === 0
-            ? '团队暂无可指定的技能，请先在「员工技能」新建'
+            ? '团队暂无可指定的技能，请先在“员工技能”新建'
             : SEARCH_COPY.noSkill
         }
         items={bindableSkills.map((sk) => ({
@@ -726,7 +726,7 @@ export const OnboardingDashboardPanel: React.FC<{
         <div>
           <h2 className="text-sm font-extrabold text-neutral-900">员工业绩</h2>
           <p className="text-[11px] text-neutral-500 mt-1">
-            「{agent.name}」接待表现概览（演示数据，随真实进线更新）
+            “{agent.name}”接待表现概览（演示数据，随真实进线更新）
           </p>
         </div>
 
@@ -746,7 +746,7 @@ export const OnboardingDashboardPanel: React.FC<{
             <h3 className="text-xs font-bold text-neutral-800">近期待办</h3>
           </div>
           <p className="text-[11px] text-neutral-500 leading-relaxed">
-            上岗后可在「员工业绩看板」查看全站对比；此处仅展示该员工维度的快速摘要。
+            上岗后可在“员工业绩看板”查看全站对比；此处仅展示该员工维度的快速摘要。
           </p>
         </div>
       </div>
@@ -802,7 +802,7 @@ export const OnboardingChannelsPanel: React.FC<{
         <div>
           <h2 className="text-sm font-extrabold text-neutral-900">派出渠道</h2>
           <p className="text-[11px] text-neutral-500 mt-1">
-            为「{agent.name}」配置客户触达渠道，上岗后即可对外接待
+            为“{agent.name}”配置客户触达渠道，上岗后即可对外接待
           </p>
         </div>
 

@@ -53,7 +53,7 @@ export function inferRequestedImageCountFromPlain(text: string): number {
   return 1;
 }
 
-/** 去掉参考图 chip 转纯文本后的占位文案（如「参考图 (1)」），避免生图 prompt 只剩无意义词 */
+/** 去掉参考图 chip 转纯文本后的占位文案（如“参考图 (1)”），避免生图 prompt 只剩无意义词 */
 export function stripRefChipPlainNoise(plain: string): string {
   return plain
     .replace(/参考图\s*\(\d+\)\s*/gi, " ")
@@ -232,7 +232,7 @@ export function inferOpenAiGenerationSize(text: string): string {
   if (socialBucket === "landscape_3_2") return "1536x1024";
   if (socialBucket === "portrait_2_3") return "1024x1536";
 
-  /** 显式像素「宽×高」，按比例归入横/竖/方（如 1200×630、1080×1920） */
+  /** 显式像素“宽×高”，按比例归入横/竖/方（如 1200×630、1080×1920） */
   const pxDim = /(\d{3,4})\s*[×xX]\s*(\d{3,4})/.exec(t);
   if (pxDim) {
     const w = parseInt(pxDim[1]!, 10);
@@ -296,7 +296,7 @@ export function inferOpenAiGenerationSize(text: string): string {
     return "1024x1536";
   }
 
-  /** 未写比例时：小红书 / 抖音信息流默认竖幅（用户写「横」则上面已匹配横版规则） */
+  /** 未写比例时：小红书 / 抖音信息流默认竖幅（用户写“横”则上面已匹配横版规则） */
   if (
     /小红书|小红薯|抖音信息流|快手封面竖|视频号竖/i.test(t) &&
     !/横版|横屏|16\s*:\s*9|宽屏|landscape/i.test(t)
@@ -309,7 +309,7 @@ export function inferOpenAiGenerationSize(text: string): string {
 
 /**
  * 合并画幅推断：优先采用先验文本中的非 1:1 结果（通常传用户原句 + 合并后的 prompt），
- * 避免助手摘录的 prompt 丢了用户句里的「竖版 / 16:9」等词。
+ * 避免助手摘录的 prompt 丢了用户句里的“竖版 / 16:9”等词。
  */
 export function coalesceInferOpenAiGenerationSize(
   primaryText: string,
@@ -347,7 +347,7 @@ export function formatImageSizeUserLabel(size: string): string {
 
 /**
  * 是否像在对上一张图做编辑（无参考 chip 时才会挂上轮生成图）。
- * 勿把纯画幅描述（如「16:9 横版海报」）当成编辑，否则易误走 edits 得 1:1。
+ * 勿把纯画幅描述（如“16:9 横版海报”）当成编辑，否则易误走 edits 得 1:1。
  */
 export function looksLikeImageEditFollowUp(text: string): boolean {
   const t = normalizeSizeInferenceText(text);

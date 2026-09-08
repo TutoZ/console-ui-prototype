@@ -13,7 +13,7 @@ export type SlashVarGroup = {
   items: SlashVarItem[];
 };
 
-/** 结束节点「消息」/ 触发用变量列表（对齐截图分组） */
+/** 结束节点“消息”/ 触发用变量列表（对齐截图分组） */
 export const END_SLASH_VAR_GROUPS: SlashVarGroup[] = [
   {
     group: '开始输入',

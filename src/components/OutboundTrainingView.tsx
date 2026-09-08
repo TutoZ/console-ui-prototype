@@ -60,7 +60,7 @@ export type AgentScript = {
 const DELIVERY_PROMPT = `# 配送预约客服
 
 ## 角色定位
-你是京东家电「配送预约」客服，语气友好、专业、简洁，负责与刚下单用户确认配送时间。
+你是京东家电“配送预约”客服，语气友好、专业、简洁，负责与刚下单用户确认配送时间。
 
 ## 业务信息
 - 所属行业：家电
@@ -73,7 +73,7 @@ const DELIVERY_PROMPT = `# 配送预约客服
 2. 用户表示不方便：询问可改约日期与时段
 3. 用户提出改期：核对库存与运力后给出可选窗口
 4. 用户暂不确定：约定回访时间并记录标签
-5. 用户拒绝沟通：礼貌结束并标记「拒访」
+5. 用户拒绝沟通：礼貌结束并标记“拒访”
 `;
 
 const DEFAULT_SCRIPTS: AgentScript[] = [
@@ -307,7 +307,7 @@ export const AgentScriptWorkspace: React.FC<{
     setScripts((prev) => [item, ...prev]);
     setSelectedId(id);
     if (payload?.model === 'DeepSeek-V4-Flash') setModel('deepseek');
-    onToast(`已创建话术「${name}」`);
+    onToast(`已创建话术“${name}”`);
   };
 
   const removeScript = (id: string) => {
@@ -777,7 +777,7 @@ export const AgentScriptWorkspace: React.FC<{
                           <button
                             type="button"
                             className={cn(BTN_INK, 'h-7 px-2.5 text-[11px]')}
-                            onClick={() => onToast(`已保存「${item.label}」`)}
+                            onClick={() => onToast(`已保存“${item.label}”`)}
                           >
                             保存
                           </button>

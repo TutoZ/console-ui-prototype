@@ -241,7 +241,7 @@ export const MANAGE_SUB_NAV: SubNavItem[] = [
     title: '账号管理',
     tab: 'staff',
     icon: 'solar:user-id-linear',
-    description: '原「坐席管理」，现为账号管理',
+    description: '原“坐席管理”，现为账号管理',
   },
   {
     id: 'nav_roles',
@@ -387,7 +387,7 @@ export const RESOURCES_NAV_ITEM: PrimaryNavItem = {
   description: '电话线路等资源',
 };
 
-/** 底部：通用配置（原「管理区」） */
+/** 底部：通用配置（原“管理区”） */
 export const MANAGE_NAV_ITEM: PrimaryNavItem = {
   id: 'manage',
   title: '组织管理',

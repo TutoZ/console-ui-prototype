@@ -83,7 +83,7 @@ function migrateFoodSafetyTheme(agents: HiredAgent[]): HiredAgent[] {
   });
 }
 
-/** 确保「食安险客服专员」母版升级演示可重复看到（除非用户已同步或暂不处理） */
+/** 确保“食安险客服专员”母版升级演示可重复看到（除非用户已同步或暂不处理） */
 function migrateTemplateUpgradeDemo(agents: HiredAgent[]): HiredAgent[] {
   const stored = localStorage.getItem('js_template_demo_seed');
   if (stored === TEMPLATE_DEMO_SEED_VERSION) return agents;
@@ -306,7 +306,7 @@ interface AppContextType {
     >,
   ) => void;
   deleteSkill: (id: string) => void;
-  /** 从技能市场订阅到「已订阅」 */
+  /** 从技能市场订阅到“已订阅” */
   subscribeSkill: (id: string) => void;
   /** 取消订阅（市场技能回到市场；自建技能请用 deleteSkill） */
   unsubscribeSkill: (id: string) => void;
@@ -539,7 +539,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       hiredAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
       jobFamily,
       openingLine: isQc
-        ? `您好，我是质检专员「${agentName}」。请提供样例会话，我将按已配置标准给出质检结果。`
+        ? `您好，我是质检专员“${agentName}”。请提供样例会话，我将按已配置标准给出质检结果。`
         : defaultOpeningLineForAgent(agentName),
       fallbackScript: defaultFallbackScriptForAgent(),
       ...(isQc
@@ -570,7 +570,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setHiredAgents(prev => [agentWithBaseline, ...prev]);
 
     if (demoStep === 'A1' || domain) {
-      // 向导第 2 步要在「我的数字员工」点培训；业务域员工同样不进培训工作台
+      // 向导第 2 步要在“我的数字员工”点培训；业务域员工同样不进培训工作台
       setActiveOnboardingAgentId(null);
       setNavDomain('home');
       setActiveTab('employees');

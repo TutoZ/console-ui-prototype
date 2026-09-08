@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * 智能创建 — 一句话创建入口（数字员工创建 / 技能创建）
- * 布局对齐 Figma「B端_AI组件规范」创作平台稿（node 24238:29648）。
+ * 布局对齐 Figma“B端_AI组件规范”创作平台稿（node 24238:29648）。
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -84,19 +84,19 @@ const SEED_SESSIONS: HomeSession[] = [
     id: 's1',
     title: '食安险理赔专员',
     mode: 'employee',
-    prompt: '帮我创建一个「食安险理赔专员」数字员工',
+    prompt: '帮我创建一个“食安险理赔专员”数字员工',
   },
   {
     id: 's2',
     title: '在线客服接待',
     mode: 'employee',
-    prompt: '帮我创建一个「在线客服接待」数字员工',
+    prompt: '帮我创建一个“在线客服接待”数字员工',
   },
 ];
 
 function sessionTitleFromPrompt(text: string, mode: CreateMode): string {
   const trimmed = text.trim().replace(/\s+/g, ' ');
-  const quoted = trimmed.match(/[「『"“](.+?)[」』"”]/);
+  const quoted = trimmed.match(/[「『“"](.+?)[」』”"]/);
   if (quoted?.[1]) return quoted[1].slice(0, 28);
   const prefix =
     mode === 'skill'
@@ -108,8 +108,29 @@ function sessionTitleFromPrompt(text: string, mode: CreateMode): string {
 
 export const PlatformHomePage: React.FC = () => {
   const { showToast, skills, knowledgeBases } = useApp();
-  const [mode, setMode] = useState<CreateMode>('employee');
-  const [prompt, setPrompt] = useState('');
+  const [mode, setMode] = useState<CreateMode>(() => {
+    try {
+      if (sessionStorage.getItem('js_home_create_mode') === 'skill') {
+        sessionStorage.removeItem('js_home_create_mode');
+        return 'skill';
+      }
+    } catch {
+      /* ignore */
+    }
+    return 'employee';
+  });
+  const [prompt, setPrompt] = useState(() => {
+    try {
+      const seed = sessionStorage.getItem('js_home_create_seed');
+      if (seed) {
+        sessionStorage.removeItem('js_home_create_seed');
+        return seed;
+      }
+    } catch {
+      /* ignore */
+    }
+    return '';
+  });
   const [incubationOpen, setIncubationOpen] = useState(false);
   const [incubationSeed, setIncubationSeed] = useState('');
   const [incubationSkillIds, setIncubationSkillIds] = useState<string[]>([]);
@@ -201,9 +222,9 @@ export const PlatformHomePage: React.FC = () => {
 
   const applyChip = (label: string) => {
     if (mode === 'skill') {
-      setPrompt(`帮我做一个「${label}」技能`);
+      setPrompt(`帮我做一个“${label}”技能`);
     } else {
-      setPrompt(`帮我创建一个「${label}」数字员工`);
+      setPrompt(`帮我创建一个“${label}”数字员工`);
     }
     textareaRef.current?.focus();
   };
@@ -334,7 +355,7 @@ export const PlatformHomePage: React.FC = () => {
 
   return (
     <div className="relative flex flex-1 min-h-0 overflow-hidden bg-white">
-      {/* 最近会话：展开为侧栏；收起仅「最近会话」+图标，无边线 */}
+      {/* 最近会话：展开为侧栏；收起仅“最近会话”+图标，无边线 */}
       {sessionSidebarOpen ? (
         <aside
           className="relative z-[2] flex h-full w-[248px] shrink-0 flex-col border-r border-neutral-100 bg-white"
@@ -464,10 +485,10 @@ export const PlatformHomePage: React.FC = () => {
       {/* 柔光：大模糊 + 长淡出，避免椭圆硬边 */}
       <div
         aria-hidden
-        className="pointer-events-none absolute left-1/2 top-[44%] h-[280px] w-[min(560px,70%)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[rgba(21,101,191,0.09)] blur-[80px]"
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[280px] w-[min(560px,70%)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[rgba(21,101,191,0.09)] blur-[80px]"
       />
 
-      <div className="relative z-[1] flex flex-col items-center justify-center px-6 pt-6 pb-24 min-h-full -translate-y-10 sm:-translate-y-14">
+      <div className="relative z-[1] flex flex-col items-center justify-center px-6 py-8 min-h-full">
         {/* 标题 */}
         <div className="w-full max-w-[860px] text-center">
           <AnimatePresence mode="wait" initial={false}>

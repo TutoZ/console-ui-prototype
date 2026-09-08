@@ -15,7 +15,7 @@ export function DotGrid({
   resistance = 750,
   returnDuration = 1.5,
   ambientDriftPx = 0,
-  /** 登录页等场景：加深「重」点区域、略放大高 mix 圆点，层次更明显 */
+  /** 登录页等场景：加深“重”点区域、略放大高 mix 圆点，层次更明显 */
   ambientAccent = false,
 }: {
   dotSize?: number;

@@ -851,7 +851,7 @@ export const NavIconCatalog: React.FC<{ onClose?: () => void }> = ({ onClose }) 
             </button>
           </div>
           <h1 className="text-[15px] font-semibold tracking-tight">
-            {step === 'style' ? '先挑：多彩 / 蓝渐变 / 轻拟物' : `在「${style?.name}」里挑具体图标`}
+            {step === 'style' ? '先挑：多彩 / 蓝渐变 / 轻拟物' : `在“${style?.name}”里挑具体图标`}
           </h1>
           <p className="text-[12px] text-neutral-500 mt-0.5">
             {step === 'style'

@@ -1,9 +1,9 @@
 # JoyServing · 京小灵 统一设计规范（DESIGN.md）
 
 本规范是全站前端交互与视觉的**单一事实来源（Single Source of Truth）**。
-所有页面、组件在新增或修改时都应遵循本文件；如需扩展，请先更新本文件与对应 token/共享组件，再落地到页面，避免重新出现「散落的硬编码」。
+所有页面、组件在新增或修改时都应遵循本文件；如需扩展，请先更新本文件与对应 token/共享组件，再落地到页面，避免重新出现“散落的硬编码”。
 
-> 设计基调：**暖灰画布 + 墨黑主色（warm‑neutral + ink）**。克制、专业、信息密度高，强调内容而非装饰。统一前历史上存在「暖灰/墨黑」与「冷蓝/slate」两套并行风格，现已全部收敛到暖灰墨黑系。
+> 设计基调：**暖灰画布 + 墨黑主色（warm‑neutral + ink）**。克制、专业、信息密度高，强调内容而非装饰。统一前历史上存在“暖灰/墨黑”与“冷蓝/slate”两套并行风格，现已全部收敛到暖灰墨黑系。
 
 ---
 
@@ -13,6 +13,7 @@
 2. **Token 优先**：颜色、圆角、阴影一律走 token / 共享常量，不写裸十六进制（`bg-[#...]`）或随机灰阶。
 3. **组件复用**：页面头部、分段切换、弹窗、卡片、按钮、表单等重复结构必须复用共享层（见 §7），不再逐页手抄。
 4. **一致的层级语言**：标题 `font-extrabold` + `tracking-tight`；正文 `text-neutral-800`；次要信息 `text-neutral-500`；最弱信息 `text-neutral-400`。
+5. **禁止直角引号「」**：平台内用户可见文案（Toast、气泡、表单占位、按钮提示、Ghost 示例等）**不得出现** `「」`。需要强调专名时统一用中文弯引号 `“”`；解析用户输入时可兼容旧式 `「」`。
 
 ---
 
@@ -156,9 +157,22 @@ import { PAGE, CARD, CARD_HOVER, BTN_INK, FIELD } from '@/lib/ui';
 
 ---
 
-## 10. 维护清单（改动前自检）
+## 10. AI 产品面（引用 dongDesign-AI）
+
+技能创建 / 员工孵化培训 / 客服体验预览等 **AI 对话与创作面**，视觉与组件语义引用：
+
+- **文档**：https://jdesign.jd.com/x/vue/docs/install （dongDesign-AI）
+- **规则**：`.cursor/rules/ai-product-dongdesign.mdc`
+
+关键映射：Bubble / Sender / Think·ThoughtChain / Prompts / Attachments / Actions / FileCard。  
+本仓库用 React 映射规范，不安装 Vue 包；气泡正文默认 `14px/22px`、`#595959`。
+
+---
+
+## 11. 维护清单（改动前自检）
 
 - [ ] 颜色是否走了 token / 语义色？有没有新引入 `bg-[#...]`、`slate-*`、`blue-*`？
 - [ ] 头部 / 分段 / 弹窗 / 卡片 / 按钮 / 表单是否复用了共享层？
 - [ ] 圆角、阴影、间距是否符合 §4–§6？
+- [ ] AI 对话面是否对齐 §10 / dongDesign-AI？
 - [ ] `npm run lint`（tsc）与 `npm run build` 是否通过？

@@ -16,6 +16,8 @@ description: JoyServing 京小灵设计系统全量 Token 索引。覆盖全部 
 
 **优先级**：`src/index.css` + `lib/ui.ts` > 共享组件 > `DESIGN.md` > 本 skill。
 
+**AI 产品面外部规范**：对话气泡 / 输入框 / 思考链等对齐 [dongDesign-AI](https://jdesign.jd.com/x/vue/docs/install)（见 `.cursor/rules/ai-product-dongdesign.mdc`）。全站暖灰墨黑底盘不变；仅 AI 对话内容排版跟该规范。
+
 ---
 
 ## 使用方式
@@ -23,11 +25,13 @@ description: JoyServing 京小灵设计系统全量 Token 索引。覆盖全部 
 1. **查 token / 做 UI / 审查样式** → 先读 `tokens-full.md`
 2. 按场景补充读专题 reference（表单/组件/审查）
 3. 实现 import `@/lib/ui` + `common/` 组件
+4. **改 AI 对话 / 创作区** → 同时遵循 `ai-product-dongdesign` 规则与 dongDesign-AI 文档
 
 ### 场景 → references
 
 | 场景 | 必读 |
 |------|------|
+| **AI 对话气泡 / Sender / 思考链** | **dongDesign-AI** + `ai-product-dongdesign.mdc` + `typography.md` |
 | **产出 UI 规格 / 拼页面（产品）** | **`APPLICATION-MANUAL.md`** |
 | **全量 token 查询（默认）** | **`tokens-full.md`** |
 | 表单 / Modal CRUD | `tokens-full.md` + `forms.md` |

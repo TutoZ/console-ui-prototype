@@ -343,7 +343,7 @@ export const OnboardingQcConfigPanel: React.FC<OnboardingQcConfigPanelProps> = (
                 </div>
                 {profile.scoreGrades.length === 0 ? (
                   <p className="text-[11px] text-neutral-500 py-1">
-                    暂未配置分数等级，点击「新增等级」添加
+                    暂未配置分数等级，点击“新增等级”添加
                   </p>
                 ) : (
                 <div className="space-y-2">
@@ -645,7 +645,7 @@ export const OnboardingQcConfigPanel: React.FC<OnboardingQcConfigPanelProps> = (
                         />
                       </div>
                       <p className="text-[11px] text-neutral-500">
-                        类型：质检类 — 在左侧「追加二级项」配置具体质检点
+                        类型：质检类 — 在左侧“追加二级项”配置具体质检点
                       </p>
                       <div>
                         <label className={LABEL}>及格线（分）</label>
@@ -845,7 +845,7 @@ export const OnboardingQcConfigPanel: React.FC<OnboardingQcConfigPanelProps> = (
                             </div>
 
                             <div className="rounded-lg border border-sky-100 bg-sky-50/80 px-3 py-2 text-[11px] text-sky-900 leading-relaxed">
-                              大模型按提示词输出结论。系统仅将「违规 / 命中」记为命中，其余视为未命中。
+                              大模型按提示词输出结论。系统仅将“违规 / 命中”记为命中，其余视为未命中。
                             </div>
 
                             <div>

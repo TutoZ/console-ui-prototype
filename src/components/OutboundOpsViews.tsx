@@ -1150,7 +1150,7 @@ export const OutboundOpsViews: React.FC<{
             setCreatedTasks((prev) => [row, ...prev]);
             setSelectedTaskId(row.id);
             setCreateOpen(false);
-            onToast(`已创建外呼任务「${row.name}」`);
+            onToast(`已创建外呼任务“${row.name}”`);
           }}
         />
         </>

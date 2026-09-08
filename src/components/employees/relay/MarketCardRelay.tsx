@@ -12,7 +12,7 @@ export interface MarketCardRelayProps {
   avatarSrc?: string;
   avatarEmoji?: string;
   category: 'ready' | 'custom';
-  /** 岗位族标签，如「质检」 */
+  /** 岗位族标签，如“质检” */
   jobFamilyLabel?: string;
   isHiredAlready: boolean;
   onHire: () => void;

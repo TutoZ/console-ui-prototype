@@ -49,7 +49,7 @@ import { PersonalCenterModal } from './PersonalCenterModal';
 import { NotificationCenterFlyout, NOTIFICATION_FLYOUT_SELECTOR } from './nav/NotificationCenterFlyout';
 import { SubUserJoinApprovalBatchModal } from './nav/SubUserJoinApprovalBatchModal';
 
-/** V1：超过 7 个业务域时，第 7 个起收入「更多」（含「更多」本身共 7 个槽） */
+/** V1：超过 7 个业务域时，第 7 个起收入“更多”（含“更多”本身共 7 个槽） */
 const RAIL_VISIBLE_SLOT_COUNT = 7;
 
 addCollection(solarIcons as Parameters<typeof addCollection>[0]);
@@ -166,7 +166,7 @@ const activeRailLabelClass = NAV_ACTIVE_GRADIENT_TEXT;
 
 export const PrimaryNavRail: React.FC<{
   showRightBorder?: boolean;
-  /** 仅 V1：业务域超过 7 个时，第 7 个变成「更多」 */
+  /** 仅 V1：业务域超过 7 个时，第 7 个变成“更多” */
   overflowToMore?: boolean;
 }> = ({ showRightBorder = false, overflowToMore = false }) => {
   const {
@@ -499,7 +499,7 @@ export const PrimaryNavRail: React.FC<{
         />
       </div>
 
-      {/* 业务域：全部展示，不收入「更多」 */}
+      {/* 业务域：全部展示，不收入“更多” */}
       <div className="flex flex-1 flex-col items-center gap-2.5 w-full px-2 overflow-y-auto overflow-x-visible custom-scrollbar">
         {pinnedDomainNav.map((item) => {
           const active = navDomain === item.id;

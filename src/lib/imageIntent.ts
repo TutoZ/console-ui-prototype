@@ -3,7 +3,7 @@ import {
   stripRefChipPlainNoise,
 } from "./chatRefImage";
 
-/** 是否出现「要出图 / 生成图」类关键词（仅关键词，不决定是否立刻调生图接口） */
+/** 是否出现“要出图 / 生成图”类关键词（仅关键词，不决定是否立刻调生图接口） */
 export function hasImageRequestKeywords(text: string): boolean {
   const s = text.trim();
   if (!s) return false;
@@ -16,7 +16,7 @@ export function hasImageRequestKeywords(text: string): boolean {
   ) {
     return true;
   }
-  /** 「生成两只猫」「画一条龙」等：无「图」字但明显是出图委托 */
+  /** “生成两只猫”“画一条龙”等：无“图”字但明显是出图委托 */
   if (
     /(?:^|[\s，,.。!！：:；;])(?:生成|画)\s*(?:[一二三四五六七八九十两\d]+\s*)?[只个条张幅辆位](?![\d年月日])/i.test(
       s
@@ -35,7 +35,7 @@ export function hasImageRequestKeywords(text: string): boolean {
   return false;
 }
 
-/** 明显以「成片 / 动效 / 分镜叙事」为主，避免误走文生图（除非同句要静帧/封面/关键帧等） */
+/** 明显以“成片 / 动效 / 分镜叙事”为主，避免误走文生图（除非同句要静帧/封面/关键帧等） */
 export function isVideoPrimaryRequest(text: string): boolean {
   const t = text.trim();
   if (!t) return false;
@@ -46,7 +46,7 @@ export function isVideoPrimaryRequest(text: string): boolean {
 
 /**
  * 用户明确要求生成**成片视频**（应调用 /api/videos），而非只要分镜文字或其它静态图。
- * 与「视频封面头图」等静帧需求区分：仅文案/脚本不要成片时排除。
+ * 与“视频封面头图”等静帧需求区分：仅文案/脚本不要成片时排除。
  */
 export function isDirectVideoGenerationRequest(text: string): boolean {
   const t = text.trim();
@@ -78,7 +78,7 @@ export function wantsImmediateImageGeneration(text: string): boolean {
   );
 }
 
-/** 用户强调要长文档/策略，暂缓出图（除非同句明确要求立刻生图）。避免匹配「继续聊」等日常用语导致误挡生图。 */
+/** 用户强调要长文档/策略，暂缓出图（除非同句明确要求立刻生图）。避免匹配“继续聊”等日常用语导致误挡生图。 */
 export function wantsLongPlanningOnly(text: string): boolean {
   const t = text.trim();
   if (!t) return false;
@@ -87,7 +87,7 @@ export function wantsLongPlanningOnly(text: string): boolean {
   );
 }
 
-/** 多轮对话里对画面/生图的跟进描述（未必再含「图」字） */
+/** 多轮对话里对画面/生图的跟进描述（未必再含“图”字） */
 export function looksLikeVisualFollowUp(text: string): boolean {
   const t = text.trim();
   if (t.length < 2) return false;
@@ -113,7 +113,7 @@ function isPureGreeting(text: string): boolean {
 }
 
 /**
- * 明显是「要文字/代码/解释」类任务，走对话而非生图。
+ * 明显是“要文字/代码/解释”类任务，走对话而非生图。
  */
 export function wantsCopywritingOrTextTask(text: string): boolean {
   const t = text.trim();
@@ -123,7 +123,7 @@ export function wantsCopywritingOrTextTask(text: string): boolean {
 }
 
 /**
- * 描述是否足够具体，可直接调用生图（与「先意图→需求→规划→再出图」对齐）。
+ * 描述是否足够具体，可直接调用生图（与“先意图→需求→规划→再出图”对齐）。
  * 门槛略放宽：非特别复杂时尽量首轮或第二轮即能出图。
  */
 function isConcreteEnoughForImageSpec(text: string): boolean {
@@ -173,7 +173,7 @@ function isConcreteEnoughForImageSpec(text: string): boolean {
   return score >= 2;
 }
 
-/** 明确表达「要出图」的短句 */
+/** 明确表达“要出图”的短句 */
 export function hasStrongImageIntentVerb(text: string): boolean {
   return /生图|出图|文生图|生成图片|生成图|画一张图|来一张图|做个图|搞张图|跑张图|整一张|上图|出效果图|做效果图/i.test(
     text.trim()
@@ -181,13 +181,13 @@ export function hasStrongImageIntentVerb(text: string): boolean {
 }
 
 export type ImageIntentOptions = {
-  /** 上一轮助手侧车规划中标记可出图时，降低「描述需足够具体」门槛 */
+  /** 上一轮助手侧车规划中标记可出图时，降低“描述需足够具体”门槛 */
   creagicPlanReadyForImage?: boolean;
 };
 
 /**
- * 是否应走「文生图」接口：命中出图意图且（描述已足够具体 | 用户明确要求立刻出图 | 规划已就绪）。
- * 否则先走对话，由助手完成意图识别、需求挖掘与任务规划后再让用户补充或说「确认出图」。
+ * 是否应走“文生图”接口：命中出图意图且（描述已足够具体 | 用户明确要求立刻出图 | 规划已就绪）。
+ * 否则先走对话，由助手完成意图识别、需求挖掘与任务规划后再让用户补充或说“确认出图”。
  */
 export function looksLikeImageRequest(
   text: string,
@@ -198,7 +198,7 @@ export function looksLikeImageRequest(
   if (hasStrongImageIntentVerb(text)) return true;
   if (isConcreteEnoughForImageSpec(text)) return true;
   const s = text.trim();
-  /** 已命中出图关键词且为「动词+数量单位+主体」短指令，不必再要求两个风格词 */
+  /** 已命中出图关键词且为“动词+数量单位+主体”短指令，不必再要求两个风格词 */
   if (
     /(?:生成|画)\s*(?:[一二三四五六七八九十两]+\s*)?[只个条张幅辆位]\s*\S{1,40}$/i.test(
       s
@@ -241,7 +241,7 @@ export type ImagePipelineContext = {
 };
 
 /**
- * 是否可走文生图链路（仅意图层）：须明确出图或描述足够具体；不再「提到图字就出图」。
+ * 是否可走文生图链路（仅意图层）：须明确出图或描述足够具体；不再“提到图字就出图”。
  */
 export function shouldUseImagePipeline(
   userPlain: string,
@@ -292,7 +292,7 @@ export function shouldUseImagePipeline(
 }
 
 /**
- * 用户是否**明确**表达要生成画面（用于自动跟进出图等，避免仅因句子里有「图」字就调用生图 API）。
+ * 用户是否**明确**表达要生成画面（用于自动跟进出图等，避免仅因句子里有“图”字就调用生图 API）。
  */
 export function userAskedExplicitImageGeneration(text: string): boolean {
   const t = text.trim();
@@ -324,7 +324,7 @@ export function userAskedExplicitImageGeneration(text: string): boolean {
 
 /**
  * 是否允许本回合**直接调用** `/api/images`：须明确要求或足够具体的画面描述；
- * 仅有参考图而无文字说明时不出图，避免「还没说画什么就生成」。
+ * 仅有参考图而无文字说明时不出图，避免“还没说画什么就生成”。
  */
 export function isEligibleForDirectImageGeneration(
   userPlain: string,

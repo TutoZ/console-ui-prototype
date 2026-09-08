@@ -58,7 +58,7 @@ import {
 /** 培训配置面板表单 — 比全局 FIELD 略大，提升可读性 */
 export const ONBOARDING_FIELD = cn(FIELD, 'text-sm/relaxed');
 
-/** 暂时隐藏入职标签的「标签选择 / 优化」与 chip 切换 */
+/** 暂时隐藏入职标签的“标签选择 / 优化”与 chip 切换 */
 const SHOW_PERSONA_TAG_SELECTOR = false;
 
 function AgentAvatarButton({
@@ -929,7 +929,7 @@ export const OnboardingConfigPanel: React.FC<OnboardingConfigPanelProps> = ({
     onKnowledgeBound?.();
     closeKbCreateModal();
     setEditingKbId(kb.id);
-    showToast(`已创建并配备「${kb.name}」`);
+    showToast(`已创建并配备“${kb.name}”`);
   };
 
   const handleSave = () => {
@@ -941,7 +941,7 @@ export const OnboardingConfigPanel: React.FC<OnboardingConfigPanelProps> = ({
     }
     setLastSavedAt(new Date());
     setIsDirty(false);
-    showToast(`「${formatAgentDisplayName(agent, hiredAgents)}」配置已保存`);
+    showToast(`“${formatAgentDisplayName(agent, hiredAgents)}”配置已保存`);
     onConfigSaved?.();
   };
 
@@ -1500,7 +1500,7 @@ export const OnboardingConfigPanel: React.FC<OnboardingConfigPanelProps> = ({
         confirmLabel={EMPLOYEE_RESOURCE_TERMS.confirmAssign}
         emptyHint={
           knowledgeBases.filter((kb) => !displayAgent.knowledgeBases.includes(kb.id)).length === 0
-            ? '团队暂无可指定的知识库，请先在「员工知识」新建'
+            ? '团队暂无可指定的知识库，请先在“员工知识”新建'
             : SEARCH_COPY.noKb
         }
         items={knowledgeBases
@@ -1526,7 +1526,7 @@ export const OnboardingConfigPanel: React.FC<OnboardingConfigPanelProps> = ({
         confirmLabel={EMPLOYEE_RESOURCE_TERMS.confirmAssign}
         emptyHint={
           skills.filter((sk) => !displayAgent.skills.includes(sk.id)).length === 0
-            ? '团队暂无可指定的技能，请先在「员工技能」新建'
+            ? '团队暂无可指定的技能，请先在“员工技能”新建'
             : SEARCH_COPY.noSkill
         }
         items={skills

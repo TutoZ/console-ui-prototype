@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 interface AgentDeskStripProps {
   agents: HiredAgent[];
   sessions: ChatSession[];
-  /** null 表示「全部数字员工」 */
+  /** null 表示“全部数字员工” */
   selectedAgentId?: string | null;
   onSelectAgent?: (agentId: string | null) => void;
 }

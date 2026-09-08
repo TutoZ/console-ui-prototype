@@ -545,7 +545,7 @@ export function WorkflowNodeConfigPanel({
           {/* 输入：变量名 + 变量类型（引用） */}
           <div>
             <div className="flex items-center gap-1 mb-2 font-semibold text-[13px] text-neutral-800">
-              输入 <InfoTooltip text="配置检索所需输入变量；类型为「引用」时可选择上游 / 会话变量。" />
+              输入 <InfoTooltip text="配置检索所需输入变量；类型为“引用”时可选择上游 / 会话变量。" />
               <div className="flex-1" />
               <button
                 type="button"
@@ -1066,7 +1066,7 @@ export function WorkflowNodeConfigPanel({
                     {filteredKb.length === 0 ? (
                       <div className="py-6 text-center text-[13px] text-neutral-400 px-3">
                         {kbOptions.length === 0
-                          ? '暂无知识库，请先在「员工知识」中创建'
+                          ? '暂无知识库，请先在“员工知识”中创建'
                           : '无匹配知识库'}
                       </div>
                     ) : null}

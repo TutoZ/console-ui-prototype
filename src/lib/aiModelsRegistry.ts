@@ -5,9 +5,9 @@ export type MediaModelManifestRow = {
   desc: string;
   isDefault?: boolean;
   icon?: "spin" | "grid" | "layers";
-  /** 预估耗时等 UI 标签，如「20s」「300s」 */
+  /** 预估耗时等 UI 标签，如“20s”“300s” */
   etaHint?: string;
-  /** 显示「会员专属」等 */
+  /** 显示“会员专属”等 */
   memberOnly?: boolean;
 };
 

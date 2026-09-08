@@ -113,7 +113,7 @@ export function buildAgentReplyPlan(
 
   let infoMessage = `数字员工【${agent.name}】接收外部客户 ${customerName} 的消息，场景：${scenario}。`;
   if (personaHint) {
-    infoMessage += ` 按入职标签「${personaHint}${agent.persona && agent.persona.length > 36 ? '…' : ''}」理解诉求。`;
+    infoMessage += ` 按入职标签“${personaHint}${agent.persona && agent.persona.length > 36 ? '…' : ''}”理解诉求。`;
   }
 
   let decisionMessage = '员工知识与技能执行完毕，生成回复草稿。';

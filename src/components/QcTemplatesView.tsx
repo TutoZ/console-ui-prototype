@@ -102,7 +102,7 @@ export const QcTemplatesView: React.FC<QcTemplatesViewProps> = ({
     if (detailTemplateId === templateId) {
       setDetailTemplateId(null);
     }
-    showToast?.(target ? `已删除「${target.name}」` : '模板已删除');
+    showToast?.(target ? `已删除“${target.name}”` : '模板已删除');
   };
 
   if (detailTemplate) {
@@ -248,7 +248,7 @@ export const QcTemplatesView: React.FC<QcTemplatesViewProps> = ({
                       type="button"
                       className={BTN_TABLE}
                       onClick={() =>
-                        showToast?.(`已复制「${template.name}」为草稿，可在详情中继续编辑`)
+                        showToast?.(`已复制“${template.name}”为草稿，可在详情中继续编辑`)
                       }
                     >
                       复制

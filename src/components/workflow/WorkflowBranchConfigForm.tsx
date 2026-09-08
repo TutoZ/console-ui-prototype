@@ -199,7 +199,7 @@ export function WorkflowBranchConfigForm({ config, onChange }: WorkflowBranchCon
     <div ref={rootRef} className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1 font-semibold text-[13px] text-neutral-800">
-          规则设置 <InfoTooltip text="规则组按优先级从上到下判断，命中即停；组内条件用「或 / 且」组合。" />
+          规则设置 <InfoTooltip text="规则组按优先级从上到下判断，命中即停；组内条件用“或 / 且”组合。" />
         </div>
         <button
           type="button"

@@ -37,7 +37,7 @@ const SAMPLE_PASTE = `客服：您放心，今天一定给您处理完，绝对�
 客服：好的，我保证办妥。`;
 
 const GREETING =
-  '你好，我是质检数字员工。把一段客服会话贴到下方发送，或在上方勾选通用测试样例后点「按标准质检」。';
+  '你好，我是质检数字员工。把一段客服会话贴到下方发送，或在上方勾选通用测试样例后点“按标准质检”。';
 
 type ChatMsg =
   | { id: string; role: 'assistant'; text: string }
@@ -198,7 +198,7 @@ export const OnboardingQcTestPanel: React.FC<OnboardingQcTestPanelProps> = ({
         return;
       }
       setInput(text);
-      showToast(`已从「${file.name}」载入会话`);
+      showToast(`已从“${file.name}”载入会话`);
     };
     reader.onerror = () => showToast('读取文件失败');
     reader.readAsText(file, 'UTF-8');

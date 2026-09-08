@@ -47,11 +47,11 @@ interface EmployeeHomeRelayProps {
   /** 是否展示顶部 Banner（培训页可关闭） */
   showBanner?: boolean;
   onStartHire: () => void;
-  /** 不选市场模板，空白起盘定制（仅「我的数字员工」页） */
+  /** 不选市场模板，空白起盘定制（仅“我的数字员工”页） */
   onCreateFromScratch?: () => void;
-  /** 页头标题，默认「我的数字员工」 */
+  /** 页头标题，默认“我的数字员工” */
   pageTitle?: string;
-  /** 自建按钮文案（培训页可改为「创建在线客服」） */
+  /** 自建按钮文案（培训页可改为“创建在线客服”） */
   createButtonLabel?: string;
   createButtonTitle?: string;
   search: string;

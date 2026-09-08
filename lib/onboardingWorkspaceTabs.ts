@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * 员工岗前工作台顶栏 Tab — 立即雇佣后老板管理该数字员工
- * 员工知识 / 数字员工技能已下沉到「入职培训」左侧 ConfigSection，不再出现在顶栏。
+ * 员工知识 / 数字员工技能已下沉到“入职培训”左侧 ConfigSection，不再出现在顶栏。
  */
 
 import { LIFECYCLE_TERMS, NAV_TERMS } from './platformTerminology';

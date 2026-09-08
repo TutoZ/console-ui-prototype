@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 分轮澄清确认区 — 参考 Manus「应触发 / 不应触发」与一次一问，视觉对齐平台 token
+ * 分轮澄清确认区 — 参考 Manus“应触发 / 不应触发”与一次一问，视觉对齐平台 token
  */
 
 import React, { useEffect, useState } from 'react';

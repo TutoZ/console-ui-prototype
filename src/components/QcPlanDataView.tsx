@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 质检计划「查看数据」— 统计卡 + 会话明细表（对齐设计稿）
+ * 质检计划“查看数据”— 统计卡 + 会话明细表（对齐设计稿）
  */
 
 import React, { useMemo } from 'react';

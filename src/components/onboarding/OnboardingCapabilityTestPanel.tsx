@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 入职培训 / 孵化共用 — 右侧「预览和调试」对话能力测试
+ * 入职培训 / 孵化共用 — 右侧“预览和调试”对话能力测试
  */
 
 import React, { useState } from 'react';
@@ -79,9 +79,9 @@ export type OnboardingCapabilityTestPanelProps = {
   locked?: boolean;
   lockPlaceholder?: string;
   lockToast?: string;
-  /** 顶栏标题，默认「能力测试」；孵化侧可传「预览和调试」 */
+  /** 顶栏标题，默认“能力测试”；孵化侧可传“预览和调试” */
   title?: string;
-  /** 顶部提示条（如「请先保存」） */
+  /** 顶部提示条（如“请先保存”） */
   hintBanner?: React.ReactNode;
   className?: string;
   /** 是否显示顶栏工具（会话 ID / 重置）；默认 true */

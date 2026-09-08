@@ -317,7 +317,7 @@ export const CustomerExperiencePage: React.FC = () => {
     completedTurnIds,
   ]);
 
-  /** 开场淡出即进入思维链页，并开始播「自主规划 / 主动预测」（每个 boot 只播一次） */
+  /** 开场淡出即进入思维链页，并开始播“自主规划 / 主动预测”（每个 boot 只播一次） */
   const preStartedBootRef = useRef<number | null>(null);
   useEffect(() => {
     if (introPhase === 'show') return;
@@ -550,7 +550,7 @@ export const CustomerExperiencePage: React.FC = () => {
           setCapabilityRunning(true);
         }
 
-        // 有安抚气泡时：右侧「先安抚」收束 → 左侧安抚；能力演示结束后再出规则/选单
+        // 有安抚气泡时：右侧“先安抚”收束 → 左侧安抚；能力演示结束后再出规则/选单
         if (!fast && bubbles.length > 1 && extras?.turnId && thinkMs > 1200) {
           const leadAt = getCapabilityLeadAtMs(extras.turnId, thinkMs);
           const rest = bubbles.slice(1);
@@ -1081,7 +1081,7 @@ export const CustomerExperiencePage: React.FC = () => {
       setDemoAutoplay(false);
       return;
     }
-    // 先播完右侧「自主规划」并露出左侧开场白，再打用户进线
+    // 先播完右侧“自主规划”并露出左侧开场白，再打用户进线
     if (demoCursor === 0 && (!openingRevealed || capabilityRunning || introPhase === 'fade')) {
       return;
     }

@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 资源中心等「详见 PRD / 本期占位」页
+ * 资源中心等“详见 PRD / 本期占位”页
  */
 
 import React from 'react';

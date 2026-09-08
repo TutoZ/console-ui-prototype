@@ -187,7 +187,7 @@ export function computeValidationErrors(
           errors.push({
             id: node.id,
             type: node.type,
-            msg: `「${group.kind}」分支未连接下游`,
+            msg: `“${group.kind}”分支未连接下游`,
           });
         }
         if (group.kind === '否则') return;
@@ -196,7 +196,7 @@ export function computeValidationErrors(
             errors.push({
               id: node.id,
               type: node.type,
-              msg: `「${group.kind}」第 ${i + 1} 条条件左值不可为空`,
+              msg: `“${group.kind}”第 ${i + 1} 条条件左值不可为空`,
             });
           }
           const needRight = !BRANCH_OPS_WITHOUT_RIGHT.includes(cond.operator);
@@ -204,7 +204,7 @@ export function computeValidationErrors(
             errors.push({
               id: node.id,
               type: node.type,
-              msg: `「${group.kind}」第 ${i + 1} 条条件右值不可为空`,
+              msg: `“${group.kind}”第 ${i + 1} 条条件右值不可为空`,
             });
           }
         });

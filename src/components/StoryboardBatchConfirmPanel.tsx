@@ -29,7 +29,7 @@ export function StoryboardBatchConfirmPanel({
         <div>
           <p className="text-xs font-semibold text-neutral-800">确认分镜提示词</p>
           <p className="mt-0.5 text-[11px] leading-snug text-neutral-500">
-            每条对应一格静帧；可编辑、增删行（至少 2 条有效内容）。完成后点「开始生成」。
+            每条对应一格静帧；可编辑、增删行（至少 2 条有效内容）。完成后点“开始生成”。
           </p>
         </div>
         {splitting ? (

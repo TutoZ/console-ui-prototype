@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * 质检运营应用 — 按流程：概览指引 → 计划常驻 → 会话质检单
- * 嵌在管理台主内容区（侧栏「应用 → 质检」），不跳出全屏
+ * 嵌在管理台主内容区（侧栏“应用 → 质检”），不跳出全屏
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -110,7 +110,7 @@ export const QcWorkspacePage: React.FC = () => {
 
   const qcAgents = useMemo(() => hiredAgents.filter(isQcAgent), [hiredAgents]);
 
-  /** 概览智能洞察：优先在岗质检员工，头像与「我的数字员工」同源 */
+  /** 概览智能洞察：优先在岗质检员工，头像与“我的数字员工”同源 */
   const insightAgentVisual = useMemo(() => {
     const agent =
       qcAgents.find((a) => isAgentOnDuty(a)) ?? qcAgents[0] ?? null;
@@ -528,7 +528,7 @@ export const QcWorkspacePage: React.FC = () => {
     setQcRailTab('workspace');
     setWorkspaceView('board');
     setQueueTab('all');
-    showToast(`计划「${name}」已创建，点击「开始」运行`);
+    showToast(`计划“${name}”已创建，点击“开始”运行`);
   };
 
   const startPlan = (planId: string) => {
@@ -771,7 +771,7 @@ export const QcWorkspacePage: React.FC = () => {
                 ))}
                 {observePanel.bizCards.length === 0 && (
                   <p className="text-xs text-neutral-500 col-span-full py-4 text-center border border-dashed border-neutral-200 rounded-[13px]">
-                    暂无业务指标，请先在「指标设置」中配置
+                    暂无业务指标，请先在“指标设置”中配置
                   </p>
                 )}
               </div>
@@ -882,7 +882,7 @@ export const QcWorkspacePage: React.FC = () => {
           )}
           {!QC_APP_IMPLEMENTED_TABS.has(qcMainTab) && (
             <div className="flex-1 flex items-center justify-center text-sm text-neutral-500">
-              「{qcAppTabLabel(qcMainTab)}」即将上线
+              “{qcAppTabLabel(qcMainTab)}”即将上线
             </div>
           )}
         </div>
@@ -1187,7 +1187,7 @@ export const QcWorkspacePage: React.FC = () => {
                                   <p>
                                     <span className="font-semibold">改善意见：</span>
                                     {selectedTicket.audit.hits.length > 0
-                                      ? `建议加强「${selectedTicket.audit.hits[0].itemName}」话术规范，并在承诺类表述前完成核验。`
+                                      ? `建议加强“${selectedTicket.audit.hits[0].itemName}”话术规范，并在承诺类表述前完成核验。`
                                       : '继续保持规范话术，可沉淀为优秀案例。'}
                                   </p>
                                 </div>

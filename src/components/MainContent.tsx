@@ -16,7 +16,7 @@ const RECENT_PROJECT_THUMB_FRAME_CLASS =
   "relative isolate w-full shrink-0 aspect-[1.6/1] overflow-hidden rounded-[13px] bg-neutral-100/90 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)] transition-[background-color,box-shadow] group-hover:bg-neutral-100 group-hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]";
 
 /**
- * 「新建项目」整块灰区：与项目卡同列高时 flex-1 填满（等同 缩略图+间距+标题区 总高度），无额外占位节点
+ * “新建项目”整块灰区：与项目卡同列高时 flex-1 填满（等同 缩略图+间距+标题区 总高度），无额外占位节点
  */
 const RECENT_NEW_PROJECT_GRAY_CLASS =
   "relative isolate flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden rounded-[13px] bg-neutral-100/90 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)] transition-[background-color,box-shadow] group-hover:bg-neutral-100 group-hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]";

@@ -13,16 +13,16 @@ export interface EmployeeCardRelayProps {
   avatar: string;
   avatarFallback?: string;
   isOnline: boolean;
-  /** 主按钮文案，默认「培训」 */
+  /** 主按钮文案，默认“培训” */
   primaryActionLabel?: string | null;
   onPrimaryAction?: () => void;
   /**
-   * 次按钮：仅当没有上下岗时展示「派发任务」。
+   * 次按钮：仅当没有上下岗时展示“派发任务”。
    * 卡片主区最多两个主按钮：培训 + 上下岗；无上下岗才用派发任务。
    */
   onDispatchTask?: () => void;
   dispatchActionLabel?: string;
-  /** 展示「上岗」或「下岗」时，不再同时展示派发任务 */
+  /** 展示“上岗”或“下岗”时，不再同时展示派发任务 */
   showGoOnlineButton?: boolean;
   onGoOnline?: () => void;
   onMoreClick?: (e: React.MouseEvent) => void;

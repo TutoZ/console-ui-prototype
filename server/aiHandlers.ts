@@ -127,7 +127,7 @@ const LIBLIB_COMFY_REMOVE_BG_UUID =
 const LIBLIB_COMFY_REMOVE_BG_MODEL_INFO_PATH =
   process.env.LIBLIB_COMFY_REMOVE_BG_MODEL_INFO_PATH?.trim() ||
   LIBLIB_DEFAULT_REMOVE_BG_MODEL_INFO_PATH;
-/** Liblib 开放平台「Comfy 应用」templateUuid（与官方工作流页 uuid 对齐） */
+/** Liblib 开放平台“Comfy 应用”templateUuid（与官方工作流页 uuid 对齐） */
 const LIBLIB_DEFAULT_REMOVE_BG_TEMPLATE_UUID = "574a938681da4e8ba2e1c24d55784edf";
 const LIBLIB_DEFAULT_ENHANCE_TEMPLATE_UUID = "c44f310cd0df4771be5bddfea6350c3a";
 /** 可选：两功能共用同一 Comfy 应用时设此项，会覆盖下方各功能默认（兼容旧 .env） */
@@ -424,7 +424,7 @@ export const CHAT_MODEL =
 const ROUTER_MODEL =
   process.env.AIHUBMIX_ROUTER_MODEL?.trim() || "qwen3-vl-flash-2026-01-22";
 
-/** 默认与 CHAT 一致，避免「快捷对话可用、多段编排报参数错」两套模型权限不一致 */
+/** 默认与 CHAT 一致，避免“快捷对话可用、多段编排报参数错”两套模型权限不一致 */
 export const ORCHESTRATION_MODEL =
   process.env.AIHUBMIX_ORCHESTRATION_MODEL?.trim() || CHAT_MODEL;
 
@@ -451,19 +451,19 @@ export async function handleRouteIntentRequest(
   const hasRef = Boolean(body.hasReferenceImage);
   const hasPrior = Boolean(body.hasPriorGeneratedImage);
 
-  const system = `你是 Creagic AI 内置的「意图路由器」，只输出一个 JSON 对象，不要 markdown，不要解释。
+  const system = `你是 Creagic AI 内置的“意图路由器”，只输出一个 JSON 对象，不要 markdown，不要解释。
 JSON schema：
 {"mode":"chat"|"image_gen"|"image_edit"|"plan"|"video","optimized_prompt":"string","reason":"string"}
 
 mode 含义：
 - chat：极短寒暄、身份问答、一两句闲聊，且无创作任务。
-- video：分镜脚本、故事板、短视频/宣传片/动效/逐帧或时间轴类**音视频叙事**。**勿**将用户一句话未经确认就直接打成「侧栏仅一次 HTTP 文生图」；应先走多轮文字策划与分镜对齐。说明：文生图 API **不能**直接返回 MP4，但可在用户确认后于**后续轮次**用对话内工具逐帧生成**关键帧静图**，或引导用户到画布「生视频」。路由为 video = 使用多轮编排，不等于承诺单轮已出成片。
-- plan：需要分步策划、多交付物、品牌/活动全案、或已挂载「技能文档」时用户目标尚模糊、需**渐进式披露**（先问清再决定出图/对话/分镜）；含「帮我做个方案」但说不清媒介时用这个。
+- video：分镜脚本、故事板、短视频/宣传片/动效/逐帧或时间轴类**音视频叙事**。**勿**将用户一句话未经确认就直接打成“侧栏仅一次 HTTP 文生图”；应先走多轮文字策划与分镜对齐。说明：文生图 API **不能**直接返回 MP4，但可在用户确认后于**后续轮次**用对话内工具逐帧生成**关键帧静图**，或引导用户到画布“生视频”。路由为 video = 使用多轮编排，不等于承诺单轮已出成片。
+- plan：需要分步策划、多交付物、品牌/活动全案、或已挂载“技能文档”时用户目标尚模糊、需**渐进式披露**（先问清再决定出图/对话/分镜）；含“帮我做个方案”但说不清媒介时用这个。
 - image_gen：用户**明确要单张静态图**（海报/主视觉/插画/封面静帧等），且不是以上视频/策划优先场景。
 - image_edit：在既有图基础上改构图/风格/配色/比例/换元素；用户已贴参考图(${hasRef}) 或存在可编辑的上一张图(${hasPrior}) 时，若用户诉求是改图，优先 image_edit。
 
 optimized_prompt：给下游文生图/编辑链路的指令（中文）。**必须保留用户原文中的主体、场景、风格、关键物体与动作**；只允许补充光影、构图、镜头、分辨率、材质等技术层描述，**禁止**把用户主题改写成无关题材。
-若 hasReferenceImage 为 true：用户已上传参考图，optimized_prompt 须假定下游会看到该图，**不得忽略用户文字**；不得仅写泛泛的「高质量插画」而丢掉用户指定的内容。
+若 hasReferenceImage 为 true：用户已上传参考图，optimized_prompt 须假定下游会看到该图，**不得忽略用户文字**；不得仅写泛泛的“高质量插画”而丢掉用户指定的内容。
 若无需改写则可与 userText 实质等价（可轻度润色）。
 reason：极短中文，仅供调试。`;
 
@@ -620,7 +620,7 @@ function imageModelSizeFamily(model: string): ImageModelSizeFamily {
   ) {
     return "sd35_family";
   }
-  // FLUX、SDXL、多数聚合「OpenAI 兼容」文生图线路常用 1024 / 1792 档位，勿默认走 gpt-image 的 1536 与 auto
+  // FLUX、SDXL、多数聚合“OpenAI 兼容”文生图线路常用 1024 / 1792 档位，勿默认走 gpt-image 的 1536 与 auto
   if (
     /flux|seedream|sdxl|stable-diffusion|stable\s*diffusion|\bsd[-\s]?3\b|playground|midjourney|recraft|wanx|wan2\.|jimeng|qwen|kling|imagen|\bv[_-]?2\b/i.test(
       x
@@ -939,14 +939,14 @@ function extractImageDisplayUrlFromUpstream(
   if (looksLikeAsyncImageTask(root)) {
     return {
       err:
-        "上游返回了异步任务或未完成的生成状态（无同步图片字段）。请换用模型广场支持「同步返回 URL / base64」的文生图 apiModelId，或使用侧栏多轮策划 + 画布「生视频」。",
+        "上游返回了异步任务或未完成的生成状态（无同步图片字段）。请换用模型广场支持“同步返回 URL / base64”的文生图 apiModelId，或使用侧栏多轮策划 + 画布“生视频”。",
       hintKeys: shallowJsonKeys(root),
     };
   }
 
   return {
     err:
-      "未返回图片地址。常见原因：① 所选 model 为「视频」模型，/v1/images/generations 只返回静态图 URL；请在模型列表中选文生图模型，或改用侧栏多轮策划 + 画布「生视频」出关键帧。② 上游返回了不兼容的 JSON 结构（例如仅 task_id）。请到 AIHubMix 模型广场核对 apiModelId。",
+      "未返回图片地址。常见原因：① 所选 model 为“视频”模型，/v1/images/generations 只返回静态图 URL；请在模型列表中选文生图模型，或改用侧栏多轮策划 + 画布“生视频”出关键帧。② 上游返回了不兼容的 JSON 结构（例如仅 task_id）。请到 AIHubMix 模型广场核对 apiModelId。",
     hintKeys: shallowJsonKeys(root),
   };
 }
@@ -982,7 +982,7 @@ function liblibBizCodeIsSuccess(code: unknown): boolean {
   return n === 0 || n === 10000 || n === 20000;
 }
 
-/** 业务失败时返回可读说明（避免误报「未返回 generateUuid」） */
+/** 业务失败时返回可读说明（避免误报“未返回 generateUuid”） */
 function extractLiblibBizFailure(parsed: unknown): string | null {
   if (!parsed || typeof parsed !== "object") return null;
   const r = parsed as Record<string, unknown>;
@@ -1009,12 +1009,12 @@ function extractLiblibBizFailure(parsed: unknown): string | null {
   if (!Number.isFinite(n)) {
     return msg || "业务失败";
   }
-  /** 带上业务码便于对照 Liblib 文档 / 工单；例如 200000 +「内部服务错误」多为模板与密钥未在开放平台绑定 */
+  /** 带上业务码便于对照 Liblib 文档 / 工单；例如 200000 +“内部服务错误”多为模板与密钥未在开放平台绑定 */
   return msg ? `${msg}（Liblib 业务码：${n}）` : `业务失败（Liblib 业务码：${n}）`;
 }
 
 /**
- * Liblib 常返回笼统的「内部服务错误」；多为鉴权、templateUuid、或输入图 URL 对其不可达。
+ * Liblib 常返回笼统的“内部服务错误”；多为鉴权、templateUuid、或输入图 URL 对其不可达。
  * 附加简短排查提示，避免用户误以为本仓库 Node 进程崩溃。
  */
 function appendLiblibVagueFailureHint(msg: string): string {
@@ -1026,7 +1026,7 @@ function appendLiblibVagueFailureHint(msg: string): string {
   if (!vague) return msg;
   /** 实测开放平台在签名正确时仍可能返回 200000 + data=null，多为模板未与该 AccessKey 绑定 */
   if (/业务码[：:]\s*200000|Liblib 业务码：200000/.test(msg)) {
-    return `${msg}（HTTP 200 且签名已通过：① 到 Liblib 开放平台「API 应用 / Comfy 应用」复制与当前 AccessKey 绑定的 templateUuid（与工作流详情 uuid 可能不一致，勿混用）；② 勿同时配置 LIBLIB_COMFY_API_KEY 与 AK/SK（除非 LIBLIB_COMFY_ATTACH_API_KEY_WITH_SIGNATURE=1）；③ 勿用 LIBLIB_COMFY_TEMPLATE_UUID 覆盖除非你确认该 ID。输入图须已走 Liblib 图床上传。终端会打 [liblib] Comfy 提交 200000 与当前 templateUuid。）`;
+    return `${msg}（HTTP 200 且签名已通过：① 到 Liblib 开放平台“API 应用 / Comfy 应用”复制与当前 AccessKey 绑定的 templateUuid（与工作流详情 uuid 可能不一致，勿混用）；② 勿同时配置 LIBLIB_COMFY_API_KEY 与 AK/SK（除非 LIBLIB_COMFY_ATTACH_API_KEY_WITH_SIGNATURE=1）；③ 勿用 LIBLIB_COMFY_TEMPLATE_UUID 覆盖除非你确认该 ID。输入图须已走 Liblib 图床上传。终端会打 [liblib] Comfy 提交 200000 与当前 templateUuid。）`;
   }
   return `${msg}（请核对 Liblib 开放平台密钥与各功能的 templateUuid（LIBLIB_COMFY_REMOVE_BG_TEMPLATE_UUID / LIBLIB_COMFY_ENHANCE_TEMPLATE_UUID）；输入图须为 Liblib 可拉取的公网 HTTPS；可设 LIBLIB_COMFY_DEBUG=1 查看提交/轮询日志）`;
 }
@@ -1257,7 +1257,7 @@ async function trySubmitLiblibComfyJob(args: {
     if (bizFail) {
       if (/业务码[：:]\s*200000|Liblib 业务码：200000/.test(bizFail)) {
         console.warn(
-          "[liblib] Comfy 提交 200000，请对照开放平台「API 应用」里该 Comfy 应用的 templateUuid（可能与工作流页 uuid 不同）。",
+          "[liblib] Comfy 提交 200000，请对照开放平台“API 应用”里该 Comfy 应用的 templateUuid（可能与工作流页 uuid 不同）。",
           "templateUuid=",
           args.templateUuid,
           "generateParams keys=",
@@ -1963,7 +1963,7 @@ function humanizeUpstreamSafetyError(msg: string): string {
   ) {
     const tail = tidTail();
     return (
-      "上游提示「请求参数无效」：可能来自**编排对话**、**文生图**或**视频**任意接口。请核对：① [模型广场](https://aihubmix.com/models) 中 model_id 与账户权限；② 视频 size/seconds、参考图仅 https；③ **编排** 建议 `.env` 将 `AIHUBMIX_ORCHESTRATION_MODEL` 与可用的 `AIHUBMIX_CHAT_MODEL` 设为同一模型；④ 图像可设 `AIHUBMIX_IMAGE_MODEL` / `AIHUBMIX_IMAGE_FALLBACK_MODEL`；⑤ 视频可设 `AIHUBMIX_VIDEO_MODEL`（如 wan2.6-t2v）。" +
+      "上游提示“请求参数无效”：可能来自**编排对话**、**文生图**或**视频**任意接口。请核对：① [模型广场](https://aihubmix.com/models) 中 model_id 与账户权限；② 视频 size/seconds、参考图仅 https；③ **编排** 建议 `.env` 将 `AIHUBMIX_ORCHESTRATION_MODEL` 与可用的 `AIHUBMIX_CHAT_MODEL` 设为同一模型；④ 图像可设 `AIHUBMIX_IMAGE_MODEL` / `AIHUBMIX_IMAGE_FALLBACK_MODEL`；⑤ 视频可设 `AIHUBMIX_VIDEO_MODEL`（如 wan2.6-t2v）。" +
       tail
     );
   }
@@ -2057,7 +2057,7 @@ function appendSkillWorkflowSystemParts(
     );
   } else if (wf.preferPipeline === "image") {
     systemParts.push(
-      "【技能工作流 · 静态视觉】优先可落地的画面结构与层次；信息足够时应调用生图工具或明确「确认生成」路径。"
+      "【技能工作流 · 静态视觉】优先可落地的画面结构与层次；信息足够时应调用生图工具或明确“确认生成”路径。"
     );
   }
 }
@@ -2148,10 +2148,10 @@ async function handleOrchestrationStageRequest(params: {
   if (stage === "intent") {
     maxTokens = 140;
     stageRule =
-      "【当前阶段：意图识别】仅用 1～2 句中文概括用户核心诉求（想做什么、交付物类型）。不要标题、编号、「意图识别」等字样，不要 Markdown。";
+      "【当前阶段：意图识别】仅用 1～2 句中文概括用户核心诉求（想做什么、交付物类型）。不要标题、编号、“意图识别”等字样，不要 Markdown。";
   } else if (stage === "opening") {
     maxTokens = 220;
-    stageRule = `【当前阶段：开场白】以下为内部意图摘要供你参考，不要复述给用户：「${(prior?.intent ?? "").slice(0, 800)}」\n请写 1～3 句自然中文，像聊天一样承接用户并说明你接下来会如何处理。不要 Markdown 标题、不要分点列表。`;
+    stageRule = `【当前阶段：开场白】以下为内部意图摘要供你参考，不要复述给用户：“${(prior?.intent ?? "").slice(0, 800)}”\n请写 1～3 句自然中文，像聊天一样承接用户并说明你接下来会如何处理。不要 Markdown 标题、不要分点列表。`;
   } else {
     maxTokens = 380;
     const isImg = analyzeFocus === "image";
@@ -2165,7 +2165,7 @@ async function handleOrchestrationStageRequest(params: {
       "请从用户描述中做画面 / 参考 / 风格层面的简要分析：非特别复杂时 **2～5 句** 内收束、便于尽快生图；仅当信息明显不足时再略作补充。若明显无画面语境，先用一句点明。";
     if (storyboardLike) {
       imgRule +=
-        " 这是分镜/叙事类：请按「镜头」拆条点到为止（景别、主体、光影、情绪即可）；若用户明确要求现在出图，先给可直接生成的关键帧。";
+        " 这是分镜/叙事类：请按“镜头”拆条点到为止（景别、主体、光影、情绪即可）；若用户明确要求现在出图，先给可直接生成的关键帧。";
     }
     stageRule = `【当前阶段：分析】意图摘要：${(prior?.intent ?? "").slice(0, 600)}\n已给用户看过的开场：${(prior?.opening ?? "").slice(0, 600)}\n${
       isImg
@@ -2331,7 +2331,7 @@ export async function handleChatRequest(
 
   if (body.deepThink) {
     systemParts.push(
-      "【深度推理】先在内心逐步推理、比对方案与约束并自检，再输出精炼结论；答复中不要机械罗列「第一步、第二步」，除非用户明确要求展示步骤。"
+      "【深度推理】先在内心逐步推理、比对方案与约束并自检，再输出精炼结论；答复中不要机械罗列“第一步、第二步”，除非用户明确要求展示步骤。"
     );
   }
 
@@ -4137,7 +4137,7 @@ export async function handleImageRequest(
     userPlainForSizeHint?: string | null;
     /** 文生图上游 model，缺省为 AIHUBMIX_IMAGE_MODEL */
     imageModel?: string | null;
-    /** 一次生成的张数（1～10）；可与 prompt 内「四张」等互相印证 */
+    /** 一次生成的张数（1～10）；可与 prompt 内“四张”等互相印证 */
     imageCount?: number | string | null;
   };
 
@@ -4592,7 +4592,7 @@ export async function handleImageRequest(
                   attemptF.urls,
                   "1024x1024",
                   {
-                    _note: `主图像模型「${genModel}」未成功，已改用「${fbImg}」。`,
+                    _note: `主图像模型“${genModel}”未成功，已改用“${fbImg}”。`,
                   }
                 );
               }
@@ -4618,7 +4618,7 @@ export async function handleImageRequest(
             attemptL.urls,
             "1024x1024",
             {
-              _note: `主图像模型「${genModel}」多尺寸均失败，已改用「${IMAGE_FALLBACK_MODEL}」。`,
+              _note: `主图像模型“${genModel}”多尺寸均失败，已改用“${IMAGE_FALLBACK_MODEL}”。`,
             }
           );
         }
