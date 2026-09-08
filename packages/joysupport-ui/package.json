@@ -1,6 +1,6 @@
 {
   "name": "@joysupport/ui",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "JoySupport（京小灵）设计系统：样式常量 + 无业务耦合组件，供其他前端项目直接引用与风格对齐。",
   "license": "Apache-2.0",
   "type": "module",

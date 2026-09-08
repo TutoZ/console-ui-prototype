@@ -1,33 +1,40 @@
 import React from 'react';
 
+/** 对齐 color-tokens.md §2.3；soft 仅底+字，禁止 border */
 const TONES = [
-  { solid: 'from-sky-500 to-sky-600', soft: 'from-sky-50 to-sky-100 border-blue-200/60' },
-  { solid: 'from-sky-500 to-sky-600', soft: 'from-sky-50 to-sky-100 border-sky-200/60' },
+  {
+    solid: 'from-blue-500 to-blue-600',
+    soft: 'from-blue-50 to-blue-100/80 text-blue-600',
+  },
+  {
+    solid: 'from-violet-500 to-violet-600',
+    soft: 'from-violet-50 to-violet-100/80 text-violet-600',
+  },
   {
     solid: 'from-emerald-500 to-emerald-600',
-    soft: 'from-emerald-50 to-emerald-100 border-emerald-200/60',
+    soft: 'from-emerald-50 to-emerald-100/80 text-emerald-600',
   },
   {
     solid: 'from-amber-500 to-orange-500',
-    soft: 'from-amber-50 to-orange-100 border-amber-200/60',
+    soft: 'from-amber-50 to-amber-100/80 text-amber-600',
   },
   {
     solid: 'from-rose-500 to-pink-600',
-    soft: 'from-rose-50 to-pink-100 border-rose-200/60',
+    soft: 'from-rose-50 to-rose-100/80 text-rose-500',
   },
   {
     solid: 'from-cyan-500 to-sky-600',
-    soft: 'from-cyan-50 to-sky-100 border-cyan-200/60',
+    soft: 'from-cyan-50 to-cyan-100/80 text-cyan-600',
   },
   {
-    solid: 'from-sky-500 to-neutral-800',
-    soft: 'from-sky-50 to-sky-100 border-sky-200/60',
+    solid: 'from-indigo-500 to-indigo-600',
+    soft: 'from-indigo-50 to-indigo-100/80 text-indigo-600',
   },
   {
-    solid: 'from-fuchsia-500 to-sky-600',
-    soft: 'from-fuchsia-50 to-sky-100 border-fuchsia-200/60',
+    solid: 'from-fuchsia-500 to-purple-600',
+    soft: 'from-fuchsia-50 to-purple-100/80 text-fuchsia-600',
   },
-];
+] as const;
 
 function toneFromSeed(seed: string) {
   let h = 0;
@@ -36,15 +43,16 @@ function toneFromSeed(seed: string) {
 }
 
 const SIZES = {
-  sm: 'h-9 w-9 rounded-[7px] text-base',
-  md: 'h-10 w-10 rounded-[7px] text-lg',
-  lg: 'h-11 w-11 rounded-[13px] text-xl',
-  xl: 'h-12 w-12 rounded-[13px] text-2xl',
+  sm: 'h-9 w-9 rounded-[7px] text-[15px] leading-none',
+  md: 'h-10 w-10 rounded-[7px] text-lg leading-none',
+  lg: 'h-11 w-11 rounded-[13px] text-xl leading-none',
+  xl: 'h-12 w-12 rounded-[13px] text-2xl leading-none',
 } as const;
 
 export interface CardIconProps {
   seed?: string;
-  variant?: 'solid' | 'soft';
+  /** 默认 soft，对齐员工知识列表 */
+  variant?: 'solid' | 'soft' | 'ai';
   size?: keyof typeof SIZES;
   className?: string;
   children: React.ReactNode;
@@ -52,20 +60,22 @@ export interface CardIconProps {
 
 export const CardIcon: React.FC<CardIconProps> = ({
   seed = '',
-  variant = 'solid',
-  size = 'md',
+  variant = 'soft',
+  size = 'sm',
   className = '',
   children,
 }) => {
   const tone = toneFromSeed(seed);
   const base =
-    variant === 'solid'
-      ? `bg-gradient-to-br ${tone.solid} text-white shadow-sm`
-      : `bg-gradient-to-br ${tone.soft} border`;
+    variant === 'ai'
+      ? 'bg-gradient-to-br from-neutral-800 to-neutral-950 text-white shadow-sm'
+      : variant === 'solid'
+        ? `bg-gradient-to-br ${tone.solid} text-white shadow-sm`
+        : `bg-gradient-to-br ${tone.soft} shadow-none`;
 
   return (
     <div
-      className={`${SIZES[size]} ${base} flex items-center justify-center font-bold shrink-0 select-none overflow-hidden ${className}`}
+      className={`${SIZES[size]} ${base} flex items-center justify-center font-semibold shrink-0 select-none overflow-hidden ${className}`}
     >
       {children}
     </div>

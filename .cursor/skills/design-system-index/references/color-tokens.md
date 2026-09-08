@@ -104,20 +104,31 @@
 
 ## 二、语义状态色（全站固定组合）
 
+### 2.0 DongDesign 功能色 `FUNCTIONAL_COLORS`（`lib/ui.ts`）
+
+| 语义 | 本体 | 浅 / 深 / 柔 / 底 |
+|------|------|-------------------|
+| Success 成功 | `#00B26F` | `#00CA80` / `#009B5E` / `#80E5B9` / `#E8F8F1` |
+| Warning 警告 | `#F08433` | `#FDA754` / `#C86627` / `#F9C999` / `#FFF3E8` |
+| Error 错误 | `#F33B50` | `#FC616F` / `#C42D40` / `#FDB1B3` / `#FEEBEC` |
+| Info 信息 | `#376BFA` | `#598EF8` / `#1F57C6` / `#ADC7FC` / `#E8F1FF` |
+
+> 来源：[DongDesign 色彩 · 功能色](https://dongdesign.jd.com/vue/zh-CN/component/basic/color.html)。标签 / 状态强调 / Chip 选中统一映射此表，不再拆「标签色调」「状态与强调」两套色。
+
 ### 2.1 badgeClass（`lib/ui.ts`）
 
 | tone | Hex 参考 | 完整 class 组合 |
 |------|----------|----------------|
-| `neutral` | 底 `#F5F5F5` 字 `#737373` 边 `#E8E8E8` | `bg-muted text-muted-foreground border-border` |
-| `ink` | 底 `#111111` 字 `#FAFAFA` | `bg-primary text-primary-foreground border-transparent` |
-| `success` | 底 `#ECFDF5` 字 `#059669` 边 `#D1FAE5` | `bg-emerald-50 text-emerald-600 border-emerald-100` |
-| `warning` | 底 `#FFFBEB` 字 `#D97706` 边 `#FDE68A` | `bg-amber-50 text-amber-600 border-amber-100` |
-| `danger` | 底 `#FEE2E2` 字 `#DC2626` 边 `#FECACA` | `bg-destructive/10 text-destructive border-destructive/20` |
-| `live` | 底 `#F0F9FF` 字 `#0284C7` 边 `#E0F2FE` | `bg-sky-50 text-sky-600 border-sky-100` |
+| `neutral` | 底 `#F4F4F5` 字 `#909399` | `bg-[#F4F4F5] text-[#909399]` |
+| `ink` | 底 `#262626` 字 `#FFFFFF` | `bg-neutral-800 text-white` |
+| `success` | 底 `#E8F8F1` 字 `#00B26F` | `bg-[#E8F8F1] text-[#00B26F]` |
+| `warning` | 底 `#FFF3E8` 字 `#F08433` | `bg-[#FFF3E8] text-[#F08433]` |
+| `danger` | 底 `#FEEBEC` 字 `#F33B50` | `bg-[#FEEBEC] text-[#F33B50]`（Error） |
+| `live` | 底 `#E8F1FF` 字 `#376BFA` | `bg-[#E8F1FF] text-[#376BFA]`（Info） |
 
-> 设计稿常见信息浅蓝 `#F2F7FF` → 统一映射 **`bg-sky-50`（`#F0F9FF`）**，禁止写裸 Hex。
+> **徽章禁止描边**：基础壳用 `border-0`，仅底色 + 字色。
 
-徽章基础壳：`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border`
+徽章基础壳：`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-px rounded border-0`
 
 ### 2.1.1 确认流状态角标 `confirmStatusBadgeClass`（非 badgeClass）
 
@@ -125,9 +136,9 @@
 
 | tone | 用途 | 底 Hex | 字 Hex | Tailwind |
 |------|------|--------|--------|----------|
-| `confirmed` | 确认卡标题旁 | `#D1FAE5` | `#065F46` | `bg-emerald-100 text-emerald-800` · `h-[18px] text-[11px] rounded` |
-| `confirmedSoft` | 草案卡内联 | `#ECFDF5` | `#047857` | `bg-emerald-50 text-emerald-700` · `text-[10px] rounded-md` |
-| `pending` | 待确认配对 | `#FFFBEB` | `#B45309` | `bg-amber-50 text-amber-700` · 同 confirmedSoft 尺寸 |
+| `confirmed` | 确认卡标题旁 | `#E8F8F1` | `#00B26F` | `bg-[#E8F8F1] text-[#00B26F]` · `h-[18px] text-[11px] rounded` |
+| `confirmedSoft` | 草案卡内联 | `#E8F8F1` | `#009B5E` | `bg-[#E8F8F1] text-[#009B5E]` · `text-[10px] rounded-md` |
+| `pending` | 待确认 | `#FFF3E8` | `#F08433` | `bg-[#FFF3E8] text-[#F08433]` · `text-[10px] rounded-md` |
 
 ```tsx
 confirmStatusBadgeClass('confirmed')      // SkillRoundConfirmCard 标题
@@ -135,35 +146,34 @@ confirmStatusBadgeClass('confirmedSoft')   // SkillChatConfirmDock 已确认
 confirmStatusBadgeClass('pending')         // 待确认
 ```
 
-### 2.2 页面级语义色常用三件套
+### 2.2 页面级语义色常用三件套（功能色）
 
-| 语义 | 背景 Hex | 文字 Hex | 边框 Hex | Tailwind 三件套 |
-|------|----------|----------|----------|----------------|
-| 成功/在线 | `#ECFDF5` | `#059669` | `#D1FAE5` | `bg-emerald-50 text-emerald-600 border-emerald-100` |
-| 警告/排队 | `#FFFBEB` | `#B45309` | `#FDE68A` | `bg-amber-50 text-amber-700 border-amber-200` |
-| 危险/删除 | `#FFF1F2` | `#E11D48` | — | `bg-rose-50 text-rose-600` |
-| 实时/组 A | `#F0F9FF` | `#0284C7` | `#BAE6FD` | `bg-sky-50 text-sky-600 border-sky-100` |
-| 信息浅蓝（稿） | `#F2F7FF` → | 映射 sky-50 | — | **禁止** `bg-[#F2F7FF]` |
-| 对比/组 B | `#F5F3FF` | `#7C3AED` | `#DDD6FE` | `bg-violet-50 text-violet-600 border-violet-100` |
-| 中性/已完成 | `#F5F5F5` | `#525252` | `#E5E5E5` | `bg-neutral-100 text-neutral-600 border-neutral-200` |
+| 语义 | 背景 Hex | 文字 Hex | 边框 Hex | 说明 |
+|------|----------|----------|----------|------|
+| 成功 | `#E8F8F1` | `#00B26F` | `#80E5B9` | Success |
+| 警告 | `#FFF3E8` | `#F08433` | `#F9C999` | Warning |
+| 错误 / 危险 | `#FEEBEC` | `#F33B50` | `#FDB1B3` | Error |
+| 信息 | `#E8F1FF` | `#376BFA` | `#ADC7FC` | Info（live / Chip） |
+| 中性 | `#F4F4F5` | `#909399` | `#E9E9EB` | 中性标签 |
 | 主 CTA 实心 | `#111111` | `#FFFFFF` | — | `bg-ink` / `bg-neutral-900` |
-| 通知红点 | `#DC2626` | `#FFFFFF` | `#FFFFFF` | `bg-red-600 text-white border-white` |
 | 深色命令区 | `#0A0A0A` | `#E5E5E5` | — | `bg-neutral-950 text-neutral-200` |
 
 ### 2.3 CardIcon 渐变盘（`CardIcon.tsx`，按 seed 派生）
 
 仅用于**卡片 App 图标**，非页面主色：
 
-| # | solid 渐变 | soft 渐变 |
+| # | solid 渐变 | soft 渐变（无描边） |
 |---|-----------|-----------|
-| 1 | `from-blue-500 to-blue-600` | `from-blue-50 to-blue-100 border-blue-200/60` |
-| 2 | `from-violet-500 to-violet-600` | `from-violet-50 to-violet-100 border-violet-200/60` |
-| 3 | `from-emerald-500 to-emerald-600` | `from-emerald-50 to-emerald-100 border-emerald-200/60` |
-| 4 | `from-amber-500 to-orange-500` | `from-amber-50 to-orange-100 border-amber-200/60` |
-| 5 | `from-rose-500 to-pink-600` | `from-rose-50 to-pink-100 border-rose-200/60` |
-| 6 | `from-cyan-500 to-sky-600` | `from-cyan-50 to-sky-100 border-cyan-200/60` |
-| 7 | `from-indigo-500 to-indigo-600` | `from-indigo-50 to-indigo-100 border-indigo-200/60` |
-| 8 | `from-fuchsia-500 to-purple-600` | `from-fuchsia-50 to-purple-100 border-fuchsia-200/60` |
+| 1 | `from-blue-500 to-blue-600` | `from-blue-50 to-blue-100/80 text-blue-600` |
+| 2 | `from-violet-500 to-violet-600` | `from-violet-50 to-violet-100/80 text-violet-600` |
+| 3 | `from-emerald-500 to-emerald-600` | `from-emerald-50 to-emerald-100/80 text-emerald-600` |
+| 4 | `from-amber-500 to-orange-500` | `from-amber-50 to-amber-100/80 text-amber-600` |
+| 5 | `from-rose-500 to-pink-600` | `from-rose-50 to-rose-100/80 text-rose-500` |
+| 6 | `from-cyan-500 to-sky-600` | `from-cyan-50 to-cyan-100/80 text-cyan-600` |
+| 7 | `from-indigo-500 to-indigo-600` | `from-indigo-50 to-indigo-100/80 text-indigo-600` |
+| 8 | `from-fuchsia-500 to-purple-600` | `from-fuchsia-50 to-purple-100/80 text-fuchsia-600` |
+
+> 产品默认 `variant="soft"` + `size="sm"`；soft **禁止** `border` / `ring`。
 
 ### 2.4 侧栏 Navigation 专用色
 
@@ -206,7 +216,7 @@ confirmStatusBadgeClass('pending')         // 待确认
 | `bg-[#...]` / `text-[#...]` | 语义 token 或 Tailwind 色阶 |
 | `slate-*` | `neutral-*` 或语义 token |
 | `blue-*` / `indigo-*` 作主色 | `primary` / `ink` / `live` / `sky`（实时） |
-| `zinc-*` 在新 JoyServing 页面 | `neutral-*` 或 shadcn token（Editor/Creagic 子模块遗留 zinc 待收敛） |
+| `zinc-*` 在新 JoyServing 页面 | `neutral-*` 或 shadcn token（历史 zinc 待收敛） |
 
 ---
 

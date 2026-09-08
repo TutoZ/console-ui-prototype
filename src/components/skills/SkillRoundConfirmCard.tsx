@@ -8,9 +8,9 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FileText, Pencil, Plus, Trash2 } from '@/lib/icons';
+import { ChevronDown, ChevronUp, FileText, Pencil, Plus, Trash2 } from '@/lib/icons';
 import { cn } from '@/lib/utils';
-import { confirmStatusBadgeClass, SKILL_AOP_PRIMARY_BTN } from '@/lib/ui';
+import { BTN_DANGER, BTN_SOFT, confirmStatusBadgeClass, SKILL_AOP_PRIMARY_BTN } from '@/lib/ui';
 import { showAppToast } from '@/lib/appToast';
 
 export type SkillConfirmFieldKey =
@@ -41,6 +41,8 @@ type SkillRoundConfirmCardProps = {
   title?: string;
   items: SkillConfirmItem[];
   confirmed?: boolean;
+  /** 完成后默认折叠；可手动展开回看 */
+  collapsed?: boolean;
   /** 批量编辑：已选中、将带到输入框的要点 id */
   editingItemIds?: string[];
   onConfirm: (items: SkillConfirmItem[]) => void;
@@ -53,6 +55,8 @@ type SkillRoundConfirmCardProps = {
   onBatchModeChange?: (active: boolean) => void;
   /** 本地增删勾选时同步到父级消息 */
   onItemsChange?: (items: SkillConfirmItem[]) => void;
+  /** 折叠态变化（用于写入消息 payload） */
+  onCollapsedChange?: (collapsed: boolean) => void;
   /** 从对话流移除本张确认卡 */
   onDelete?: () => void;
 };
@@ -65,11 +69,13 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   title = '请确认技能草案要点',
   items,
   confirmed = false,
+  collapsed: collapsedProp,
   editingItemIds = [],
   onConfirm,
   onEditItem,
   onBatchModeChange,
   onItemsChange,
+  onCollapsedChange,
   onDelete,
 }) => {
   const [rows, setRows] = useState<SkillConfirmItem[]>(items);
@@ -81,6 +87,9 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const [inlineNameDraft, setInlineNameDraft] = useState('');
   const [inlineContentDraft, setInlineContentDraft] = useState('');
+  const [collapsed, setCollapsed] = useState(() =>
+    collapsedProp != null ? collapsedProp : confirmed,
+  );
   const inlineNameRef = useRef<HTMLInputElement>(null);
   const newContentRef = useRef<HTMLTextAreaElement>(null);
   const editingIdSet = useMemo(() => new Set(editingItemIds), [editingItemIds]);
@@ -90,6 +99,14 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   }, [items]);
 
   useEffect(() => {
+    if (collapsedProp != null) setCollapsed(collapsedProp);
+  }, [collapsedProp]);
+
+  useEffect(() => {
+    if (confirmed) setCollapsed(true);
+  }, [confirmed]);
+
+  useEffect(() => {
     if (!inlineEditId) return;
     inlineNameRef.current?.focus();
     const el = inlineNameRef.current;
@@ -97,6 +114,11 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
     el.selectionStart = el.value.length;
     el.selectionEnd = el.value.length;
   }, [inlineEditId]);
+
+  const setCollapsedAndSync = (next: boolean) => {
+    setCollapsed(next);
+    onCollapsedChange?.(next);
+  };
 
   const commitRows = (next: SkillConfirmItem[]) => {
     setRows(next);
@@ -186,22 +208,42 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
 
   return (
     <div className="rounded-lg border border-neutral-200 bg-neutral-50 overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <FileText size={13} className="text-neutral-500 shrink-0" />
-          <span className="text-[13px] font-semibold text-neutral-600 leading-5">确认信息</span>
-          {confirmed ? (
-            <span className={confirmStatusBadgeClass('confirmed')}>已确认</span>
-          ) : null}
-          {batchMode && !confirmed ? (
-            <span className="text-[11px] font-medium text-neutral-500">多选要点后发送改写</span>
-          ) : null}
-        </div>
+      <div className="flex items-center gap-1 px-3 py-2">
+        <button
+          type="button"
+          onClick={() => setCollapsedAndSync(!collapsed)}
+          className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left cursor-pointer select-none"
+          aria-expanded={!collapsed}
+        >
+          <div className="flex items-center gap-1.5 min-w-0">
+            <FileText size={13} className="text-neutral-500 shrink-0" />
+            <span className="text-[13px] font-semibold text-neutral-600 leading-5">确认信息</span>
+            {confirmed ? (
+              <span className={confirmStatusBadgeClass('confirmed')}>已确认</span>
+            ) : null}
+            {batchMode && !confirmed ? (
+              <span className="text-[11px] font-medium text-neutral-500">多选要点后发送改写</span>
+            ) : null}
+            {collapsed && !confirmed ? (
+              <span className="truncate text-[11px] text-neutral-400">{title}</span>
+            ) : null}
+            {collapsed && confirmed ? (
+              <span className="truncate text-[11px] text-neutral-400">
+                {rows.length} 条要点
+              </span>
+            ) : null}
+          </div>
+          {collapsed ? (
+            <ChevronDown size={14} className="shrink-0 text-neutral-400" />
+          ) : (
+            <ChevronUp size={14} className="shrink-0 text-neutral-400" />
+          )}
+        </button>
         {!confirmed && onDelete ? (
           <button
             type="button"
             onClick={onDelete}
-            className="w-6 h-6 rounded-md text-neutral-400 hover:text-rose-600 hover:bg-white/80 flex items-center justify-center cursor-pointer"
+            className="w-6 h-6 rounded-md text-neutral-400 hover:text-rose-600 hover:bg-white/80 flex items-center justify-center cursor-pointer shrink-0"
             aria-label="删除"
             title="删除确认卡"
           >
@@ -210,6 +252,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
         ) : null}
       </div>
 
+      {!collapsed ? (
       <div className="px-3 pb-2.5 space-y-2">
         <div className="rounded bg-white p-3 space-y-2">
           <p className="text-[13px] font-semibold text-neutral-900 leading-5">{title}</p>
@@ -313,14 +356,8 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
                               aria-label={`编辑内容 ${ordinal}`}
                             />
                           </label>
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={commitInlineEdit}
-                              className="h-6 px-2 rounded-md bg-neutral-800 text-white text-[11px] font-medium cursor-pointer"
-                            >
-                              保存
-                            </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <span className="text-[10px] text-neutral-400">⌘/Ctrl + Enter 保存</span>
                             <button
                               type="button"
                               onClick={cancelInlineEdit}
@@ -328,7 +365,13 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
                             >
                               取消
                             </button>
-                            <span className="text-[10px] text-neutral-400">⌘/Ctrl + Enter 保存</span>
+                            <button
+                              type="button"
+                              onClick={commitInlineEdit}
+                              className="h-6 px-2 rounded-md bg-neutral-800 text-white text-[11px] font-medium cursor-pointer"
+                            >
+                              保存
+                            </button>
                           </div>
                         </div>
                       ) : (
@@ -343,8 +386,8 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
                           <div className={cn(row.fieldLabel ? 'mt-0.5' : undefined)}>
                             <p
                               className={cn(
-                                'text-[13px] leading-5 whitespace-pre-wrap break-words',
-                                selected ? 'text-neutral-900 font-medium' : 'text-neutral-700',
+                                'text-[13px] leading-5 whitespace-pre-wrap break-words font-normal',
+                                selected ? 'text-neutral-900' : 'text-neutral-700',
                               )}
                             >
                               {bodyText}
@@ -432,14 +475,8 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
                     aria-label="自定义要点内容"
                   />
                 </label>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={addCustom}
-                    className="h-6 px-2 rounded-md bg-neutral-800 text-white text-[11px] font-medium cursor-pointer"
-                  >
-                    添加
-                  </button>
+                <div className="flex items-center justify-end gap-1.5">
+                  <span className="text-[10px] text-neutral-400">⌘/Ctrl + Enter 添加</span>
                   <button
                     type="button"
                     onClick={cancelAdding}
@@ -447,7 +484,13 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
                   >
                     取消
                   </button>
-                  <span className="text-[10px] text-neutral-400">⌘/Ctrl + Enter 添加</span>
+                  <button
+                    type="button"
+                    onClick={addCustom}
+                    className="h-6 px-2 rounded-md bg-neutral-800 text-white text-[11px] font-medium cursor-pointer"
+                  >
+                    添加
+                  </button>
                 </div>
               </div>
             ) : (
@@ -479,32 +522,21 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
                   onClick={toggleBatchMode}
                   aria-pressed={batchMode}
                   className={cn(
-                    'h-7 px-3 rounded border text-[13px] cursor-pointer transition',
-                    batchMode
-                      ? 'border-neutral-800 bg-neutral-800 text-white'
-                      : 'border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50',
+                    BTN_SOFT,
+                    'h-7 px-3 text-[13px]',
+                    batchMode && 'border-neutral-300',
                   )}
                 >
                   {batchMode ? '退出批量编辑' : '批量编辑'}
                 </button>
-                {batchMode ? (
+                {batchMode && editingIdSet.size > 0 ? (
                   <button
                     type="button"
-                    disabled={editingIdSet.size === 0}
                     onClick={deleteSelectedRows}
-                    className={cn(
-                      'h-7 px-3 rounded border text-[13px] cursor-pointer transition',
-                      editingIdSet.size === 0
-                        ? 'border-neutral-200 bg-neutral-50 text-neutral-400 cursor-not-allowed'
-                        : 'border-rose-200 bg-white text-rose-600 hover:bg-rose-50',
-                    )}
-                    title={
-                      editingIdSet.size === 0
-                        ? '先点选要删除的要点'
-                        : `删除已选 ${editingIdSet.size} 条`
-                    }
+                    className={cn(BTN_DANGER, 'h-7 px-3 text-[13px]')}
+                    title={`删除已选 ${editingIdSet.size} 条`}
                   >
-                    删除{editingIdSet.size > 0 ? ` · ${editingIdSet.size}` : ''}
+                    删除
                   </button>
                 ) : null}
               </>
@@ -512,6 +544,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
           </div>
         )}
       </div>
+      ) : null}
     </div>
   );
 };

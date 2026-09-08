@@ -23,7 +23,7 @@ export type TaskPlan = {
   summary: string;
 };
 
-const PLANNER_SYSTEM = `你是 Creagic AI 的任务规划器。分析用户请求，输出结构化任务计划。
+const PLANNER_SYSTEM = `你是京小灵设计助手的任务规划器。分析用户请求，输出结构化任务计划。
 只输出 JSON，不要任何其他文字，不要 markdown 代码块。
 
 JSON 格式：

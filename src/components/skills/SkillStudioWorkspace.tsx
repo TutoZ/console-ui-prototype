@@ -33,6 +33,8 @@ export interface SkillStudioWorkspaceProps {
   initialMode?: 'interactive' | 'zip';
   /** 智能创作入口带入，进入后自动开聊 */
   initialPrompt?: string | null;
+  /** 首页已索引的知识库名称，写入技能挂载 */
+  initialSelectedKBs?: string[];
   /** 未进入多轮时的返回文案 */
   closeLabel?: string;
 }
@@ -43,6 +45,7 @@ export const SkillStudioWorkspace: React.FC<SkillStudioWorkspaceProps> = ({
   onPublish,
   initialMode = 'interactive',
   initialPrompt,
+  initialSelectedKBs,
   closeLabel,
 }) => {
   return (
@@ -52,6 +55,7 @@ export const SkillStudioWorkspace: React.FC<SkillStudioWorkspaceProps> = ({
       draftSkillId={editingSkill?.id ?? null}
       initialMode={initialMode}
       initialPrompt={initialPrompt}
+      initialSelectedKBs={initialSelectedKBs}
       closeLabel={closeLabel}
       onPublished={(skill) => {
         const isDraftOnly = skill.status === 'draft';

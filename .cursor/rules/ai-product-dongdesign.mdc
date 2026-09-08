@@ -1,0 +1,51 @@
+---
+description: AI 产品面（对话气泡、输入框、思考链等）对齐 dongDesign-AI / JDesign AI 组件规范
+globs: src/components/skills/**/*.{tsx,ts},src/components/employees/**/*.{tsx,ts},src/components/onboarding/**/*.{tsx,ts},src/components/CustomerExperiencePage.tsx,src/components/PlatformHomePage.tsx,src/components/FoodSafetyCapabilityPanel.tsx,src/components/EditorPage.tsx
+alwaysApply: false
+---
+
+# AI 产品 · 引用 dongDesign-AI
+
+京小灵 **AI 产品交互面**（技能创建对话、员工孵化/培训对话、客服体验预览、首页创作区等）统一引用：
+
+- 文档入口：https://jdesign.jd.com/x/vue/docs/install （dongDesign-AI · 快速开始）
+- 设计稿对照：B 端 AI 组件规范（Figma / Relay 同源 token）
+
+本仓库是 **React + Tailwind**，不直接安装 Vue 包；实现时 **映射组件语义与视觉规范**，复用项目内 token / 现有 React 组件，禁止另起一套 AI 对话视觉。
+
+## 组件语义对照
+
+| dongDesign-AI | 职责 | 本仓库优先落点 |
+|---|---|---|
+| Bubble | 对话气泡（用户/AI/系统） | `BuildSkillModal` / `EmployeeIncubationWorkspace` 气泡常量 |
+| Welcome | 欢迎空态 | 落地欢迎 / 空会话 |
+| Prompts | 提示集 / 快捷 chip | `HELP_CHIPS`、AI 帮写条 |
+| Think / Cot | 深度思考 / 思维链 | `SkillThinkingCard`（Cot：先「思考中」加载，再段落正文，完成「已完成思考」） |
+| 任务规划 | Step 执行大纲 | `SkillTaskPlanCard`（与 Cot 分卡；完成「N/N 任务已完成」） |
+| Sender | 底部输入框 | skill-ai-composer / GoalComposer |
+| Attachments | 输入附件 | 附件加号 / 上传区 |
+| Actions | 气泡操作（复制等） | 气泡 hover 工具条 |
+| FileCard | 文件卡片 | 产物 / 附件卡 |
+| Sources | 来源引用 | 引用条（若有） |
+| XConfigProvider | 主题/前缀 | 走 `src/index.css` + `lib/ui`，勿引入第二套 CSS 变量前缀 |
+
+## 气泡文字（必须）
+
+对齐规范正文（regular-14）：
+
+- 一级标题：`18px` / `28px` Semibold `#262626`
+- 二级标题：`16px` / `24px` Semibold `#262626`
+- 三级标题：`14px` / `22px` Semibold `#1c1d1f`
+- 正文：`14px` / `22px` Regular `#595959`（jd-color-text-300）
+- 强调标签：Semibold `#1c1d1f`
+- 系统引导 / 次要：`#8c8c8c`（jd-color-text-200）
+- 用户气泡：保持现有浅蓝 tint + `#181D27`，字阶同为 14/22
+
+气泡内可用轻量 Markdown：`#` / `##` / `###` / `>` 引用。
+
+## 实现原则
+
+1. 先查本规则与设计系统 skill，再改 AI 对话 UI。
+2. 能复用 `SkillThinkingCard` / `SkillRoundConfirmCard` / composer 壳则复用，不平行造轮子。
+3. Token 冲突时：全站暖灰墨黑底盘不变；**仅 AI 对话内容排版**跟 dongDesign-AI。
+4. 需要细节时打开文档站点对应组件页（如 `/x/vue/component/bubble`），或对照 B 端 AI 组件 Figma，勿凭记忆编造字阶。

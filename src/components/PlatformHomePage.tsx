@@ -6,7 +6,8 @@
  * 布局对齐 Figma“B端_AI组件规范”创作平台稿（node 24238:29648）。
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import {
@@ -22,15 +23,20 @@ import {
   Users,
   X,
 } from '@/lib/icons';
-import { FIELD, NAV_ACTIVE_GRADIENT_BG, NAV_ACTIVE_GRADIENT_TEXT } from '@/lib/ui';
+import { FIELD, BTN_AI, NAV_ACTIVE_GRADIENT_TEXT } from '@/lib/ui';
 import { cn } from '@/lib/utils';
 import { SKILL_PAGE_COPY } from '@/lib/platformTerminology';
-import { GoalComposerGhost, formatGoalGhostText } from './GoalComposerGhost';
+import { GoalComposerGhost } from './GoalComposerGhost';
 import { EmployeeIncubationWorkspace } from './employees/EmployeeIncubationWorkspace';
 import {
   SkillStudioWorkspace,
   type SkillStudioPublishPayload,
 } from './skills/SkillStudioWorkspace';
+import {
+  EMPLOYEE_CREATE_CASES,
+  SKILL_CREATE_CASES,
+  type HomeCreateCase,
+} from '@/lib/homeCreateCases';
 
 const MAX_LEN = 1000;
 
@@ -42,26 +48,6 @@ type HomeSession = {
   mode: CreateMode;
   prompt: string;
 };
-
-const SKILL_CHIPS = [
-  '延保进度查询',
-  '退换货自助',
-  '高危客诉安抚',
-  '物流异常催派',
-  '保价差额补退',
-  '理赔资料预审',
-  '发票开具指引',
-] as const;
-
-const EMPLOYEE_CHIPS = [
-  '食安险理赔专员',
-  '在线客服接待',
-  '外呼催收助理',
-  '热线质检员',
-  '电销拓客顾问',
-  '售后回访专员',
-  '商户续保顾问',
-] as const;
 
 const HEADLINE: Record<CreateMode, { plain: string; accent: string }> = {
   skill: { plain: '要完成什么任务，我来帮你', accent: '创建技能' },
@@ -82,15 +68,15 @@ const MODE_PILL_SPRING = { type: 'spring' as const, stiffness: 380, damping: 32 
 const SEED_SESSIONS: HomeSession[] = [
   {
     id: 's1',
-    title: '食安险理赔专员',
+    title: EMPLOYEE_CREATE_CASES[0].label,
     mode: 'employee',
-    prompt: '帮我创建一个“食安险理赔专员”数字员工',
+    prompt: EMPLOYEE_CREATE_CASES[0].pe,
   },
   {
     id: 's2',
-    title: '在线客服接待',
+    title: EMPLOYEE_CREATE_CASES[1].label,
     mode: 'employee',
-    prompt: '帮我创建一个“在线客服接待”数字员工',
+    prompt: EMPLOYEE_CREATE_CASES[1].pe,
   },
 ];
 
@@ -108,6 +94,7 @@ function sessionTitleFromPrompt(text: string, mode: CreateMode): string {
 
 export const PlatformHomePage: React.FC = () => {
   const { showToast, skills, knowledgeBases } = useApp();
+  const pendingSkillAutoStartRef = useRef(false);
   const [mode, setMode] = useState<CreateMode>(() => {
     try {
       if (sessionStorage.getItem('js_home_create_mode') === 'skill') {
@@ -124,6 +111,7 @@ export const PlatformHomePage: React.FC = () => {
       const seed = sessionStorage.getItem('js_home_create_seed');
       if (seed) {
         sessionStorage.removeItem('js_home_create_seed');
+        pendingSkillAutoStartRef.current = true;
         return seed;
       }
     } catch {
@@ -137,6 +125,8 @@ export const PlatformHomePage: React.FC = () => {
   const [incubationKbIds, setIncubationKbIds] = useState<string[]>([]);
   const [skillStudioOpen, setSkillStudioOpen] = useState(false);
   const [skillSeed, setSkillSeed] = useState<string | null>(null);
+  const [skillSeedKbNames, setSkillSeedKbNames] = useState<string[]>([]);
+  const [skillStudioKey, setSkillStudioKey] = useState(0);
   const [indexedSkillIds, setIndexedSkillIds] = useState<string[]>([]);
   const [indexedKbIds, setIndexedKbIds] = useState<string[]>([]);
   const [indexOpen, setIndexOpen] = useState(false);
@@ -179,7 +169,9 @@ export const PlatformHomePage: React.FC = () => {
   }, [renamingId]);
 
   const canSubmit = prompt.trim().length > 0;
-  const chips = mode === 'skill' ? SKILL_CHIPS : EMPLOYEE_CHIPS;
+  const cases: readonly HomeCreateCase[] =
+    mode === 'skill' ? SKILL_CREATE_CASES : EMPLOYEE_CREATE_CASES;
+  const chipLabels = cases.map((c) => c.label);
   const headline = HEADLINE[mode];
 
   const filteredSessions = useMemo(() => {
@@ -220,19 +212,15 @@ export const PlatformHomePage: React.FC = () => {
     [knowledgeBases, indexedKbIds],
   );
 
-  const applyChip = (label: string) => {
-    if (mode === 'skill') {
-      setPrompt(`帮我做一个“${label}”技能`);
-    } else {
-      setPrompt(`帮我创建一个“${label}”数字员工`);
-    }
+  const applyChip = (item: HomeCreateCase) => {
+    setPrompt(item.pe.slice(0, MAX_LEN));
     textareaRef.current?.focus();
   };
 
   const acceptGhostTip = () => {
-    const label = chips[ghostTipIndex % chips.length];
-    setPrompt(formatGoalGhostText(label, mode));
-    setGhostTipIndex((i) => (i + 1) % chips.length);
+    const item = cases[ghostTipIndex % cases.length];
+    setPrompt(item.pe.slice(0, MAX_LEN));
+    setGhostTipIndex((i) => (i + 1) % cases.length);
     textareaRef.current?.focus();
   };
 
@@ -256,6 +244,7 @@ export const PlatformHomePage: React.FC = () => {
   const closeSkillStudio = () => {
     setSkillStudioOpen(false);
     setSkillSeed(null);
+    setSkillSeedKbNames([]);
   };
 
   const handleSkillPublished = (payload: SkillStudioPublishPayload) => {
@@ -273,7 +262,7 @@ export const PlatformHomePage: React.FC = () => {
       ? indexedSkillIds.length + indexedKbIds.length
       : indexedKbIds.length;
 
-  const pushSession = (text: string, nextMode: CreateMode) => {
+  const pushSession = useCallback((text: string, nextMode: CreateMode) => {
     const session: HomeSession = {
       id: `s_${Date.now()}`,
       title: sessionTitleFromPrompt(text, nextMode),
@@ -281,7 +270,37 @@ export const PlatformHomePage: React.FC = () => {
       prompt: text,
     };
     setSessions((prev) => [session, ...prev.filter((s) => s.prompt !== text)]);
-  };
+  }, []);
+
+  /** 技能创建：带入文案后立刻进入对话式创建工作台并自动开聊 */
+  const startSkillCreate = useCallback(
+    (raw: string, kbIds: string[] = indexedKbIds) => {
+      const text = raw.trim();
+      if (!text) return;
+      const kbNames = knowledgeBases
+        .filter((kb) => kbIds.includes(kb.id))
+        .map((kb) => kb.name);
+      pushSession(text, 'skill');
+      setIncubationOpen(false);
+      setSkillSeed(text);
+      setSkillSeedKbNames(kbNames);
+      setSkillStudioKey((k) => k + 1);
+      setSkillStudioOpen(true);
+      setPrompt('');
+      setIndexedKbIds([]);
+      setIndexOpen(false);
+    },
+    [pushSession, knowledgeBases, indexedKbIds],
+  );
+
+  useEffect(() => {
+    if (!pendingSkillAutoStartRef.current) return;
+    pendingSkillAutoStartRef.current = false;
+    if (mode !== 'skill') return;
+    const text = prompt.trim();
+    if (!text) return;
+    startSkillCreate(text);
+  }, [mode, prompt, startSkillCreate]);
 
   const openSession = (session: HomeSession) => {
     setMode(session.mode);
@@ -292,11 +311,7 @@ export const PlatformHomePage: React.FC = () => {
     setIndexedKbIds([]);
 
     if (session.mode === 'skill') {
-      setIncubationOpen(false);
-      setIncubationSkillIds([]);
-      setIncubationKbIds([]);
-      setSkillSeed(session.prompt);
-      setSkillStudioOpen(true);
+      startSkillCreate(session.prompt);
       return;
     }
 
@@ -332,17 +347,13 @@ export const PlatformHomePage: React.FC = () => {
   const handleSubmit = () => {
     if (!canSubmit) return;
     const text = prompt.trim();
-    pushSession(text, mode);
 
     if (mode === 'skill') {
-      setSkillSeed(text);
-      setSkillStudioOpen(true);
-      setPrompt('');
-      setIndexedKbIds([]);
-      setIndexOpen(false);
+      startSkillCreate(text);
       return;
     }
 
+    pushSession(text, mode);
     setIncubationSeed(text);
     setIncubationSkillIds(indexedSkillIds);
     setIncubationKbIds(indexedKbIds);
@@ -358,7 +369,7 @@ export const PlatformHomePage: React.FC = () => {
       {/* 最近会话：展开为侧栏；收起仅“最近会话”+图标，无边线 */}
       {sessionSidebarOpen ? (
         <aside
-          className="relative z-[2] flex h-full w-[248px] shrink-0 flex-col border-r border-neutral-100 bg-white"
+          className="relative z-[2] flex h-full w-[200px] shrink-0 flex-col border-r border-neutral-100 bg-white"
           aria-label="最近会话"
         >
           <div className="flex h-11 shrink-0 items-center justify-between gap-2 px-3">
@@ -544,7 +555,7 @@ export const PlatformHomePage: React.FC = () => {
             <div className="relative">
               {!prompt ? (
                 <GoalComposerGhost
-                  labels={chips}
+                  labels={chipLabels}
                   tipIndex={ghostTipIndex}
                   onTipIndexChange={setGhostTipIndex}
                   onAcceptTab={acceptGhostTip}
@@ -789,14 +800,9 @@ export const PlatformHomePage: React.FC = () => {
                   type="button"
                   onClick={handleSubmit}
                   disabled={!canSubmit}
-                  title="发送"
-                  aria-label="发送"
-                  className={cn(
-                    'flex h-9 w-9 items-center justify-center rounded-[7px] text-white',
-                    'shadow-[0_1px_0_rgba(0,0,0,0.05)] transition cursor-pointer',
-                    'disabled:opacity-40 disabled:cursor-not-allowed',
-                    NAV_ACTIVE_GRADIENT_BG,
-                  )}
+                  title={mode === 'skill' ? '开始创建技能' : '开始创建数字员工'}
+                  aria-label={mode === 'skill' ? '开始创建技能' : '开始创建数字员工'}
+                  className={cn(BTN_AI, 'transition')}
                 >
                   <ArrowUp size={18} />
                 </button>
@@ -815,11 +821,12 @@ export const PlatformHomePage: React.FC = () => {
             transition={{ duration: 0.22, ease: MODE_SWITCH_EASE, delay: 0.04 }}
             className="w-full max-w-[860px] mt-5 flex flex-wrap items-center justify-center gap-2"
           >
-            {chips.map((label) => (
+            {cases.map((item) => (
               <button
-                key={label}
+                key={item.label}
                 type="button"
-                onClick={() => applyChip(label)}
+                onClick={() => applyChip(item)}
+                title={item.hint ?? item.pe}
                 className={cn(
                   'inline-flex h-8 items-center px-2.5 rounded-full',
                   'border border-neutral-200 bg-white',
@@ -828,7 +835,7 @@ export const PlatformHomePage: React.FC = () => {
                   'cursor-pointer transition',
                 )}
               >
-                {label}
+                {item.label}
               </button>
             ))}
           </motion.div>
@@ -847,17 +854,21 @@ export const PlatformHomePage: React.FC = () => {
         }}
       />
 
-      {skillStudioOpen ? (
-        <SkillStudioWorkspace
-          key={`create-${skillSeed ?? 'blank'}`}
-          onBack={closeSkillStudio}
-          onPublish={handleSkillPublished}
-          showToast={showToast}
-          initialMode="interactive"
-          initialPrompt={skillSeed}
-          closeLabel="返回 Agent Builder"
-        />
-      ) : null}
+      {skillStudioOpen && skillSeed
+        ? createPortal(
+            <SkillStudioWorkspace
+              key={`create-${skillStudioKey}-${skillSeed.slice(0, 24)}`}
+              onBack={closeSkillStudio}
+              onPublish={handleSkillPublished}
+              showToast={showToast}
+              initialMode="interactive"
+              initialPrompt={skillSeed}
+              initialSelectedKBs={skillSeedKbNames}
+              closeLabel="返回 Agent Builder"
+            />,
+            document.body,
+          )
+        : null}
       </div>
     </div>
   );
@@ -879,7 +890,7 @@ function ModeTab({
       type="button"
       onClick={onClick}
       className={cn(
-        'relative inline-flex h-9 min-w-[120px] items-center justify-center gap-1 px-4 rounded-full',
+        'group relative inline-flex h-9 min-w-[120px] items-center justify-center gap-1 px-4 rounded-full',
         'text-[14px] leading-5 font-medium cursor-pointer',
         'transition-colors duration-200 ease-out',
         active ? 'text-neutral-900' : 'text-neutral-600 hover:text-neutral-900 hover:bg-white/45',
@@ -897,18 +908,14 @@ function ModeTab({
         />
       ) : null}
       <span className="relative z-[1] inline-flex items-center justify-center gap-1">
-        <span className="inline-flex w-4 shrink-0 items-center justify-center" aria-hidden={!active}>
-          <motion.span
-            initial={false}
-            animate={{
-              opacity: active ? 1 : 0,
-              scale: active ? 1 : 0.9,
-            }}
-            transition={{ duration: 0.18, ease: MODE_SWITCH_EASE }}
-            className="inline-flex"
-          >
-            {icon}
-          </motion.span>
+        <span
+          className={cn(
+            'inline-flex w-4 shrink-0 items-center justify-center transition-opacity duration-200 ease-out',
+            active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+          )}
+          aria-hidden={!active}
+        >
+          {icon}
         </span>
         {label}
       </span>

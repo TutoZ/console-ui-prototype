@@ -1,0 +1,31 @@
+{
+  "task_id": "JXL-TRAIN-01.save",
+  "scope": "knowledge_plan_and_evidence_manifest_only",
+  "static_status": "passed",
+  "errors": [],
+  "runtime_status": "not_verified",
+  "visual_status": "not_verified",
+  "business_status": "not_verified",
+  "release_authorized": false,
+  "unresolved_gaps": [
+    "GAP-BRAND-01",
+    "GAP-FOCUS-01",
+    "GAP-DIALOG-01",
+    "GAP-TEST-01",
+    "GAP-VERSION-01"
+  ],
+  "evidence": {
+    "status": "incomplete",
+    "problems": [
+      "AU-S01:not_run",
+      "AU-S02:not_run",
+      "AU-S03:not_run",
+      "AU-S04:not_run",
+      "AU-S05:not_run",
+      "AU-S06:not_run"
+    ],
+    "semantic_verified": false,
+    "release_authorized": false
+  },
+  "next_action": "执行原子用例与组合用例，补运行证据并由评审者核验；品牌/组件缺口另行处理"
+}

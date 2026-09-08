@@ -1758,11 +1758,13 @@ export type SkillThinkStep = {
 export type SkillThinkPlan = {
   title: string;
   steps: SkillThinkStep[];
+  /** 任务规划步骤（与深度思考分离；缺省时回退用 steps） */
+  planSteps?: SkillThinkStep[];
   /** 总时长目标（ms），分摊到各步 */
   totalMs: number;
 };
 
-/** 根据用户意图生成可逐步播放的思维链 */
+/** 根据用户意图生成可逐步播放的思维链 + 任务规划 */
 export function buildIntentThinkPlan(intent: string): SkillThinkPlan {
   const classified = classifySkillIntent(intent);
   const typeLabel = classified.archetypes
@@ -1773,31 +1775,45 @@ export function buildIntentThinkPlan(intent: string): SkillThinkPlan {
     .join('；');
 
   return {
-    title: '技能创建任务大纲',
-    totalMs: 3600 + Math.floor(Math.random() * 2200),
+    title: '深度思考',
+    totalMs: 9000 + Math.floor(Math.random() * 2400),
     steps: [
       {
         id: 'parse',
-        label: '阅读技能创建规范并提炼关键约束',
-        detail: `从描述提取目标：${classified.goals.slice(0, 2).join('；') || intent.slice(0, 48)}`,
+        label: '先总结用户想做成的能力',
+        detail: `${classified.goals.slice(0, 2).join('；') || intent.slice(0, 48)}。对照创建规范，把必须守住的边界与不可省略约束先拎出来。`,
         status: 'pending',
       },
       {
         id: 'type',
-        label: '分析业务场景并确定技能边界与分组',
-        detail: `判定类型“${typeLabel}”；关注：${focus}`,
+        label: '再看写入四张表单前还缺什么',
+        detail: `场景更接近「${typeLabel}」，关注点在：${focus}。据此判断技能能做什么、哪里不该越权，以及表单里还缺哪些关键信息。`,
         status: 'pending',
       },
       {
         id: 'gap',
-        label: '设计创建技能的澄清交互与规格模板',
-        detail: `分轮确认：${classified.questions.map((q) => q.prompt.replace(/？$/, '')).slice(0, 3).join('；')}`,
+        label: '思路收束',
+        detail: `信息还不够写死规格，优先澄清：${classified.questions.map((q) => q.prompt.replace(/？$/, '')).slice(0, 3).join('；')}。想清楚后再进入任务规划。`,
+        status: 'pending',
+      },
+    ],
+    planSteps: [
+      {
+        id: 'p1',
+        label: '生成澄清问题',
+        detail: '准备可点选的补充信息卡',
         status: 'pending',
       },
       {
-        id: 'draft',
-        label: '交付可直接复用的创建方案与下一步建议',
-        detail: '生成理解摘要与确认卡；右侧要素草稿待你确认后固化',
+        id: 'p2',
+        label: '对齐四张表单草稿',
+        detail: '定义 / 主体 / 规范 / 补充等待写入',
+        status: 'pending',
+      },
+      {
+        id: 'p3',
+        label: '交付可确认方案',
+        detail: '理解摘要与确认卡，点确认后再写入右侧',
         status: 'pending',
       },
     ],
@@ -1858,18 +1874,10 @@ export function buildSkillClarifyQuestions(intent: string): SkillClarifyQuestion
       ? 'boundary-mixed'
       : null;
 
-  const resourceDefault = has('知识库', 'FAQ', '文档')
-    ? has('接口', '脚本', 'API')
-      ? 'res-both'
-      : 'res-kb'
-    : has('接口', '脚本', 'API')
-      ? 'res-api'
-      : null;
-
   return [
     {
       id: 'trigger-scene',
-      prompt: '这个技能主要在什么场景下触发？（对应“这个技能是什么”）',
+      prompt: '这个技能主要在什么场景下触发？',
       required: true,
       selectedId: triggerDefault,
       options: [
@@ -1881,7 +1889,7 @@ export function buildSkillClarifyQuestions(intent: string): SkillClarifyQuestion
     },
     {
       id: 'execution-capability',
-      prompt: '执行时需要哪些能力？（对应“怎么做”）',
+      prompt: '执行时需要哪些能力？',
       required: true,
       selectedId: capabilityDefault,
       options: [
@@ -1893,7 +1901,7 @@ export function buildSkillClarifyQuestions(intent: string): SkillClarifyQuestion
     },
     {
       id: 'boundary-policy',
-      prompt: '遇到边界情况如何处理？（对应“规矩与底线”）',
+      prompt: '遇到边界情况如何处理？',
       required: true,
       selectedId: boundaryDefault,
       options: [
@@ -1901,19 +1909,6 @@ export function buildSkillClarifyQuestions(intent: string): SkillClarifyQuestion
         { id: 'boundary-self', label: '简单问题可自主完结' },
         { id: 'boundary-mixed', label: '先安抚收集信息，复杂 case 转人工' },
         { id: 'boundary-generic', label: '暂不确定，先写通用兜底话术' },
-      ],
-    },
-    {
-      id: 'mounted-resources',
-      prompt: '是否已有可挂载的知识库或脚本？（对应“怎么做 / 其他补充”）',
-      required: false,
-      selectedId: resourceDefault,
-      options: [
-        { id: 'res-kb', label: '已有知识库 / FAQ 文档' },
-        { id: 'res-api', label: '已有系统接口 / 脚本' },
-        { id: 'res-both', label: '知识库和接口都有' },
-        { id: 'res-none', label: '暂无，从描述中先提炼' },
-        { id: 'res-later', label: '后续再补充挂载' },
       ],
     },
   ];

@@ -2,79 +2,64 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 对话内任务大纲 / 思考过程卡 — 对齐 Figma B端 AI 组件规范四种中间态：
- * - outline   7066-75780  静态大纲
- * - executing 7066-75839  执行进度
- * - generating 442-1997   大纲生成中（渐变标题）
- * - nested    4226-10519  含子步骤大纲
+ * 深度思考卡（Cot / jd-think）— 与任务规划（SkillTaskPlanCard）分离
+ * https://jdesign.jd.com/x/vue/component/cot
+ *
+ * - loading     思考中（扫光标题）
+ * - generating  正文流式输出
+ * - 完成态      「已完成思考」· defaultExpanded · 段落全文
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, ChevronDown, ChevronUp } from '@/lib/icons';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronUp } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import type { SkillThinkStep } from '@/lib/skillStudioMock';
-import { LoadingCircle } from '../common/ToastLoadingIcon';
-
-export type SkillThinkingCardMode = 'outline' | 'executing' | 'generating' | 'nested';
 
 export type SkillThinkingCardProps = {
   title?: string;
   steps: SkillThinkStep[];
   durationSec?: number;
   isComplete: boolean;
-  /** 显式指定视觉模式；未传时按步骤状态自动推断 */
-  mode?: SkillThinkingCardMode;
-  /** 生成中：渐变标题 + 逐步露出步骤 */
+  /** 生成中：渐变标题 + 正文流式 */
   generating?: boolean;
+  /** 纯加载态：先于正文出现 */
+  loading?: boolean;
+  /** 对齐 jd-think default-expanded；默认完成态展开 */
+  defaultExpanded?: boolean;
   className?: string;
 };
 
-function formatStepTitle(step: SkillThinkStep, index: number): string {
-  return `Step${index + 1} - ${step.label}`;
+function stepToParagraph(step: SkillThinkStep): string {
+  // Cot 正文只用思考段落，不把「规划式标题」拼进段落前
+  const detail = step.detail?.trim() ?? '';
+  if (detail) return detail;
+  return step.label?.trim() ?? '';
 }
 
-function resolveMode(
-  mode: SkillThinkingCardMode | undefined,
-  generating: boolean,
-  steps: SkillThinkStep[],
-): SkillThinkingCardMode {
-  if (mode) return mode;
-  if (generating) return 'generating';
-  if (steps.some((s) => s.children && s.children.length > 0)) return 'nested';
-  if (steps.some((s) => s.status === 'running' || s.status === 'done')) {
-    return 'executing';
+function stepsToParagraphs(steps: SkillThinkStep[]): string[] {
+  return steps.map(stepToParagraph).filter(Boolean);
+}
+
+function stepStatusHint(step: SkillThinkStep): string {
+  const label = step.label?.trim() ?? '';
+  if (label) return label;
+  const detail = step.detail?.trim() ?? '';
+  if (!detail) return '深度思考';
+  // 取首句作中间态规划摘要
+  const first = detail.split(/[。！？\n]/)[0]?.trim() ?? '';
+  return first.slice(0, 18) || '深度思考';
+}
+
+/** 根据已流出字数定位当前段落 index */
+function activeParagraphIndex(paragraphs: string[], charCount: number): number {
+  if (paragraphs.length === 0) return 0;
+  if (charCount <= 0) return 0;
+  let left = charCount;
+  for (let i = 0; i < paragraphs.length; i += 1) {
+    if (left <= paragraphs[i].length) return i;
+    left -= paragraphs[i].length;
   }
-  return 'outline';
-}
-
-function StaticDot({ className }: { className?: string }) {
-  return <span className={cn('h-[4px] w-[4px] shrink-0 rounded-full bg-[#595959]', className)} />;
-}
-
-function PendingRing() {
-  return (
-    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-      <span className="h-2.5 w-2.5 rounded-full border border-[#D9D9D9]" />
-    </span>
-  );
-}
-
-function RunningRing() {
-  return (
-    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-      <LoadingCircle size={10} />
-    </span>
-  );
-}
-
-function StepStatusIcon({ status }: { status: SkillThinkStep['status'] }) {
-  if (status === 'done') {
-    return <CheckCircle2 size={14} className="shrink-0 text-[#52C41A]" strokeWidth={2} />;
-  }
-  if (status === 'running') {
-    return <RunningRing />;
-  }
-  return <PendingRing />;
+  return paragraphs.length - 1;
 }
 
 function GeneratingTitle({ text }: { text: string }) {
@@ -113,187 +98,216 @@ function CardHeader({
   );
 }
 
-function CollapsibleStepItem({
-  step,
-  index,
-  variant,
-  expanded,
-  onToggle,
+/** 将「已流出字数」切回段落，便于段间 8px 排版 */
+function sliceParagraphs(paragraphs: string[], charCount: number): string[] {
+  if (charCount <= 0) return [];
+  const out: string[] = [];
+  let left = charCount;
+  for (const p of paragraphs) {
+    if (left <= 0) break;
+    if (left >= p.length) {
+      out.push(p);
+      left -= p.length;
+    } else {
+      out.push(p.slice(0, left));
+      left = 0;
+    }
+  }
+  return out;
+}
+
+function ThinkProseBody({
+  paragraphs,
+  charCount,
+  showCaret,
 }: {
-  step: SkillThinkStep;
-  index: number;
-  variant: SkillThinkingCardMode;
-  expanded: boolean;
-  onToggle: () => void;
+  paragraphs: string[];
+  charCount: number;
+  showCaret: boolean;
 }) {
-  const isPending = step.status === 'pending';
-  const useStatusIcon = variant === 'executing';
-  const title = formatStepTitle(step, index);
-  const hasBody = Boolean(step.detail?.trim() || (step.children && step.children.length > 0));
+  const visible = sliceParagraphs(paragraphs, charCount);
+  if (visible.length === 0 && !showCaret) return null;
 
   return (
-    <div className="min-w-0">
-      <button
-        type="button"
-        onClick={hasBody ? onToggle : undefined}
-        disabled={!hasBody}
-        className={cn(
-          'flex w-full min-h-[22px] items-start gap-1 text-left',
-          hasBody ? 'cursor-pointer' : 'cursor-default',
-        )}
-        aria-expanded={hasBody ? expanded : undefined}
-      >
-        <span className="mt-[3px] flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-          {useStatusIcon ? (
-            <StepStatusIcon status={step.status} />
-          ) : (
-            <StaticDot className={isPending ? 'bg-[#B5B5B5]' : undefined} />
-          )}
-        </span>
-        <span
-          className={cn(
-            'min-w-0 flex-1 text-[14px] leading-[22px]',
-            variant === 'executing' && isPending ? 'text-[#B5B5B5]' : 'text-[#262626]',
-          )}
-        >
-          {title}
-        </span>
-        {hasBody ? (
-          <ChevronDown
-            size={14}
+    <div className="px-3 pb-3">
+      {visible.map((text, i) => {
+        const isLast = i === visible.length - 1;
+        return (
+          <p
+            key={i}
             className={cn(
-              'mt-[3px] shrink-0 text-[#B5B5B5] transition-transform duration-200',
-              expanded && 'rotate-180',
+              'text-[12px] leading-[18px] text-[#595959] whitespace-pre-wrap break-words',
+              i > 0 && 'pt-2',
             )}
+          >
+            {text}
+            {showCaret && isLast ? (
+              <span
+                className="ml-0.5 inline-block h-[12px] w-[2px] translate-y-[1px] bg-[#1565BF] align-middle animate-pulse"
+                aria-hidden
+              />
+            ) : null}
+          </p>
+        );
+      })}
+      {showCaret && visible.length === 0 ? (
+        <p className="text-[12px] leading-[18px] text-[#595959]">
+          <span
+            className="inline-block h-[12px] w-[2px] bg-[#1565BF] align-middle animate-pulse"
+            aria-hidden
           />
-        ) : null}
-      </button>
-
-      {hasBody && expanded && (
-        <div className="mt-1 ml-[18px] space-y-1.5 pl-2.5">
-          {step.detail?.trim() ? (
-            <p className="text-[12px] leading-relaxed text-[#8C8C8C] whitespace-pre-wrap break-words">
-              {step.detail}
-            </p>
-          ) : null}
-          {step.children?.map((child) => (
-            <div key={child.id} className="flex min-h-[20px] items-center gap-1.5">
-              <StaticDot className="bg-[#B5B5B5]" />
-              <p className="min-w-0 flex-1 text-[12px] leading-[20px] text-[#8C8C8C]">{child.label}</p>
-            </div>
-          ))}
-        </div>
-      )}
+        </p>
+      ) : null}
     </div>
   );
 }
 
 export const SkillThinkingCard: React.FC<SkillThinkingCardProps> = ({
-  title = '思考过程',
+  title = '深度思考',
   steps,
   durationSec = 0,
   isComplete,
-  mode: modeProp,
   generating = false,
+  loading = false,
+  defaultExpanded,
   className,
 }) => {
-  const variant = resolveMode(modeProp, generating, steps);
-  const [open, setOpen] = useState(() => !isComplete);
-  const [expandedStepIds, setExpandedStepIds] = useState<Set<string>>(() => new Set());
+  const initialOpen = defaultExpanded ?? !isComplete;
+  const [open, setOpen] = useState(initialOpen);
+  const [streamedChars, setStreamedChars] = useState(0);
+  const streamTimerRef = useRef<number | null>(null);
+  const streamedCharsRef = useRef(0);
+  const wasCompleteRef = useRef(isComplete);
 
-  const doneCount = steps.filter((s) => s.status === 'done').length;
-  const total = Math.max(steps.length, 1);
-  const runningIndex = steps.findIndex((s) => s.status === 'running');
-  const runningStepId = runningIndex >= 0 ? steps[runningIndex]?.id : null;
-  const current =
-    runningIndex >= 0 ? runningIndex + 1 : isComplete ? total : Math.min(doneCount + 1, total);
-
-  const visibleCount = useMemo(() => {
-    if (variant !== 'generating') return steps.length;
-    if (steps.every((s) => s.status === 'pending')) return steps.length;
-    if (runningIndex >= 0) return runningIndex + 1;
-    if (doneCount > 0) return doneCount;
-    return Math.min(2, steps.length);
-  }, [variant, steps, runningIndex, doneCount]);
+  const paragraphs = useMemo(() => stepsToParagraphs(steps), [steps]);
+  const fullLen = useMemo(() => paragraphs.reduce((n, p) => n + p.length, 0), [paragraphs]);
+  const statusHints = useMemo(() => steps.map(stepStatusHint), [steps]);
 
   useEffect(() => {
-    if (!isComplete && (variant === 'executing' || variant === 'generating')) {
+    if (!isComplete && (loading || generating)) {
       setOpen(true);
+      wasCompleteRef.current = false;
+      return;
     }
-  }, [isComplete, variant]);
+    // 仅在「进行中 → 完成」时自动收起；展台传 defaultExpanded 的完成态不受影响
+    if (isComplete && !wasCompleteRef.current) {
+      wasCompleteRef.current = true;
+      const timer = window.setTimeout(() => setOpen(false), 520);
+      return () => window.clearTimeout(timer);
+    }
+    wasCompleteRef.current = isComplete;
+  }, [isComplete, loading, generating]);
 
   useEffect(() => {
-    if (!runningStepId) return;
-    setExpandedStepIds((prev) => {
-      if (prev.has(runningStepId)) return prev;
-      const next = new Set(prev);
-      next.add(runningStepId);
-      return next;
-    });
-  }, [runningStepId]);
+    streamedCharsRef.current = streamedChars;
+  }, [streamedChars]);
+
+  useEffect(() => {
+    if (streamTimerRef.current != null) {
+      window.clearInterval(streamTimerRef.current);
+      streamTimerRef.current = null;
+    }
+
+    if (loading) {
+      setStreamedChars(0);
+      streamedCharsRef.current = 0;
+      return;
+    }
+
+    if (isComplete || !generating) {
+      setStreamedChars(fullLen);
+      streamedCharsRef.current = fullLen;
+      return;
+    }
+
+    // 流式：约 28～32 字/秒，贴近真实对话阅读节奏
+    const tickMs = 36;
+    const charsPerTick = 1;
+    streamTimerRef.current = window.setInterval(() => {
+      const next = Math.min(fullLen, streamedCharsRef.current + charsPerTick);
+      streamedCharsRef.current = next;
+      setStreamedChars(next);
+      if (next >= fullLen) {
+        if (streamTimerRef.current != null) {
+          window.clearInterval(streamTimerRef.current);
+          streamTimerRef.current = null;
+        }
+      }
+    }, tickMs);
+
+    return () => {
+      if (streamTimerRef.current != null) {
+        window.clearInterval(streamTimerRef.current);
+        streamTimerRef.current = null;
+      }
+    };
+  }, [loading, generating, isComplete, fullLen]);
+
+  const activeIdx = useMemo(
+    () => activeParagraphIndex(paragraphs, streamedChars),
+    [paragraphs, streamedChars],
+  );
 
   const headerTitle = useMemo(() => {
-    if (variant === 'generating') return '任务大纲生成中';
-    if (variant === 'executing' && !isComplete) return `${current}/${total} 任务执行中`;
-    if (variant === 'executing' && isComplete) return `${total}/${total} 任务已完成`;
+    if (loading) {
+      // 加载态也直接用首段规划摘要，不写「思考中」
+      return statusHints[0] || title;
+    }
+    if (generating && !isComplete) {
+      return statusHints[activeIdx] || statusHints[0] || title;
+    }
+    if (isComplete) return '已完成思考';
     return title;
-  }, [variant, current, total, title, isComplete]);
+  }, [loading, generating, isComplete, title, statusHints, activeIdx]);
 
-  const visibleSteps = steps.slice(0, visibleCount);
-
-  const toggleStep = (stepId: string) => {
-    setExpandedStepIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(stepId)) next.delete(stepId);
-      else next.add(stepId);
-      return next;
-    });
-  };
+  const showShimmerTitle = loading || (generating && !isComplete);
+  const showProseBody = !loading && fullLen > 0;
+  const streaming = generating && !isComplete && streamedChars < fullLen;
 
   return (
     <div className={cn('w-full min-w-0 font-sans', className)}>
       <div className="overflow-hidden rounded-lg border border-[#EBEBEB] bg-white">
         <CardHeader open={open} onToggle={() => setOpen((v) => !v)}>
-          {variant === 'generating' ? (
-            <GeneratingTitle text={headerTitle} />
-          ) : (
-            <span className="text-[14px] font-semibold leading-[22px] text-[#595959]">
-              {headerTitle}
-              {isComplete && durationSec > 0 && (
-                <span className="ml-1.5 text-[12px] font-normal tabular-nums text-[#B5B5B5]">
-                  · {durationSec}s
-                </span>
-              )}
-            </span>
-          )}
+          <div className="flex min-w-0 items-center gap-2">
+            {showShimmerTitle ? (
+              <GeneratingTitle text={headerTitle} />
+            ) : (
+              <span className="text-[14px] font-semibold leading-[22px] text-[#595959]">
+                {headerTitle}
+                {isComplete && durationSec > 0 && (
+                  <span className="ml-1.5 text-[12px] font-normal tabular-nums text-[#B5B5B5]">
+                    · {durationSec}s
+                  </span>
+                )}
+              </span>
+            )}
+          </div>
         </CardHeader>
 
-        {open && visibleSteps.length > 0 && (
-          <div className="flex flex-col gap-2 px-3 pb-3">
-            {visibleSteps.map((step, idx) => {
-              const isLastGenerating = variant === 'generating' && idx === visibleSteps.length - 1;
-
-              return (
-                <div key={step.id} className="flex flex-col gap-1">
-                  <CollapsibleStepItem
-                    step={step}
-                    index={idx}
-                    variant={variant}
-                    expanded={expandedStepIds.has(step.id)}
-                    onToggle={() => toggleStep(step.id)}
-                  />
-                  {isLastGenerating && (
-                    <span
-                      className="ml-[18px] inline-block h-[14px] w-[2px] animate-pulse bg-[linear-gradient(180deg,#000000_0%,#1565BF_100%)]"
-                      aria-hidden
-                    />
-                  )}
-                </div>
-              );
-            })}
+        {open && loading ? (
+          <div className="px-3 pb-3">
+            <p className="text-[14px] leading-[22px] text-[#8C8C8C] skill-collect-body-shimmer">
+              正在理解问题并组织推理…
+            </p>
           </div>
-        )}
+        ) : null}
+
+        {open && showProseBody ? (
+          <ThinkProseBody
+            paragraphs={paragraphs}
+            charCount={isComplete || !generating ? fullLen : streamedChars}
+            showCaret={streaming}
+          />
+        ) : null}
       </div>
     </div>
   );
 };
+
+/** 估算深度思考流式时长（ms），供播放编排对齐 — 约 28 字/秒 */
+export function estimateThinkStreamMs(steps: SkillThinkStep[]): number {
+  const len = stepsToParagraphs(steps).reduce((n, p) => n + p.length, 0);
+  const tickMs = 36;
+  const charsPerTick = 1;
+  return Math.min(14000, Math.max(2800, Math.ceil(len / charsPerTick) * tickMs + 480));
+}

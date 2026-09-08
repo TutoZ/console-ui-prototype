@@ -145,7 +145,7 @@ import { PAGE, CARD, CARD_HOVER, BTN_INK, FIELD } from '@/lib/ui';
 - **卡片**：`CARD` + `CARD_HOVER`，内容卡圆角 `rounded-3xl`；选中态用 `ring-1 ring-neutral-900/15 border-neutral-900/20`（不再用蓝色 ring）。
 - **表格**：容器 `PANEL`；表头 `bg-rail border-b border-line text-neutral-400 uppercase tracking-wider`；行 hover `hover:bg-neutral-50`；分隔 `divide-neutral-100`。
 - **表单**：输入/下拉/文本域统一 `FIELD`；标签统一 `LABEL`；聚焦态 `focus:border-neutral-500 focus:ring-2 focus:ring-neutral-200`。
-- **徽章**：用 `badgeClass(tone)` 或对应语义色三件套（`bg-*-50 text-*-600 border-*-100`）。
+- **徽章**：用 `badgeClass(tone)`（仅底色 + 字色，**禁止描边**）。
 - **深色面**（命令条、思考追踪、流程图）：底 `bg-ink` / `bg-neutral-900`，描边 `border-neutral-700/800`，其上主操作用 `bg-white text-neutral-900`，强调信号用 `text-live`。
 - **Toast / 提示**：墨黑底 `bg-ink text-white rounded-xl`。
 

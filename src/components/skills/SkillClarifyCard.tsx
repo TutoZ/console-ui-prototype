@@ -51,8 +51,12 @@ export const SkillClarifyCard: React.FC<SkillClarifyCardProps> = ({
 
   useEffect(() => {
     setQuestions(payload.questions);
-    setCollapsed(Boolean(payload.collapsed));
-  }, [payload.questions, payload.collapsed, payload.submitted, payload.skipped]);
+    if (payload.collapsed != null) setCollapsed(Boolean(payload.collapsed));
+  }, [payload.questions, payload.collapsed]);
+
+  useEffect(() => {
+    if (locked) setCollapsed(true);
+  }, [locked]);
 
   const canSubmit = useMemo(
     () =>
@@ -222,7 +226,15 @@ export const SkillClarifyCard: React.FC<SkillClarifyCardProps> = ({
               <button
                 type="button"
                 disabled={!canSubmit}
-                onClick={() => onSubmit({ ...payload, questions, submitted: true, skipped: false })}
+                onClick={() =>
+                  onSubmit({
+                    ...payload,
+                    questions,
+                    submitted: true,
+                    skipped: false,
+                    collapsed: true,
+                  })
+                }
                 className={cn(
                   'h-9 px-5 rounded-lg text-[14px] font-medium transition cursor-pointer',
                   canSubmit

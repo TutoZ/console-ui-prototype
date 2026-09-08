@@ -24,7 +24,6 @@ import {
 import { executePlan } from "./agent/taskQueue";
 import { planTask } from "./agent/taskPlanner";
 import { CHAT_MODELS, IMAGE_MODELS } from "./agent/modelRegistry";
-import { attachCreagicProxy } from "./creagicExpressProxy";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3847;
@@ -75,7 +74,6 @@ app.use("/api/videos", apiLimiter);
 app.use("/api/route-intent", apiLimiter);
 app.use("/api/agent", apiLimiter);
 app.use("/api/tasks", apiLimiter);
-attachCreagicProxy(app);
 
 app.get("/api/health", (_req, res) => {
   res.json(getHealthJson());

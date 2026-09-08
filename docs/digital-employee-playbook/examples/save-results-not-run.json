@@ -1,0 +1,36 @@
+{
+  "task_id": "JXL-TRAIN-01.save",
+  "mode": "prototype",
+  "units": [
+    {
+      "id": "AU-S01",
+      "status": "not_run",
+      "evidence": []
+    },
+    {
+      "id": "AU-S02",
+      "status": "not_run",
+      "evidence": []
+    },
+    {
+      "id": "AU-S03",
+      "status": "not_run",
+      "evidence": []
+    },
+    {
+      "id": "AU-S04",
+      "status": "not_run",
+      "evidence": []
+    },
+    {
+      "id": "AU-S05",
+      "status": "not_run",
+      "evidence": []
+    },
+    {
+      "id": "AU-S06",
+      "status": "not_run",
+      "evidence": []
+    }
+  ]
+}

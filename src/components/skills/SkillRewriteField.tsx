@@ -2,16 +2,18 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 技能表单字段 + “改写”：悬浮叠在输入框上（不占文案位），点击后在下方浮层输入指令并写回。
+ * 技能表单字段 + “改写”：悬浮叠在输入框上（不占文案位），点击后在下方浅灰气泡输入指令并写回。
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowUp, Loader2 } from '@/lib/icons';
+import { Loader2 } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import {
   AI_GRADIENT_TEXT,
   AI_REWRITE_CHIP,
+  BTN_INK,
+  BTN_SOFT,
 } from '@/lib/ui';
 
 export async function mockSkillFieldRewrite(
@@ -179,10 +181,12 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
     const anchor = anchorRef.current;
     if (!anchor) return;
     const rect = anchor.getBoundingClientRect();
+    const width = Math.max(rect.width, 280);
+    const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
     setBubbleRect({
       top: rect.bottom + 8,
-      left: rect.left,
-      width: rect.width,
+      left,
+      width,
     });
   }, []);
 
@@ -258,13 +262,19 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
     inputClassName,
   );
 
+  const cancelRewrite = useCallback(() => {
+    if (isRewriting) return;
+    setActiveKey(null);
+    setInstruction(fieldKey, '');
+  }, [fieldKey, isRewriting, setActiveKey, setInstruction]);
+
   const floatingBubble =
     isOpen && bubbleRect
       ? createPortal(
           <div
             ref={bubbleShellRef}
             data-skill-rewrite-bubble
-            className="fixed z-[130] rounded-2xl border border-neutral-900 bg-white shadow-[0_8px_28px_rgba(17,17,17,0.12)] animate-in fade-in zoom-in-95 duration-150"
+            className="fixed z-[250] rounded-[16px] bg-neutral-100 shadow-[0_4px_16px_rgba(17,17,17,0.06)] animate-in fade-in zoom-in-95 duration-150"
             style={{
               top: bubbleRect.top,
               left: bubbleRect.left,
@@ -283,8 +293,8 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
                   return;
                 }
                 if (e.key === 'Escape') {
-                  setActiveKey(null);
-                  setInstruction(fieldKey, '');
+                  e.preventDefault();
+                  cancelRewrite();
                   return;
                 }
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -294,29 +304,30 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
               }}
               placeholder="描述如何改写这段内容…"
               className={cn(
-                'w-full min-h-[96px] max-h-40 bg-transparent text-[13px] px-4 pt-4 pb-14 outline-none resize-none placeholder:text-neutral-400 text-neutral-800 leading-relaxed rounded-2xl',
+                'w-full min-h-[88px] max-h-40 bg-transparent text-[14px] px-4 pt-3.5 pb-12 outline-none resize-none',
+                'placeholder:text-neutral-400 text-[#181D27] leading-[22px] rounded-[16px]',
                 isRewriting && 'opacity-70 cursor-wait',
               )}
             />
             <div className="absolute bottom-3 right-3 flex items-center gap-2">
               <button
                 type="button"
+                disabled={isRewriting}
+                onClick={cancelRewrite}
+                className={cn(BTN_SOFT, 'h-7 px-3 text-[12px]', isRewriting && 'opacity-50 cursor-not-allowed')}
+              >
+                取消
+              </button>
+              <button
+                type="button"
                 disabled={isRewriting || !instruction.trim()}
                 onClick={() => void submitRewrite()}
-                title={isRewriting ? '改写中' : '应用改写'}
+                title={isRewriting ? '改写中' : '发送改写'}
                 aria-busy={isRewriting}
-                className={cn(
-                  'w-8 h-8 rounded-lg text-white transition flex items-center justify-center shrink-0',
-                  isRewriting
-                    ? 'bg-neutral-900 cursor-wait'
-                    : 'bg-neutral-900 hover:bg-neutral-800 cursor-pointer disabled:bg-neutral-200 disabled:cursor-not-allowed',
-                )}
+                className={cn(BTN_INK, 'h-7 px-3 text-[12px] gap-1.5', isRewriting && 'cursor-wait')}
               >
-                {isRewriting ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <ArrowUp size={14} />
-                )}
+                {isRewriting ? <Loader2 size={13} className="animate-spin" /> : null}
+                发送
               </button>
             </div>
           </div>,

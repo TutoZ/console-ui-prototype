@@ -170,22 +170,23 @@ shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-neutral-800/20
 
 ## 七、badgeClass(tone)
 
-基础壳（10px 字、`rounded-full`）：
+基础壳（10px 字、`rounded`、**无描边**）：
 
 ```
-inline-flex … text-[10px] font-medium px-2 py-0.5 rounded-full border
+inline-flex … text-[10px] font-semibold px-1.5 py-px rounded border-0
 ```
 
-| tone | 背景 Hex | 字 Hex | 边 Hex |
-|------|----------|--------|--------|
-| neutral | `#F5F5F5` | `#737373` | `#E8E8E8` |
-| ink | `#111111` | `#FAFAFA` | transparent |
-| success | `#ECFDF5` | `#059669` | `#D1FAE5` |
-| warning | `#FFFBEB` | `#D97706` | `#FDE68A` |
-| danger | `#FEE2E2` | `#DC2626` | `#FECACA` |
-| live | `#F0F9FF` | `#0284C7` | `#E0F2FE` |
+| tone | 背景 Hex | 字 Hex |
+|------|----------|--------|
+| neutral | `#F4F4F5` | `#909399` |
+| ink | `#262626` | `#FFFFFF` |
+| success | `#E8F8F1` | `#00B26F` |
+| warning | `#FFF3E8` | `#F08433` |
+| danger | `#FEEBEC` | `#F33B50` |
+| live | `#E8F1FF` | `#376BFA` |
 
-> 设计稿 `#F2F7FF` → `live` tone / `bg-sky-50`（`#F0F9FF`）
+> 徽章**禁止** `border` / `ring`；仅底色 + 字色。  
+> 对齐 DongDesign 功能色：Success `#00B26F` · Warning `#F08433` · Error `#F33B50` · Info `#376BFA`。
 
 ---
 
@@ -195,9 +196,9 @@ inline-flex … text-[10px] font-medium px-2 py-0.5 rounded-full border
 
 | tone | 背景 Hex | 字 Hex | 尺寸 |
 |------|----------|--------|------|
-| `confirmed` | `#D1FAE5` | `#065F46` | h-18 · 11px · rounded |
-| `confirmedSoft` | `#ECFDF5` | `#047857` | 10px · rounded-md |
-| `pending` | `#FFFBEB` | `#B45309` | 10px · rounded-md |
+| `confirmed` | `#E8F8F1` | `#00B26F` | h-18 · 11px · rounded |
+| `confirmedSoft` | `#E8F8F1` | `#009B5E` | 10px · rounded-md |
+| `pending` | `#FFF3E8` | `#F08433` | 10px · rounded-md |
 
 ```tsx
 import { confirmStatusBadgeClass } from '@/lib/ui';

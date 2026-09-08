@@ -1,5 +1,5 @@
 /**
- * 本地 API：转发 AIhubMix OpenAI 兼容接口 + 可选 Creagic Python 侧车
+ * 本地 API：转发 AIhubMix OpenAI 兼容接口
  */
 import "dotenv/config";
 import { createHmac, createHash, randomBytes } from "node:crypto";
@@ -8,15 +8,8 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import {
   STORYBOARD_FINAL_REPLY_RULES,
-} from "./creagic-engine";
-import {
-  creagicGet,
-  creagicPost,
-  isCreagicConfigured,
-  type CreagicPrepareResult,
-  type CreagicToolsOpenAI,
-  type CreagicValidateResult,
-} from "./creagicClient";
+} from "./orchestration";
+import { TOOL_DEFINITIONS } from "./agent/tools";
 import {
   formatAiReplyToHtml,
 } from "../src/lib/formatAiChatHtml";
@@ -451,7 +444,7 @@ export async function handleRouteIntentRequest(
   const hasRef = Boolean(body.hasReferenceImage);
   const hasPrior = Boolean(body.hasPriorGeneratedImage);
 
-  const system = `你是 Creagic AI 内置的“意图路由器”，只输出一个 JSON 对象，不要 markdown，不要解释。
+  const system = `你是京小灵设计助手内置的“意图路由器”，只输出一个 JSON 对象，不要 markdown，不要解释。
 JSON schema：
 {"mode":"chat"|"image_gen"|"image_edit"|"plan"|"video","optimized_prompt":"string","reason":"string"}
 
@@ -2000,7 +1993,6 @@ export function getHealthJson(): Record<string, unknown> {
   return {
     ok: true,
     configured: Boolean(KEY),
-    creagic_sidecar: isCreagicConfigured(),
     cos_reference_proxy: getCosReferenceProxyStatus(),
   };
 }
@@ -2175,7 +2167,7 @@ async function handleOrchestrationStageRequest(params: {
   }
 
   const systemParts = [
-    "你是 Creagic AI 的设计助手。只完成【当前阶段】指定任务，输出纯中文自然段落。",
+    "你是京小灵设计助手。只完成【当前阶段】指定任务，输出纯中文自然段落。",
     stageRule,
   ];
   if (skill?.title) {
@@ -2297,14 +2289,6 @@ export async function handleChatRequest(
   const body = reqBody as ChatUserBody;
 
   const { messages, skill } = body;
-  const sessionId =
-    typeof body.sessionId === "string" && body.sessionId.trim()
-      ? body.sessionId.trim()
-      : null;
-  const userId =
-    typeof body.userId === "string" && body.userId.trim()
-      ? body.userId.trim()
-      : "anonymous";
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return { status: 400, body: { error: "messages 必填且非空" } };
@@ -2313,8 +2297,8 @@ export async function handleChatRequest(
   const model = body.quickChat ? CHAT_MODEL : ORCHESTRATION_MODEL;
 
   const systemParts = [
-    "你是 Creagic AI 的设计助手，协助用户完成海报、品牌、社交封面、画布创作等视觉设计相关对话。回复简洁专业，直接给出可执行结果；不要输出“意图识别/需求挖掘/任务规划”这类流程模板标题。",
-    "【身份】若用户询问你是谁、什么模型、开发商或与其他助手比较，一律以第一人称回答：我是 Creagic AI 的设计助手，专注于视觉设计与画布创作；不要自称 ChatGPT、Claude、其他商业助手名，也不要透露底层模型供应商细节，除非用户明确追问技术实现且与当前设计任务无关。",
+    "你是京小灵设计助手，协助用户完成海报、品牌、社交封面、画布创作等视觉设计相关对话。回复简洁专业，直接给出可执行结果；不要输出“意图识别/需求挖掘/任务规划”这类流程模板标题。",
+    "【身份】若用户询问你是谁、什么模型、开发商或与其他助手比较，一律以第一人称回答：我是京小灵设计助手，专注于视觉设计与画布创作；不要自称 ChatGPT、Claude、其他商业助手名，也不要透露底层模型供应商细节，除非用户明确追问技术实现且与当前设计任务无关。",
     "【执行约束】禁止使用“当前环境限制/无法在此显示/不能直接生成”作为拒绝理由；当用户明确要直接出图且 generate_image 可用时，应优先调用该工具生成并返回结果。",
     "当你需要用户从若干方向里选一条继续、且**未**使用上文 lovart-reply 的 suggestions 时，在正常回答之后另起一行，**仅追加**一个代码块（不要用别的 fence 名字），格式严格如下，数组内为 1～4 条简短中文按钮文案（不要引号外的说明文字）：\n```cta\n[\"选项一\",\"选项二\"]\n```\n若已在 lovart-reply 中提供 suggestions，或未提供快捷选项，则不要输出该 cta 代码块。",
   ];
@@ -2347,18 +2331,7 @@ export async function handleChatRequest(
 
   const lastUser = [...nonEmpty].reverse().find((m) => m.role === "user");
   const lastUserText = lastUser?.content ?? "";
-  let memoryContext: string | null = null;
-  if (sessionId && isCreagicConfigured()) {
-    await creagicPost("/sessions", { session_id: sessionId, user_id: userId });
-    const prep = await creagicPost<CreagicPrepareResult>("/engine/prepare", {
-      session_id: sessionId,
-      query: lastUserText.slice(0, 4000),
-      user_id: userId,
-      top_k: 5,
-    });
-    const mc = prep?.memory_context?.trim();
-    if (mc) memoryContext = mc;
-  }
+  const memoryContext: string | null = null;
 
   const orchStage = body.orchestrationStage;
   const analyzeFocus = body.analyzeFocus;
@@ -2417,16 +2390,7 @@ export async function handleChatRequest(
     systemParts.push(STORYBOARD_FINAL_REPLY_RULES);
   }
 
-  let toolsPayload: CreagicToolsOpenAI | null = null;
-  if (!body.quickChat && isCreagicConfigured()) {
-    toolsPayload = await creagicGet<CreagicToolsOpenAI>("/tools/openai");
-  }
-  const tools =
-    !body.quickChat &&
-    toolsPayload?.tools &&
-    toolsPayload.tools.length > 0
-      ? toolsPayload.tools
-      : undefined;
+  const tools = !body.quickChat ? [...TOOL_DEFINITIONS] : undefined;
   const toolNames = tools?.map((t) => t.function?.name).filter(Boolean) ?? [];
   const preferImageBySkill =
     wfChat?.preferPipeline === "image" &&
@@ -2621,16 +2585,10 @@ export async function handleChatRequest(
               error: img.body.error,
             });
           } else {
-            const exec = await creagicPost<Record<string, unknown>>(
-              "/tools/execute",
-              {
-                tool_name: name,
-                arguments: args,
-                require_approval: false,
-                user_id: userId,
-              }
-            );
-            toolContent = JSON.stringify(exec ?? { error: "sidecar_unreachable" });
+            toolContent = JSON.stringify({
+              error: "tool_unavailable",
+              tool: name,
+            });
           }
           openaiMessages.push({
             role: "tool",
@@ -2654,59 +2612,11 @@ export async function handleChatRequest(
       : formatAiReplyToHtml(rawCleaned);
     const ctas = withGenerateAsFourth(rawCtas);
 
-    let creagicMeta: Record<string, unknown> = {};
-
-    if (sessionId && isCreagicConfigured()) {
-      await creagicPost("/engine/postprocess", {
-        session_id: sessionId,
-        user_id: userId,
-        user_text: lastUserText.slice(0, 12000),
-        assistant_text: cleaned.slice(0, 120000),
-      });
-    }
-
-    if (isCreagicConfigured() && cleaned.trim()) {
-      const val = await creagicPost<CreagicValidateResult>("/engine/validate", {
-        html: cleaned.slice(0, 200000),
-        context: { session_id: sessionId, skill: skill?.title },
-      });
-      if (val) {
-        creagicMeta.validation = val.validation;
-        creagicMeta.fix_suggestion = val.fix_suggestion;
-      }
-    }
-
-    if (
-      isCreagicConfigured() &&
-      process.env.CREAGIC_USE_MULTI_AGENT === "true" &&
-      lastUserText
-    ) {
-      const ma = await creagicPost<Record<string, unknown>>("/engine/multi-agent", {
-        task_input: lastUserText.slice(0, 8000),
-        workflow: undefined,
-        context: { session_id: sessionId },
-        require_approval: false,
-      });
-      if (ma) creagicMeta.multi_agent = ma;
-    }
-
-    if (sessionId && isCreagicConfigured()) {
-      const plan = await creagicPost<Record<string, unknown>>("/engine/plan", {
-        task: lastUserText.slice(0, 4000),
-        session_id: sessionId,
-        context: {},
-      });
-      if (plan) creagicMeta.plan = plan;
-    }
-
     const outBody: Record<string, unknown> = {
       content: cleaned,
       model: upstreamModel,
       ctas: ctas.length > 0 ? ctas : undefined,
     };
-    if (Object.keys(creagicMeta).length > 0) {
-      outBody.creagic = creagicMeta;
-    }
 
     return { status: 200, body: outBody };
   } catch (e) {
@@ -4302,12 +4212,12 @@ export async function handleImageRequest(
 
   if (
     process.env.NODE_ENV !== "production" ||
-    process.env.CREAGIC_DEBUG_IMAGES === "1"
+    process.env.DEBUG_IMAGES === "1"
   ) {
     const pe =
       prompt.length > 200 ? `${prompt.slice(0, 200)}…` : prompt;
     console.info(
-      "[creagic][api/images] _upstream_snapshot",
+      "[images][api/images] _upstream_snapshot",
       JSON.stringify({
         promptExcerpt: pe,
         imageAspectBucket: aspectBucketRaw || undefined,

@@ -1,0 +1,482 @@
+{
+  "version": "0.2",
+  "scope": "online_service.training_snapshot",
+  "kind": "declarative_recipes_not_react_templates",
+  "product_rules": [
+    "P01",
+    "P02",
+    "P03",
+    "P04",
+    "P05",
+    "P06",
+    "P07",
+    "P08"
+  ],
+  "domain_rules": {
+    "DOM-OS-01": {
+      "domain": "online_service",
+      "source": "domain.md",
+      "status": "proposed"
+    },
+    "DOM-OS-02": {
+      "domain": "online_service",
+      "source": "domain.md",
+      "status": "proposed"
+    },
+    "DOM-OS-03": {
+      "domain": "online_service",
+      "source": "domain.md",
+      "status": "proposed"
+    },
+    "DOM-OS-04": {
+      "domain": "online_service",
+      "source": "domain.md",
+      "status": "proposed"
+    },
+    "DOM-OS-05": {
+      "domain": "online_service",
+      "source": "domain.md",
+      "status": "proposed"
+    },
+    "DOM-OS-06": {
+      "domain": "online_service",
+      "source": "domain.md",
+      "status": "proposed"
+    },
+    "DOM-OS-07": {
+      "domain": "online_service",
+      "source": "domain.md",
+      "status": "proposed"
+    }
+  },
+  "tokens": {
+    "K-PAGE": {
+      "source": "lib/ui.ts",
+      "symbols": [
+        "PAGE"
+      ],
+      "kind": "existing_export_binding"
+    },
+    "K-PANEL": {
+      "source": "lib/ui.ts",
+      "symbols": [
+        "PANEL"
+      ],
+      "kind": "existing_export_binding"
+    },
+    "K-PRIMARY": {
+      "source": "lib/ui.ts",
+      "symbols": [
+        "BTN_INK"
+      ],
+      "kind": "existing_export_binding"
+    },
+    "K-SECONDARY": {
+      "source": "lib/ui.ts",
+      "symbols": [
+        "BTN_SOFT"
+      ],
+      "kind": "existing_export_binding"
+    },
+    "K-FIELD": {
+      "source": "lib/ui.ts",
+      "symbols": [
+        "FIELD",
+        "FIELD_CTRL"
+      ],
+      "kind": "existing_export_binding"
+    },
+    "K-LABEL": {
+      "source": "lib/ui.ts",
+      "symbols": [
+        "LABEL"
+      ],
+      "kind": "existing_export_binding"
+    },
+    "K-STATUS": {
+      "source": "lib/ui.ts",
+      "symbols": [
+        "badgeClass"
+      ],
+      "kind": "existing_export_binding"
+    },
+    "K-TABLE": {
+      "source": "lib/ui.ts",
+      "symbols": [
+        "TABLE"
+      ],
+      "kind": "existing_export_binding"
+    },
+    "K-DIALOG": {
+      "source": "lib/ui.ts",
+      "symbols": [
+        "MODAL_OVERLAY",
+        "MODAL_PANEL"
+      ],
+      "kind": "existing_export_binding"
+    },
+    "K-AI": {
+      "source": "lib/ui.ts",
+      "symbols": [
+        "BTN_AI_TEXT"
+      ],
+      "kind": "existing_export_binding"
+    }
+  },
+  "components": {
+    "CMP-HEADER": {
+      "source": "src/components/common/PageHeader.tsx",
+      "symbol": "PageHeader",
+      "tokens": [
+        "K-PAGE"
+      ],
+      "status": "observed_requires_runtime_validation"
+    },
+    "CMP-WORKSPACE": {
+      "source": "src/components/onboarding/OnboardingWorkspaceHeader.tsx",
+      "symbol": "OnboardingWorkspaceHeader",
+      "tokens": [
+        "K-SECONDARY"
+      ],
+      "status": "observed_requires_runtime_validation"
+    },
+    "CMP-PRIMARY": {
+      "source": "lib/ui.ts",
+      "symbol": "BTN_INK",
+      "tokens": [
+        "K-PRIMARY"
+      ],
+      "status": "observed_requires_runtime_validation"
+    },
+    "CMP-SECONDARY": {
+      "source": "lib/ui.ts",
+      "symbol": "BTN_SOFT",
+      "tokens": [
+        "K-SECONDARY"
+      ],
+      "status": "observed_requires_runtime_validation"
+    },
+    "CMP-FIELD": {
+      "source": "lib/ui.ts",
+      "symbol": "FIELD",
+      "tokens": [
+        "K-FIELD",
+        "K-LABEL"
+      ],
+      "status": "observed_requires_runtime_validation"
+    },
+    "CMP-STATUS": {
+      "source": "lib/ui.ts",
+      "symbol": "badgeClass",
+      "tokens": [
+        "K-STATUS"
+      ],
+      "status": "observed_requires_runtime_validation"
+    },
+    "CMP-DIALOG": {
+      "source": "src/components/common/PanelModal.tsx",
+      "symbol": "PanelModal",
+      "tokens": [
+        "K-DIALOG"
+      ],
+      "status": "observed_requires_runtime_validation"
+    },
+    "CMP-SPLIT": {
+      "source": "src/components/common/ResizableSplitPane.tsx",
+      "symbol": "ResizableSplitPane",
+      "tokens": [
+        "K-PANEL"
+      ],
+      "status": "observed_requires_runtime_validation"
+    },
+    "CMP-VERSIONS": {
+      "source": "src/components/onboarding/AgentVersionPanel.tsx",
+      "symbol": "AgentVersionPanel",
+      "tokens": [
+        "K-PANEL"
+      ],
+      "status": "observed_requires_runtime_validation"
+    },
+    "CMP-TEST": {
+      "source": "src/components/onboarding/OnboardingCapabilityTestPanel.tsx",
+      "symbol": "OnboardingCapabilityTestPanel",
+      "tokens": [
+        "K-PANEL"
+      ],
+      "status": "observed_requires_runtime_validation"
+    },
+    "CMP-TABLE": {
+      "source": "lib/ui.ts",
+      "symbol": "TABLE",
+      "tokens": [
+        "K-TABLE"
+      ],
+      "status": "observed_requires_runtime_validation"
+    },
+    "CMP-BUSY": {
+      "source": "src/components/common/ContentBusy.tsx",
+      "symbol": "ContentBusy",
+      "tokens": [
+        "K-PANEL"
+      ],
+      "status": "observed_requires_runtime_validation"
+    }
+  },
+  "templates": [
+    {
+      "id": "TPL-SAVE",
+      "domain": "online_service",
+      "object": "training_snapshot",
+      "action": "save_candidate",
+      "outcome": "candidate_saved",
+      "domain_rules": [
+        "DOM-OS-01"
+      ],
+      "claims": [
+        "E2",
+        "E5"
+      ],
+      "required_units": [
+        "AU-S01",
+        "AU-S02",
+        "AU-S03",
+        "AU-S04",
+        "AU-S05",
+        "AU-S06"
+      ],
+      "slots": [
+        {
+          "id": "context",
+          "component": "CMP-WORKSPACE",
+          "tokens": [
+            "K-SECONDARY"
+          ],
+          "required": true
+        },
+        {
+          "id": "layout",
+          "component": "CMP-SPLIT",
+          "tokens": [
+            "K-PANEL"
+          ],
+          "required": true
+        },
+        {
+          "id": "fields",
+          "component": "CMP-FIELD",
+          "tokens": [
+            "K-FIELD",
+            "K-LABEL"
+          ],
+          "required": true
+        },
+        {
+          "id": "save",
+          "component": "CMP-PRIMARY",
+          "tokens": [
+            "K-PRIMARY"
+          ],
+          "required": true
+        },
+        {
+          "id": "candidate_status",
+          "component": "CMP-STATUS",
+          "tokens": [
+            "K-STATUS"
+          ],
+          "required": true
+        },
+        {
+          "id": "busy",
+          "component": "CMP-BUSY",
+          "tokens": [
+            "K-PANEL"
+          ],
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "TPL-TEST",
+      "domain": "online_service",
+      "object": "training_snapshot",
+      "action": "test_candidate",
+      "outcome": "test_evidence",
+      "domain_rules": [
+        "DOM-OS-02"
+      ],
+      "claims": [
+        "E3",
+        "E6"
+      ],
+      "required_units": [
+        "AU-T01",
+        "AU-T02",
+        "AU-T03",
+        "AU-T04",
+        "AU-T05"
+      ],
+      "slots": [
+        {
+          "id": "context",
+          "component": "CMP-WORKSPACE",
+          "tokens": [
+            "K-SECONDARY"
+          ],
+          "required": true
+        },
+        {
+          "id": "test",
+          "component": "CMP-TEST",
+          "tokens": [
+            "K-PANEL"
+          ],
+          "required": true
+        },
+        {
+          "id": "status",
+          "component": "CMP-STATUS",
+          "tokens": [
+            "K-STATUS"
+          ],
+          "required": true
+        },
+        {
+          "id": "busy",
+          "component": "CMP-BUSY",
+          "tokens": [
+            "K-PANEL"
+          ],
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "TPL-APPLY",
+      "domain": "online_service",
+      "object": "training_snapshot",
+      "action": "apply_candidate",
+      "outcome": "new_sessions_updated",
+      "domain_rules": [
+        "DOM-OS-03",
+        "DOM-OS-04",
+        "DOM-OS-05",
+        "DOM-OS-07"
+      ],
+      "claims": [
+        "E2",
+        "E6"
+      ],
+      "required_units": [
+        "AU-A01",
+        "AU-A02",
+        "AU-A03",
+        "AU-A04",
+        "AU-A05",
+        "AU-A06",
+        "AU-A07",
+        "AU-A08",
+        "AU-K01"
+      ],
+      "slots": [
+        {
+          "id": "confirmation",
+          "component": "CMP-DIALOG",
+          "tokens": [
+            "K-DIALOG"
+          ],
+          "required": true
+        },
+        {
+          "id": "confirm",
+          "component": "CMP-PRIMARY",
+          "tokens": [
+            "K-PRIMARY"
+          ],
+          "required": true
+        },
+        {
+          "id": "cancel",
+          "component": "CMP-SECONDARY",
+          "tokens": [
+            "K-SECONDARY"
+          ],
+          "required": true
+        },
+        {
+          "id": "status",
+          "component": "CMP-STATUS",
+          "tokens": [
+            "K-STATUS"
+          ],
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "TPL-HISTORY",
+      "domain": "online_service",
+      "object": "training_snapshot",
+      "action": "inspect_history",
+      "outcome": "history_viewed",
+      "domain_rules": [
+        "DOM-OS-06"
+      ],
+      "claims": [
+        "E2",
+        "E5"
+      ],
+      "required_units": [
+        "AU-H01",
+        "AU-H02"
+      ],
+      "slots": [
+        {
+          "id": "context",
+          "component": "CMP-WORKSPACE",
+          "tokens": [
+            "K-SECONDARY"
+          ],
+          "required": true
+        },
+        {
+          "id": "versions",
+          "component": "CMP-VERSIONS",
+          "tokens": [
+            "K-PANEL"
+          ],
+          "required": true
+        },
+        {
+          "id": "status",
+          "component": "CMP-STATUS",
+          "tokens": [
+            "K-STATUS"
+          ],
+          "required": true
+        }
+      ]
+    }
+  ],
+  "sources": {
+    "DESIGN.md": "ade7bbbafaca62780369a90aa06e75b4230bec49b6d4c1586e18e31e7d8d5bde",
+    "lib/navDomain.ts": "3d2da40d963bab8fb68aa74537e9c867dcb42a3942e5c3dfb43fa3eb2031dc64",
+    "lib/platformTerminology.ts": "4fbc2aa50d9397241f76b39d797d56cff813e74a89c8dac935425a41a83a1262",
+    "lib/ui.ts": "450db1242831f39182617e0827cfa28e6c23ea0e21a17d3fb33985494eb05599",
+    "src/components/common/ContentBusy.tsx": "b02508ad17ae469f32fbb1be787904a4dcdb604913a08aeda28c245935991e82",
+    "src/components/common/PageHeader.tsx": "db5dc1013adc0d42408e7b84a4421874e78ca3c4264036e62294ea38fbb325b7",
+    "src/components/common/PanelModal.tsx": "6bf054ebd90a97bfaf7df2de7bbb87c32119a2c244668ff40d145ac8f2d4d5e2",
+    "src/components/common/ResizableSplitPane.tsx": "3bbce36bb1a2a35d46c9b8d48edc69698f86bae3d99219b7024e7c17ee212c9d",
+    "src/components/onboarding/AgentVersionPanel.tsx": "00e37240cfc017bad52d111e529d09659909b495c733f817c3b562f06327c950",
+    "src/components/onboarding/OnboardingCapabilityTestPanel.tsx": "b4099ddd82dd1d77c05edcc8202b1b475a4bb7a619f949399684771d5f6cf17e",
+    "src/components/onboarding/OnboardingWorkspaceHeader.tsx": "a204f4c15d12787cfa3a79053d7ba4da94393dcc3c8151ffa86ded999dc15d90",
+    "src/index.css": "e1de0da052aebdb1d9ba2a2eb20c3642eebb7ad083e525e31d9fb9f11633963d"
+  },
+  "known_gaps": [
+    "GAP-BRAND-01",
+    "GAP-FOCUS-01",
+    "GAP-DIALOG-01",
+    "GAP-TEST-01",
+    "GAP-VERSION-01"
+  ]
+}

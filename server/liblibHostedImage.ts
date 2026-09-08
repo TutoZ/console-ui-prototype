@@ -175,7 +175,7 @@ async function fetchUrlLoose(
         }
       : {
           Accept: "image/*,*/*;q=0.8",
-          "User-Agent": "creagic-liblib-hosted-upload/1.0",
+          "User-Agent": "joyserving-liblib-hosted-upload/1.0",
         },
   });
 }

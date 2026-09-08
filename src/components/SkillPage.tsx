@@ -53,9 +53,6 @@ const SUB_TABS: { key: SkillListTab; label: string }[] = [
   { key: 'market', label: SKILL_PAGE_COPY.tabMarket },
 ];
 
-/** 标签无描边：仅底色 + 字色 */
-const SKILL_BADGE_NO_STROKE = 'border-0 shadow-none';
-
 const SKILL_ICON_FALLBACKS = [
   'solar:stars-bold',
   'solar:cpu-bolt-bold',
@@ -188,7 +185,7 @@ function SkillAppliedAgentTags({
     <div className={cn('flex flex-wrap gap-1', className)}>
       {aiCreated ? (
         <span
-          className={cn(badgeClass('live'), SKILL_BADGE_NO_STROKE, 'font-medium normal-case')}
+          className={cn(badgeClass('live'), 'font-medium normal-case')}
           title="由 AI 对话创建"
         >
           AI创建
@@ -199,7 +196,6 @@ function SkillAppliedAgentTags({
           key={name}
           className={cn(
             badgeClass('neutral'),
-            SKILL_BADGE_NO_STROKE,
             'max-w-full truncate font-medium normal-case',
           )}
           title={`已应用于 ${name}`}
@@ -528,7 +524,6 @@ export const SkillPage: React.FC = () => {
                           <span
                             className={cn(
                               badgeClass('live'),
-                              SKILL_BADGE_NO_STROKE,
                               'font-medium normal-case',
                             )}
                             title="由 AI 对话创建"

@@ -9,11 +9,15 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { Icon, addCollection } from '@iconify/react';
+import solarIcons from '@iconify-json/solar/icons.json';
 import {
   BTN_DANGER,
   BTN_INK,
   BTN_OUTLINE,
   BTN_SOFT,
+  BTN_AI,
+  BTN_AI_TEXT,
   CARD,
   CARD_HOVER,
   FIELD,
@@ -23,10 +27,17 @@ import {
   SEARCH_FIELD,
   SELECT_TRIGGER,
   badgeClass,
+  confirmStatusBadgeClass,
+  NAV_ACTIVE_GRADIENT_TEXT,
+  NAV_ACTIVE_GRADIENT_BG,
+  SKILL_AOP_TINT_BG,
+  SKILL_AOP_TINT_BORDER,
+  SKILL_AOP_SEND_BTN,
+  CHIP,
+  CHIP_ACTIVE,
+  FUNCTIONAL_COLORS,
   NAV_SECONDARY_TAB_INDICATOR,
-  NAV_SECONDARY_SUBTAB_INDICATOR,
   navSecondaryTabClass,
-  navSecondarySubTabClass,
   segmentedItemClass,
   type BadgeTone,
 } from '@/lib/ui';
@@ -42,7 +53,6 @@ import {
   ArrowUpRight,
   Award,
   Ban,
-  BarChart3,
   Bell,
   BookOpen,
   Bot,
@@ -84,7 +94,6 @@ import {
   KeyRound,
   Layers,
   Library,
-  Lightbulb,
   Link2,
   Lock,
   LogOut,
@@ -105,10 +114,7 @@ import {
   Save,
   Search,
   Send,
-  Settings,
-  Settings2,
   Share2,
-  Shield,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
@@ -129,8 +135,22 @@ import {
   Zap,
   type IconComponent,
 } from '@/lib/icons';
+import {
+  BOTTOM_NAV_ITEMS,
+  DOMAIN_NAV,
+} from '@/lib/navDomain';
+import {
+  NAV_RAIL_ICON_SIZE,
+  NAV_RAIL_ICON_SIZE_COMPACT,
+  NAV_RAIL_MORE_SVG,
+  NAV_RAIL_SVG_MARKUP,
+  prepareNavRailSvg,
+} from '@/lib/navRailAssets';
+import { SECONDARY_NAV_ICON_BY_TAB_ID } from '@/lib/secondaryNavIcons';
 import { useApp } from '../context/AppContext';
 import { PageHeader } from './common/PageHeader';
+import { PrimaryNavRail } from './PrimaryNavRail';
+import { SecondarySideNav } from './SecondarySideNav';
 import { Modal } from './common/Modal';
 import { PanelModal } from './common/PanelModal';
 import { SegmentedTabBar } from './common/SegmentedTabs';
@@ -138,6 +158,12 @@ import { ListPagination } from './common/ListPagination';
 import { ContentBusy } from './common/ContentBusy';
 import { MatrixLoader } from './common/MatrixLoader';
 import { CardIcon } from './common/CardIcon';
+import { QcPlanBoard } from './QcPlanBoard';
+import {
+  sourceLabelOf,
+  scopeLabelOf,
+  type QcPlan,
+} from '@/lib/qcWorkspaceMock';
 import {
   OnlinePageHeader,
   OnlinePageToolbar,
@@ -145,6 +171,7 @@ import {
   onlineTableClass,
   OnlineEmptyRow,
 } from './common/OnlinePageLayout';
+import { RELAY_HOME_ASSETS } from '@/lib/relayHomeAssets';
 import {
   Select,
   SelectContent,
@@ -152,15 +179,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AppTooltip,
+  TooltipProvider,
+  type TooltipEffect,
+  type TooltipPlacement,
+} from '@/components/ui/tooltip';
 import { EmployeeCardRelay } from './employees/relay/EmployeeCardRelay';
 import { MarketCardRelay } from './employees/relay/MarketCardRelay';
 import { PromptComposer } from './common/PromptComposer';
 import { HoverActionMenu } from './common/HoverActionMenu';
 import { WorkspaceOverlay } from './common/WorkspaceOverlay';
+import { SkillThinkingCard } from './skills/SkillThinkingCard';
+import { SkillTaskPlanCard } from './skills/SkillTaskPlanCard';
+import { SkillCollectCard } from './skills/SkillCollectCard';
+import {
+  SkillRoundConfirmCard,
+  type SkillConfirmItem,
+} from './skills/SkillRoundConfirmCard';
+import { GoalComposerGhost } from './GoalComposerGhost';
 import {
   ChatReplySkeleton,
   WorkLogSkeleton,
-  ParsingStatusCell,
   UploadLoadingPanel,
 } from './common/LoadingSkeletons';
 import { ResizableSplitPane } from './common/ResizableSplitPane';
@@ -168,6 +208,12 @@ import { ExecutionProcessFold } from './common/ExecutionProcessFold';
 import { MasterTemplateUpgradeBanner } from './onboarding/MasterTemplateUpgradeBanner';
 import type { ThoughtStep } from '../types';
 import type { PendingTemplateUpgrade } from '@/lib/masterTemplateUpgrade';
+import type { SkillThinkStep } from '@/lib/skillStudioMock';
+import {
+  QC_APP_IMPLEMENTED_TABS,
+  QC_APP_MAIN_TABS,
+  type QcAppMainTab,
+} from '@/lib/navDomain';
 
 type NavId =
   | 'token-color'
@@ -184,6 +230,7 @@ type NavId =
   | 'atom-segmented'
   | 'atom-underline'
   | 'atom-chip'
+  | 'atom-tooltip'
   | 'feedback-toast'
   | 'feedback-busy'
   | 'feedback-empty'
@@ -198,6 +245,12 @@ type NavId =
   | 'pattern-modal'
   | 'pattern-table'
   | 'pattern-composer'
+  | 'pattern-ai-bubble'
+  | 'pattern-ai-thinking'
+  | 'pattern-ai-task-plan'
+  | 'pattern-ai-collect'
+  | 'pattern-ai-confirm'
+  | 'pattern-goal-composer'
   | 'pattern-hover-menu'
   | 'pattern-workspace'
   | 'pattern-skeleton'
@@ -236,6 +289,12 @@ const PLATFORM_STATUS: Partial<Record<NavId, PlatformStatus>> = {
   'legacy-wide-nav': 'legacy',
   'pattern-banner': 'single',
   'pattern-composer': 'single',
+  'pattern-ai-bubble': 'live',
+  'pattern-ai-thinking': 'live',
+  'pattern-ai-task-plan': 'live',
+  'pattern-ai-collect': 'live',
+  'pattern-ai-confirm': 'live',
+  'pattern-goal-composer': 'live',
   'pattern-hover-menu': 'single',
   'pattern-workspace': 'single',
   'pattern-exec-fold': 'live',
@@ -273,6 +332,53 @@ const DS_EXEC_STEPS: ThoughtStep[] = [
   },
 ];
 
+const DS_THINK_STEPS: SkillThinkStep[] = [
+  {
+    id: 't1',
+    label: '解析岗位意图',
+    detail: '识别服务场景与边界',
+    status: 'done',
+  },
+  {
+    id: 't2',
+    label: '规划主 Agent Prompt',
+    detail: '名称 / 性格 / 职责 / 红线',
+    status: 'running',
+  },
+  {
+    id: 't3',
+    label: '拆解技能边界',
+    detail: '技能表单草稿',
+    status: 'pending',
+  },
+];
+
+const DS_CONFIRM_ITEMS: SkillConfirmItem[] = [
+  {
+    id: 'name',
+    label: '技能名称：延保进度查询',
+    checked: true,
+    fieldLabel: '技能名称',
+    value: '延保进度查询',
+  },
+  {
+    id: 'problem',
+    label: '业务问题：用户询问延保工单进度时给出可执行结论',
+    checked: true,
+    fieldLabel: '业务问题',
+    value: '用户询问延保工单进度时给出可执行结论',
+  },
+  {
+    id: 'forbidden',
+    label: '禁止行为：不得泄露后台接口或未授权内部信息',
+    checked: true,
+    fieldLabel: '禁止行为',
+    value: '不得泄露后台接口或未授权内部信息',
+  },
+];
+
+const DS_GOAL_CHIPS = ['延保进度查询', '退换货自助', '高危客诉安抚'] as const;
+
 const DS_TEMPLATE_UPGRADE: PendingTemplateUpgrade = {
   version: '2.4.0',
   releaseNotes: '优化情绪识别\n新增订单查询接口',
@@ -297,7 +403,7 @@ const TOC: TocGroup[] = [
         id: 'tpl-page-header',
         zh: '页头',
         en: 'Page Header',
-        keywords: 'OnlinePageHeader 名称 筛选 搜索 新建 主按钮',
+        keywords: 'QcPlanBoard OnlinePageHeader PAGE_HEADER_INSET 质检计划 筛选 搜索 新建',
       },
       {
         id: 'tpl-list',
@@ -325,9 +431,9 @@ const TOC: TocGroup[] = [
       },
       {
         id: 'tpl-dual-tabs',
-        zh: '双层标签页',
-        en: 'Dual Tabs',
-        keywords: '双层 Tab 子 Tab navSecondarySubTab',
+        zh: '页内子标签',
+        en: 'In-page Tabs',
+        keywords: '技能页 我的技能 技能市场 OnlinePageHeader 墨黑底条',
       },
     ],
   },
@@ -337,7 +443,7 @@ const TOC: TocGroup[] = [
     items: [
       { id: 'token-color', zh: '颜色', en: 'Color', keywords: '颜色 color' },
       { id: 'token-type', zh: '字体', en: 'Font', keywords: '字体 font' },
-      { id: 'token-icon', zh: '图标', en: 'Icon', keywords: '图标 icon' },
+      { id: 'token-icon', zh: '图标', en: 'Icon', keywords: '图标 icon 导航 PrimaryNavRail Solar' },
       { id: 'token-space', zh: '间距', en: 'Space', keywords: '间距 space' },
       { id: 'token-radius', zh: '圆角', en: 'Radius', keywords: '圆角 radius' },
       { id: 'token-shadow', zh: '阴影', en: 'Shadow', keywords: '阴影 shadow' },
@@ -353,11 +459,17 @@ const TOC: TocGroup[] = [
         id: 'atom-button',
         zh: '按钮',
         en: 'Button',
-        keywords: 'BTN_INK SOFT OUTLINE DANGER 按钮 Loading 加载 MatrixLoader',
+        keywords: 'BTN_INK SOFT OUTLINE DANGER BTN_AI AI色 按钮 Loading 加载 MatrixLoader',
       },
       { id: 'atom-field', zh: '表单字段', en: 'Field / Form', keywords: 'FIELD LABEL 表单 输入' },
       { id: 'atom-tag', zh: '标签', en: 'Tag', keywords: 'badge badgeClass 标签' },
       { id: 'atom-chip', zh: '筛选条', en: 'Filter Chip', keywords: 'chip 筛选' },
+      {
+        id: 'atom-tooltip',
+        zh: '文字提示',
+        en: 'Tooltip',
+        keywords: 'tooltip jd-tooltip 提示 placement dark light',
+      },
     ],
   },
   {
@@ -451,6 +563,48 @@ const TOC: TocGroup[] = [
       },
       { id: 'pattern-composer', zh: '提示输入', en: 'PromptComposer', keywords: 'PromptComposer 技能', status: 'single' },
       {
+        id: 'pattern-goal-composer',
+        zh: '创作 Sender',
+        en: 'GoalComposer',
+        keywords: 'GoalComposerGhost skill-ai-composer Agent Builder dongDesign Sender',
+        status: 'live',
+      },
+      {
+        id: 'pattern-ai-bubble',
+        zh: '对话气泡字阶',
+        en: 'AI Bubble',
+        keywords: 'dongDesign Bubble 气泡 标题 正文',
+        status: 'live',
+      },
+      {
+        id: 'pattern-ai-thinking',
+        zh: '深度思考卡',
+        en: 'SkillThinkingCard',
+        keywords: 'SkillThinkingCard Think Cot 深度思考',
+        status: 'live',
+      },
+      {
+        id: 'pattern-ai-task-plan',
+        zh: '任务规划卡',
+        en: 'SkillTaskPlanCard',
+        keywords: 'SkillTaskPlanCard 任务规划 Step',
+        status: 'live',
+      },
+      {
+        id: 'pattern-ai-collect',
+        zh: '数据收集卡',
+        en: 'SkillCollectCard',
+        keywords: 'SkillCollectCard Collect 搜索和分析资料',
+        status: 'live',
+      },
+      {
+        id: 'pattern-ai-confirm',
+        zh: '确认信息卡',
+        en: 'SkillRoundConfirmCard',
+        keywords: 'SkillRoundConfirmCard confirmStatusBadge',
+        status: 'live',
+      },
+      {
         id: 'pattern-hover-menu',
         zh: '悬停菜单',
         en: 'HoverActionMenu',
@@ -495,6 +649,8 @@ const CONSTANT_INDEX: { name: string; href: NavId; note: string }[] = [
   { name: 'BTN_SOFT', href: 'atom-button', note: '次级柔灰' },
   { name: 'BTN_OUTLINE', href: 'atom-button', note: '描边白底' },
   { name: 'BTN_DANGER', href: 'atom-button', note: '危险描边' },
+  { name: 'BTN_AI', href: 'atom-button', note: 'AI 色发送（黑→蓝）' },
+  { name: 'BTN_AI_TEXT', href: 'atom-button', note: 'AI 色文案按钮' },
   { name: 'BTN + MatrixLoader', href: 'atom-button', note: '按钮加载态' },
   { name: 'FIELD / LABEL', href: 'atom-field', note: '表单控件' },
   { name: 'SEARCH_FIELD', href: 'atom-field', note: '页头搜索' },
@@ -507,16 +663,24 @@ const CONSTANT_INDEX: { name: string; href: NavId; note: string }[] = [
   { name: 'PanelModal', href: 'tpl-modals', note: '480px 分区窄弹窗' },
   { name: 'ListPagination', href: 'pattern-table', note: '列表分页' },
   { name: 'ContentBusy', href: 'feedback-busy', note: '区块加载' },
-  { name: 'OnlinePageHeader', href: 'tpl-page-header', note: '页头：标题 + 筛选搜索 + 主按钮' },
-  { name: '列表布局', href: 'tpl-list', note: '页头 + 扁平表 + 分页' },
+  { name: 'OnlinePageHeader', href: 'tpl-page-header', note: '质检计划：真实 QcPlanBoard 页头' },
+  { name: '列表布局', href: 'tpl-list', note: '员工知识：页头 + 扁平表 + 分页' },
   { name: '卡片布局', href: 'tpl-card', note: '页头 + CARD 网格' },
   { name: '弹窗样式', href: 'tpl-modals', note: '表单 / 确认 / 危险 / 宽屏' },
-  { name: '分层选项卡', href: 'tpl-layered-tabs', note: '窄轨 + 顶栏二级 Tab' },
-  { name: '双层标签页', href: 'tpl-dual-tabs', note: '一级 Tab + 子 Tab' },
+  { name: '分层选项卡', href: 'tpl-layered-tabs', note: '智能质检：窄轨 + QC_APP_MAIN_TABS' },
+  { name: '页内子标签', href: 'tpl-dual-tabs', note: '技能页：页头 + 我的技能/市场' },
   { name: 'OnlinePageLayout', href: 'pattern-online', note: '在线列表壳' },
   { name: 'EmployeeCardRelay', href: 'pattern-employee', note: '员工卡' },
   { name: 'MarketCardRelay', href: 'pattern-market', note: '市场卡' },
-  { name: 'PromptComposer', href: 'pattern-composer', note: '提示输入' },
+  { name: 'PromptComposer', href: 'pattern-composer', note: '提示输入（技能工作台遗留）' },
+  { name: 'GoalComposer / skill-ai-composer', href: 'pattern-goal-composer', note: 'Agent Builder Sender' },
+  { name: 'SkillThinkingCard', href: 'pattern-ai-thinking', note: 'Cot / 深度思考' },
+  { name: 'SkillTaskPlanCard', href: 'pattern-ai-task-plan', note: '任务规划 Step' },
+  { name: 'SkillCollectCard', href: 'pattern-ai-collect', note: 'Collect / 数据收集' },
+  { name: 'SkillRoundConfirmCard', href: 'pattern-ai-confirm', note: '确认信息卡' },
+  { name: 'confirmStatusBadgeClass', href: 'pattern-ai-confirm', note: '确认流角标' },
+  { name: 'NAV_ACTIVE_GRADIENT_*', href: 'atom-underline', note: '激活渐变文字/底' },
+  { name: 'SKILL_AOP_*', href: 'pattern-goal-composer', note: 'AI 创作色系' },
   { name: 'HoverActionMenu', href: 'pattern-hover-menu', note: '悬停菜单' },
   { name: 'WorkspaceOverlay', href: 'pattern-workspace', note: '知识库全屏层' },
   { name: 'ExecutionProcessFold', href: 'pattern-exec-fold', note: '对话处理过程' },
@@ -537,13 +701,16 @@ type ColorGroup = {
   groupZh: string;
   groupEn: string;
   items: ColorSwatch[];
+  /** functional = DongDesign 功能色族卡片 */
+  kind?: 'neutral' | 'grid' | 'functional' | 'badge-preview';
 };
 
-/** 设计系统色板 — 对齐 color-tokens.md / tokens-full.md / lib/ui.ts badgeTones */
+/** 设计系统色板 — 对齐 color-tokens.md / DongDesign 功能色 */
 const COLOR_GROUPS: ColorGroup[] = [
   {
     groupZh: '中性灰阶',
     groupEn: 'Neutral scale',
+    kind: 'neutral',
     items: [
       { zh: '50', en: 'neutral-50', hex: '#FAFAFA', note: '侧栏底 / bg-neutral-50' },
       { zh: '100', en: 'neutral-100', hex: '#F5F5F5', note: '浅填充 / 分段底' },
@@ -555,9 +722,9 @@ const COLOR_GROUPS: ColorGroup[] = [
       { zh: '400', en: 'neutral-400', hex: '#A3A3A3', note: '表头 / 最弱字' },
       { zh: '500', en: 'neutral-500', hex: '#737373', note: '次要 / LABEL' },
       { zh: '550', en: 'neutral-550', hex: '#737373', note: '侧栏图标' },
-      { zh: '600', en: 'neutral-600', hex: '#525252', note: '徽章 neutral 字' },
+      { zh: '600', en: 'neutral-600', hex: '#525252', note: '次级正文' },
       { zh: '700', en: 'neutral-700', hex: '#404040', note: '表格正文' },
-      { zh: '800', en: 'neutral-800', hex: '#262626', note: 'BTN_INK 主操作' },
+      { zh: '800', en: 'neutral-800', hex: '#262626', note: '主按钮' },
       { zh: '850', en: 'neutral-850', hex: '#262626', note: 'hover:bg-neutral-850' },
       { zh: '900', en: 'neutral-900', hex: '#171717', note: '标题 / 进度条' },
       { zh: '950', en: 'neutral-950', hex: '#0A0A0A', note: '深色命令区', dark: true },
@@ -566,6 +733,7 @@ const COLOR_GROUPS: ColorGroup[] = [
   {
     groupZh: '语义 Token',
     groupEn: 'Semantic CSS',
+    kind: 'grid',
     items: [
       { zh: '画布', en: 'background', hex: '#FFFFFF', note: 'bg-background / PAGE' },
       { zh: '主文本', en: 'foreground', hex: '#111111', note: 'text-foreground', dark: true },
@@ -575,39 +743,28 @@ const COLOR_GROUPS: ColorGroup[] = [
       { zh: '次要字', en: 'muted-fg', hex: '#737373', note: 'text-muted-foreground' },
       { zh: '默认描边', en: 'border', hex: '#E8E8E8', note: 'border-border / input' },
       { zh: '聚焦环', en: 'ring', hex: '#A3A3A3', note: 'ring-ring /30' },
-      { zh: '危险', en: 'destructive', hex: '#DC2626', note: 'text-destructive', dark: true },
-    ],
-  },
-  {
-    groupZh: '标签色调',
-    groupEn: 'badgeClass tones',
-    items: [
-      { zh: '中性底', en: 'neutral bg', hex: '#F5F5F5', note: 'badgeClass neutral' },
-      { zh: '墨黑底', en: 'ink bg', hex: '#262626', note: 'badgeClass ink', dark: true },
-      { zh: '成功底', en: 'success bg', hex: '#ECFDF5', note: '开箱即用 / 上岗' },
-      { zh: '成功字', en: 'success text', hex: '#009966', note: 'text success' },
-      { zh: '警告底', en: 'warning bg', hex: '#FFFBEB', note: '专属定制' },
-      { zh: '警告字', en: 'warning text', hex: '#B45309', note: 'text warning' },
-      { zh: '危险底', en: 'danger bg', hex: '#FFF1F2', note: 'bg-rose-50' },
-      { zh: '危险字', en: 'danger text', hex: '#E11D48', note: 'text-rose-600' },
-      { zh: '信息底', en: 'live bg', hex: '#F0F7FF', note: '休息 / AI 标签' },
-      { zh: '信息字', en: 'live text', hex: '#0050D2', note: 'text live 文案' },
-    ],
-  },
-  {
-    groupZh: '状态与强调',
-    groupEn: 'Status & accent',
-    items: [
-      { zh: '在线点', en: 'online dot', hex: '#00AC6B', note: 'statusDot 上岗' },
-      { zh: '成功强调', en: 'emerald-600', hex: '#059669', note: 'bg-emerald-600' },
-      { zh: '警告强调', en: 'amber-700', hex: '#B45309', note: '排队 / 定制' },
-      { zh: '信息浅蓝', en: 'sky-50', hex: '#F0F9FF', note: '映射稿 #F2F7FF' },
-      { zh: '信息强调', en: 'sky-600', hex: '#0284C7', note: '实时 / 组 A' },
-      { zh: '对比紫', en: 'violet-50', hex: '#F5F3FF', note: '组 B 对比' },
-      { zh: '通知红', en: 'red-600', hex: '#DC2626', note: '角标 / 红点', dark: true },
+      { zh: '危险', en: 'destructive', hex: '#F33B50', note: '对齐功能色 Error', dark: true },
       { zh: '遮罩', en: 'overlay', hex: '#000000', note: 'bg-black/40 Modal', dark: true },
     ],
   },
+  {
+    groupZh: '功能色',
+    groupEn: 'Functional colors',
+    kind: 'functional',
+    items: [],
+  },
+];
+
+const FUNCTIONAL_COLOR_FAMILIES: Array<{
+  key: keyof typeof FUNCTIONAL_COLORS;
+  zh: string;
+  en: string;
+  badgeTone?: BadgeTone;
+}> = [
+  { key: 'success', zh: '成功', en: 'Success', badgeTone: 'success' },
+  { key: 'warning', zh: '警告', en: 'Warning', badgeTone: 'warning' },
+  { key: 'error', zh: '错误', en: 'Error', badgeTone: 'danger' },
+  { key: 'info', zh: '信息', en: 'Info', badgeTone: 'live' },
 ];
 
 function ColorSwatchCard({ swatch }: { swatch: ColorSwatch }) {
@@ -632,6 +789,54 @@ function ColorSwatchCard({ swatch }: { swatch: ColorSwatch }) {
       <div className="px-2.5 py-2">
         <div className="text-[11px] font-semibold text-neutral-900 leading-tight">{swatch.zh}</div>
         <div className="text-[9px] text-neutral-500 mt-0.5 leading-snug line-clamp-2">{swatch.note}</div>
+      </div>
+    </div>
+  );
+}
+
+/** DongDesign 功能色族卡片：主色 + 四档变体 */
+function FunctionalColorFamilyCard({
+  zh,
+  en,
+  palette,
+  badgeTone,
+}: {
+  zh: string;
+  en: string;
+  palette: (typeof FUNCTIONAL_COLORS)[keyof typeof FUNCTIONAL_COLORS];
+  badgeTone?: BadgeTone;
+}) {
+  const variants = [palette.light, palette.dark, palette.soft, palette.bg];
+  return (
+    <div className="rounded-[12px] border border-neutral-200/80 bg-white overflow-hidden shadow-[0_1px_4px_rgba(31,35,41,0.03)]">
+      <div className="px-3 pt-3 pb-2 flex items-center justify-between gap-2">
+        <div>
+          <div className="text-[13px] font-semibold text-neutral-900">{en}</div>
+          <div className="text-[11px] text-neutral-500">{zh}</div>
+        </div>
+        {badgeTone ? <span className={badgeClass(badgeTone)}>{zh}</span> : null}
+      </div>
+      <div
+        className="mx-3 h-[72px] rounded-[8px] flex items-end px-2.5 pb-2"
+        style={{ background: palette.color }}
+      >
+        <span className="font-mono text-[11px] font-bold text-white/95 tabular-nums">
+          {palette.color}
+        </span>
+      </div>
+      <div className="grid grid-cols-4 gap-1.5 p-3 pt-2.5">
+        {variants.map((hex) => (
+          <div key={hex} className="min-w-0">
+            <div
+              className="h-8 rounded-[6px] border border-black/5"
+              style={{ background: hex }}
+              title={hex}
+            />
+            <div className="mt-1 font-mono text-[8px] text-neutral-400 truncate tabular-nums">
+              {hex}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -736,13 +941,10 @@ const ICON_GROUPS: { titleZh: string; titleEn: string; items: [IconComponent, st
     ],
   },
   { titleZh: '系统与安全', titleEn: 'System', items: [
-      [Settings, 'Settings'],
-      [Settings2, 'Settings2'],
       [SlidersHorizontal, 'Sliders'],
       [Lock, 'Lock'],
       [Unlock, 'Unlock'],
       [KeyRound, 'Key'],
-      [Shield, 'Shield'],
       [ShieldCheck, 'ShieldOk'],
       [LogOut, 'LogOut'],
       [Power, 'Power'],
@@ -766,15 +968,12 @@ const ICON_GROUPS: { titleZh: string; titleEn: string; items: [IconComponent, st
     ],
   },
   { titleZh: '数据与智能', titleEn: 'Data & AI', items: [
-      [BarChart3, 'Chart'],
       [Activity, 'Activity'],
       [TrendingUp, 'Trending'],
       [Database, 'Database'],
-      [Cpu, 'Cpu'],
       [BrainCircuit, 'Brain'],
       [Sparkles, 'Sparkles'],
       [Zap, 'Zap'],
-      [Lightbulb, 'Idea'],
       [Layers, 'Layers'],
       [Workflow, 'Workflow'],
       [Compass, 'Compass'],
@@ -786,6 +985,78 @@ const ICON_GROUPS: { titleZh: string; titleEn: string; items: [IconComponent, st
   },
 ];
 
+addCollection(solarIcons as Parameters<typeof addCollection>[0]);
+
+/** 产品一级窄轨图标（自定义 SVG + Solar 兜底） */
+const PRODUCT_PRIMARY_NAV_ICONS = [
+  ...DOMAIN_NAV.map((item) => ({
+    id: item.id,
+    label: item.railLabel ?? item.title,
+    icon: item.icon,
+    markup: NAV_RAIL_SVG_MARKUP[item.id],
+    size: NAV_RAIL_ICON_SIZE,
+  })),
+  {
+    id: 'more',
+    label: '更多',
+    icon: 'solar:menu-dots-linear',
+    markup: NAV_RAIL_MORE_SVG,
+    size: NAV_RAIL_ICON_SIZE,
+  },
+  ...BOTTOM_NAV_ITEMS.map((item) => ({
+    id: item.id,
+    label: item.railLabel ?? item.title,
+    icon: item.icon,
+    markup: NAV_RAIL_SVG_MARKUP[item.id],
+    size: NAV_RAIL_ICON_SIZE_COMPACT,
+  })),
+] as const;
+
+const SECONDARY_NAV_ICON_LABELS: Record<string, string> = {
+  plans: '质检计划',
+  templates: '模板',
+  standards: '标准',
+  sources: '数据源',
+  tickets: '工单',
+  review: '复核',
+  collab: '协作',
+  alerts: '告警',
+  demo: '演示',
+  tasks: '任务',
+  training: '培训',
+  records: '接待记录',
+  stats: '业绩',
+  numbers: '号码',
+  dispatch: '派发',
+  overview: '总览',
+  monitor: '监控',
+  resources: '资源',
+  outbound_cdr: '外呼话单',
+  case_orders: '案件工单',
+  dial_strategy: '拨打策略',
+  employee_report: '员工业绩',
+  agent_report: 'Agent 报表',
+  alert_whitelist: '告警白名单',
+  cdr: '话单',
+};
+
+/** 展台不展示的二级图标（重复 / 弱相关） */
+const SECONDARY_NAV_ICON_SHOWCASE_EXCLUDE = new Set([
+  'summary',
+  'agents',
+  'calls',
+  'users',
+  'reports',
+]);
+
+const PRODUCT_SECONDARY_NAV_ICONS = Object.entries(SECONDARY_NAV_ICON_BY_TAB_ID)
+  .filter(([id]) => !SECONDARY_NAV_ICON_SHOWCASE_EXCLUDE.has(id))
+  .map(([id, icon]) => ({
+    id,
+    label: SECONDARY_NAV_ICON_LABELS[id] ?? id,
+    icon,
+  }));
+
 const TAG_TONES: BadgeTone[] = ['neutral', 'ink', 'success', 'warning', 'danger', 'live'];
 const TONE_ZH: Record<BadgeTone, string> = {
   neutral: '中性',
@@ -796,6 +1067,88 @@ const TONE_ZH: Record<BadgeTone, string> = {
   live: '信息',
 };
 
+/** DongDesign jd-tooltip 方位展台 */
+const TOOLTIP_DEMO_ROWS: Array<{
+  center?: boolean;
+  items: Array<{ placement: TooltipPlacement; content: string; trigger?: 'hover' | 'click'; size?: 'small' | 'default' }>;
+}> = [
+  {
+    center: true,
+    items: [
+      {
+        placement: 'top-start',
+        content: 'Top Left prompts info',
+        size: 'small',
+        trigger: 'click',
+      },
+      { placement: 'top', content: 'Top Center prompts info' },
+      { placement: 'top-end', content: 'Top Right prompts info' },
+    ],
+  },
+  {
+    items: [
+      { placement: 'left-start', content: 'Left Top prompts info' },
+      { placement: 'right-start', content: 'Right Top prompts info' },
+    ],
+  },
+  {
+    items: [
+      { placement: 'left', content: 'Left Center prompts info' },
+      { placement: 'right', content: 'Right Center prompts info' },
+    ],
+  },
+  {
+    items: [
+      { placement: 'left-end', content: 'Left Bottom prompts info' },
+      { placement: 'right-end', content: 'Right Bottom prompts info' },
+    ],
+  },
+  {
+    center: true,
+    items: [
+      { placement: 'bottom-start', content: 'Bottom Left prompts info' },
+      { placement: 'bottom', content: 'Bottom Center prompts info' },
+      { placement: 'bottom-end', content: 'Bottom Right prompts info' },
+    ],
+  },
+];
+
+function TooltipPlacementDemo({ effect }: { effect: TooltipEffect }) {
+  return (
+    <div className="w-full max-w-[600px]">
+      <div className="mb-2 text-[11px] font-semibold text-neutral-500">
+        {effect === 'dark' ? '暗色 Dark' : '亮色 Light'}
+      </div>
+      {TOOLTIP_DEMO_ROWS.map((row, rowIdx) => (
+        <div
+          key={`${effect}-${rowIdx}`}
+          className={cn(
+            'flex items-center',
+            row.center ? 'justify-center gap-3' : 'justify-between',
+          )}
+        >
+          {row.items.map((item) => (
+            <div key={`${effect}-${item.placement}`} className="mt-2.5 w-[110px]">
+              <AppTooltip
+                effect={effect}
+                content={item.content}
+                placement={item.placement}
+                size={item.size ?? 'default'}
+                trigger={item.trigger ?? 'hover'}
+                strategy="fixed"
+              >
+                <button type="button" className={cn(BTN_OUTLINE, 'w-full')}>
+                  {item.placement}
+                </button>
+              </AppTooltip>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const TPL_STATUS_FILTERS = [
   { key: 'all', label: '全部状态' },
   { key: 'running', label: '运行中' },
@@ -804,6 +1157,75 @@ const TPL_STATUS_FILTERS = [
 ] as const;
 
 type TplStatusKey = (typeof TPL_STATUS_FILTERS)[number]['key'];
+
+/** 展台用质检计划样例（与 QcPlanBoard / buildDefaultQcPlans 同构） */
+const TPL_QC_DEMO_PLANS: QcPlan[] = [
+  {
+    id: 'plan-daily-cs',
+    name: '本平台客服会话 · 日常抽检',
+    status: 'running',
+    inspectorId: 'qc-demo-1',
+    inspectorName: '质检员-京京',
+    source: 'platform_cs_sessions',
+    sourceLabel: sourceLabelOf('platform_cs_sessions'),
+    targetScope: 'all_online_cs',
+    scopeLabel: scopeLabelOf('all_online_cs'),
+    targetAgentIds: [],
+    standardSummary: '4 类 / 12 项 · 及格线 80',
+    progress: 62,
+    totalVolume: 48,
+    inspectedVolume: 30,
+    warningCount: 7,
+    averageScore: 81,
+    createdAt: '2026-04-12 09:00',
+    updatedBy: '李敏',
+    startAt: '2026-04-12 09:00',
+  },
+  {
+    id: 'plan-external-recheck',
+    name: '外部导入会话 · 专项复检',
+    status: 'paused',
+    inspectorId: 'qc-demo-1',
+    inspectorName: '质检员-京京',
+    source: 'external',
+    sourceLabel: sourceLabelOf('external'),
+    targetScope: 'specified',
+    scopeLabel: scopeLabelOf('specified'),
+    targetAgentIds: [],
+    standardSummary: '4 类 / 12 项 · 及格线 80',
+    progress: 28,
+    totalVolume: 20,
+    inspectedVolume: 12,
+    warningCount: 3,
+    averageScore: 74,
+    createdAt: '2026-04-08 14:20',
+    updatedBy: '王倩',
+    startAt: '2026-04-08 14:20',
+    endAt: '2026-04-15 18:00',
+  },
+  {
+    id: 'plan-hotline-weekly',
+    name: '热线通话质检 · 周报计划',
+    status: 'completed',
+    inspectorId: 'qc-demo-1',
+    inspectorName: '质检员-京京',
+    source: 'platform_cs_sessions',
+    sourceLabel: sourceLabelOf('platform_cs_sessions'),
+    targetScope: 'all_online_cs',
+    scopeLabel: scopeLabelOf('all_online_cs'),
+    targetAgentIds: [],
+    standardSummary: '3 类 / 9 项 · 及格线 75',
+    progress: 100,
+    totalVolume: 36,
+    inspectedVolume: 36,
+    warningCount: 2,
+    averageScore: 88,
+    createdAt: '2026-03-28 10:00',
+    updatedBy: '赵磊',
+    startAt: '2026-03-28 10:00',
+    endAt: '2026-04-04 18:00',
+  },
+];
 
 const TPL_CARDS: {
   id: string;
@@ -836,38 +1258,48 @@ const TPL_CARDS: {
 ];
 
 const TPL_LIST_ROWS = [
-  { name: '售后政策库', docs: 24, status: 'live' as const, statusZh: '解析完成' },
-  { name: '催收话术库', docs: 12, status: 'success' as const, statusZh: '已启用' },
-  { name: '质检标准库', docs: 8, status: 'warning' as const, statusZh: '待同步' },
-];
-
-const TPL_LAYER_TABS = [
-  { id: 'summary', label: '数据汇总' },
-  { id: 'templates', label: '质检模板' },
-  { id: 'plans', label: '质检计划' },
-  { id: 'board', label: '数据看板' },
-] as const;
-
-const TPL_DUAL_GROUPS = [
   {
-    id: 'ops',
-    label: '运营监控',
-    children: [
-      { id: 'live', label: '实时监控' },
-      { id: 'alert', label: '预警中心' },
-      { id: 'inspect', label: '自动巡检' },
-    ],
+    id: 'kb1',
+    name: '售后政策库',
+    firstChar: '售',
+    docs: 24,
+    words: 18240,
+    updatedAt: '2026-06-10 11:30',
   },
   {
-    id: 'task',
-    label: '任务管理',
-    children: [
-      { id: 'running', label: '进行中' },
-      { id: 'done', label: '已完成' },
-    ],
+    id: 'kb2',
+    name: '催收话术库',
+    firstChar: '催',
+    docs: 12,
+    words: 8600,
+    updatedAt: '2026-06-09 14:20',
   },
-  { id: 'report', label: '报表', children: [] as { id: string; label: string }[] },
+  {
+    id: 'kb3',
+    name: '质检标准库',
+    firstChar: '质',
+    docs: 8,
+    words: 4500,
+    updatedAt: '2026-06-03 16:40',
+  },
 ];
+
+const TPL_LAYER_TABS = QC_APP_MAIN_TABS;
+
+const TPL_SKILL_SUB_TABS = [
+  { id: 'mine' as const, label: '我的技能' },
+  { id: 'market' as const, label: '技能市场' },
+];
+
+/** 页内子 Tab（对齐 SkillPage：h-9 + 墨黑底条，不是顶栏渐变条） */
+function skillPageSubTabClass(active: boolean) {
+  return cn(
+    'relative h-9 px-3 text-[13px] transition cursor-pointer shrink-0',
+    active
+      ? 'font-semibold text-neutral-900'
+      : 'font-medium text-neutral-500 hover:text-neutral-800',
+  );
+}
 
 type TplModalKind = 'form' | 'confirm' | 'danger' | 'large' | 'info';
 
@@ -884,7 +1316,7 @@ function PlatformStatusBadge({ status }: { status: PlatformStatus }) {
 /** 分区标题：与侧栏 TOC 同源 */
 function Section({
   id,
-  source,
+  source: _source,
   desc,
   status,
   dos,
@@ -908,11 +1340,6 @@ function Section({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <h2 className="text-[17px] font-semibold text-neutral-900 tracking-tight">{toc.zh}</h2>
           {platformStatus ? <PlatformStatusBadge status={platformStatus} /> : null}
-          {source ? (
-            <code className="text-[10px] leading-none px-1.5 py-1 rounded-md bg-neutral-100 text-neutral-500 font-mono">
-              {source}
-            </code>
-          ) : null}
         </div>
         {desc ? (
           <p className="mt-1.5 text-[12px] text-neutral-500 leading-relaxed">{desc}</p>
@@ -1053,6 +1480,7 @@ function ForcedBtn({
       className={cn(
         className,
         force === 'hover' && className.includes('bg-neutral-800') && 'opacity-90',
+        force === 'hover' && className.includes('1565BF') && 'opacity-90',
         force === 'hover' && className.includes('bg-neutral-100') && 'bg-neutral-200',
         force === 'hover' &&
           className.includes('bg-white') &&
@@ -1097,16 +1525,23 @@ export const ComponentLibraryPage: React.FC = () => {
   const [formName, setFormName] = useState('');
   const [busyDemo, setBusyDemo] = useState(true);
   const [btnLoading, setBtnLoading] = useState(false);
+  const [fieldDemoState, setFieldDemoState] = useState<'default' | 'focus' | 'error' | 'disabled'>(
+    'default',
+  );
+  const [fieldDemoValue, setFieldDemoValue] = useState('售后政策库');
+  const fieldDemoRef = React.useRef<HTMLInputElement>(null);
   const [activeToc, setActiveToc] = useState<NavId>('index');
   const [tocQuery, setTocQuery] = useState('');
   const [promptValue, setPromptValue] = useState('');
+  const [goalGhostTip, setGoalGhostTip] = useState(0);
+  const [dsConfirmItems, setDsConfirmItems] = useState(DS_CONFIRM_ITEMS);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [permOn, setPermOn] = useState(true);
   const [tplStatus, setTplStatus] = useState<TplStatusKey>('all');
   const [tplSearch, setTplSearch] = useState('');
-  const [tplLayerTab, setTplLayerTab] = useState<(typeof TPL_LAYER_TABS)[number]['id']>('plans');
-  const [tplDualGroup, setTplDualGroup] = useState(TPL_DUAL_GROUPS[0].id);
-  const [tplDualChild, setTplDualChild] = useState(TPL_DUAL_GROUPS[0].children[0].id);
+  const [tplQcPlans, setTplQcPlans] = useState<QcPlan[]>(TPL_QC_DEMO_PLANS);
+  const [tplLayerTab, setTplLayerTab] = useState<QcAppMainTab>('plans');
+  const [tplSkillTab, setTplSkillTab] = useState<(typeof TPL_SKILL_SUB_TABS)[number]['id']>('mine');
   const [tplModal, setTplModal] = useState<TplModalKind | null>(null);
   const [panelModalOpen, setPanelModalOpen] = useState(false);
 
@@ -1151,8 +1586,6 @@ export const ComponentLibraryPage: React.FC = () => {
       return `${card.name} ${card.meta}`.toLowerCase().includes(q);
     });
   }, [tplStatus, tplSearch]);
-  const tplDualActive = TPL_DUAL_GROUPS.find((g) => g.id === tplDualGroup);
-  const tplDualChildren = tplDualActive?.children ?? [];
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-neutral-50 text-neutral-800 font-sans text-xs antialiased">
@@ -1262,30 +1695,6 @@ export const ComponentLibraryPage: React.FC = () => {
               </code>
               → 业务页。与 skill 文档冲突时，以本页与源码为准。
             </p>
-            <div className="mt-3 rounded-[10px] border border-neutral-200 bg-neutral-50/80 px-3.5 py-3 max-w-2xl space-y-1.5">
-              <div className="text-[12px] font-semibold text-neutral-800">
-                其他项目引用{' '}
-                <code className="font-mono text-[11px] font-semibold text-neutral-700">
-                  @joysupport/ui
-                </code>
-                {' · 文档 '}
-                <code className="font-mono text-[11px] font-semibold text-neutral-700">
-                  docs/component-library.md
-                </code>
-              </div>
-              <p className="text-[11px] text-neutral-500 leading-relaxed">
-                风格转换用 <code className="text-neutral-700">BTN_INK / FIELD / CARD</code>；
-                组件直接{' '}
-                <code className="text-neutral-700">import {'{'} Modal, PageHeader {'}'} from &apos;@joysupport/ui&apos;</code>
-                。文档镜像便于 JoySpace / 评审分享。安装：根目录{' '}
-                <code className="text-neutral-700">npm run pack:ui</code>。详见包说明与组件库文档。
-              </p>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {(Object.keys(STATUS_META) as PlatformStatus[]).map((s) => (
-                <PlatformStatusBadge key={s} status={s} />
-              ))}
-            </div>
           </header>
 
         <Section
@@ -1327,122 +1736,135 @@ export const ComponentLibraryPage: React.FC = () => {
         {/* ── Page templates ── */}
         <Section
           id="tpl-page-header"
-          source="OnlinePageHeader"
-          desc="列表 / 看板页标准页头：左标题，右筛选 + 搜索 + 主操作。对齐质检计划等运营页。"
-          dos={['标题与工具同一行', '筛选 Select + SEARCH_FIELD + BTN_INK', '控件高 32px']}
-          donts={['不要用 PageHeader 再叠一层大标题', '筛选条不要包进 CARD']}
+          source="QcPlanBoard · OnlinePageHeader + PAGE_HEADER_INSET"
+          desc="真实质检计划页头版式：PAGE_HEADER_INSET（px-5 pt-5）内 OnlinePageHeader，右侧「状态 Select + 搜索 240px + 新建」。下列为产品组件 QcPlanBoard。"
+          dos={[
+            '外层 PAGE_HEADER_INSET，不要手写不一致的 padding',
+            '筛选 SelectContent align=start',
+            '搜索 placeholder：搜索计划名称 / 修改人',
+            '主 CTA：BTN_INK h-8「+ 新建质检计划」',
+          ]}
+          donts={['不要用 PageHeader 再叠一层大标题', '筛选条不要包进 CARD', 'Select 不要 align=end']}
         >
-          <PageMock className="bg-white">
-            <div className="px-5 pt-5">
-              <OnlinePageHeader title="质检计划">
-                <Select
-                  value={tplStatus}
-                  onValueChange={(v) => v && setTplStatus(v as TplStatusKey)}
-                >
-                  <SelectTrigger className={SELECT_TRIGGER} aria-label="筛选状态">
-                    <SelectValue>{tplStatusLabel}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    {TPL_STATUS_FILTERS.map(({ key, label }) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <label className="relative inline-flex items-center">
-                  <Search
-                    size={14}
-                    className="absolute left-2.5 text-neutral-400 pointer-events-none"
-                  />
-                  <input
-                    className={cn(SEARCH_FIELD, 'pl-8 w-[240px]')}
-                    type="search"
-                    placeholder="搜索计划名称 / 修改人"
-                    value={tplSearch}
-                    onChange={(e) => setTplSearch(e.target.value)}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className={cn(BTN_INK, 'h-8 px-3.5')}
-                  onClick={() => setTplModal('form')}
-                >
-                  + 新建质检计划
-                </button>
-              </OnlinePageHeader>
-            </div>
+          <PageMock className="h-[440px] flex flex-col bg-white">
+            <QcPlanBoard
+              plans={tplQcPlans}
+              onCreatePlan={() => setTplModal('form')}
+              onViewData={(id) => showToast(`查看数据 · ${id}`, 'info')}
+              onToggleRun={(id, next) => {
+                setTplQcPlans((prev) =>
+                  prev.map((p) => (p.id === id ? { ...p, status: next } : p)),
+                );
+              }}
+              onDeletePlan={(id) => {
+                setTplQcPlans((prev) => prev.filter((p) => p.id !== id));
+                showToast('已删除计划', 'success');
+              }}
+            />
           </PageMock>
         </Section>
 
         <Section
           id="tpl-list"
-          source="OnlinePageHeader + TABLE + ListPagination"
-          desc="内容列表：页头工具行 + 扁平表 + 底部分页。标题由页头承担，不要再套卡片包表。"
-          dos={['表头 10px 次要色', '行 hover 浅底', '超过 10 条再出分页']}
-          donts={['表不要包进 CARD', '行内不要堆过多按钮']}
+          source="KnowledgeBasePage · OnlinePageHeader + TABLE + ListPagination"
+          desc="对齐产品「员工知识」列表：页头（搜索 + 新建）→ 扁平表（知识库 / 文档数 / 字符数 / 更新时间 / 操作）→ 底部分页。不要再套 CARD，也不要在表前加区块头。"
+          dos={[
+            '标题 OnlinePageHeader（如「员工知识」）',
+            'CardIcon soft + 名称 semibold',
+            '行内操作用文字链 + 图标钮（上传 / 重命名 / 删除）',
+            '超过 10 条再出 ListPagination（底栏 border-t）',
+          ]}
+          donts={['表不要包进 CARD', '不要用「管理」描边钮代替行内操作', '不要再套 OnlineSectionHeader 在表上方']}
         >
           <PageMock>
             <div className="px-5 pt-5">
-              <OnlinePageHeader title="知识库">
-                <label className="relative inline-flex items-center">
+              <OnlinePageHeader title="员工知识">
+                <div className="relative w-full sm:w-64 shrink-0">
                   <Search
                     size={14}
-                    className="absolute left-2.5 text-neutral-400 pointer-events-none"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
                   />
                   <input
-                    className={cn(SEARCH_FIELD, 'pl-8')}
-                    type="search"
-                    placeholder="搜索知识库"
+                    type="text"
+                    placeholder="搜索知识库名..."
+                    className={cn(SEARCH_FIELD, 'w-full pl-9 pr-4')}
                   />
-                </label>
+                </div>
                 <button
                   type="button"
                   className={BTN_INK}
                   onClick={() => setTplModal('form')}
                 >
-                  新建
+                  <Plus size={14} />
+                  <span>新建知识库</span>
                 </button>
               </OnlinePageHeader>
-              <OnlineSectionHeader title="全部知识库" description="文档解析完成后可用于员工检索" />
             </div>
             <div className="px-5 pb-5">
               <div className={onlineTableClass.wrap}>
                 <table className={onlineTableClass.table}>
                   <thead>
                     <tr className={onlineTableClass.headRow}>
-                      <th className={onlineTableClass.thFirst}>名称</th>
+                      <th className={onlineTableClass.thFirst}>知识库</th>
                       <th className={onlineTableClass.th}>文档数</th>
-                      <th className={onlineTableClass.th}>状态</th>
+                      <th className={onlineTableClass.th}>字符数</th>
+                      <th className={onlineTableClass.th}>更新时间</th>
                       <th className={onlineTableClass.thLast}>操作</th>
                     </tr>
                   </thead>
                   <tbody className={onlineTableClass.body}>
                     {TPL_LIST_ROWS.map((row) => (
-                      <tr key={row.name} className={onlineTableClass.row}>
+                      <tr key={row.id} className={onlineTableClass.row}>
                         <td className={onlineTableClass.tdFirst}>
-                          <div className="flex items-center gap-2.5">
-                            <CardIcon seed={row.name} size="sm">
-                              {row.name.slice(0, 1)}
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <CardIcon seed={row.id} size="sm" variant="soft">
+                              {row.firstChar}
                             </CardIcon>
-                            {row.name}
+                            <span className="font-semibold text-neutral-900 truncate">
+                              {row.name}
+                            </span>
                           </div>
                         </td>
-                        <td className={onlineTableClass.td}>{row.docs}</td>
-                        <td className={onlineTableClass.td}>
-                          <span className={badgeClass(row.status)}>{row.statusZh}</span>
+                        <td className={onlineTableClass.td}>{row.docs} 个</td>
+                        <td className={cn(onlineTableClass.td, 'font-mono tabular-nums')}>
+                          {row.words.toLocaleString()}
+                        </td>
+                        <td className={cn(onlineTableClass.td, 'text-neutral-500')}>
+                          {row.updatedAt}
                         </td>
                         <td className={onlineTableClass.tdLast}>
-                          <button type="button" className={cn(BTN_OUTLINE, 'h-6 text-[11px]')}>
-                            管理
-                          </button>
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              type="button"
+                              className="text-[11px] font-semibold text-live hover:underline cursor-pointer"
+                              onClick={() => showToast(`演示：上传到「${row.name}」`, 'info')}
+                            >
+                              上传
+                            </button>
+                            <button
+                              type="button"
+                              className="p-1 text-neutral-400 hover:text-neutral-800 rounded-lg hover:bg-neutral-100 transition cursor-pointer"
+                              title="重命名"
+                              onClick={() => showToast('演示：重命名', 'info')}
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              className="p-1 text-neutral-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition cursor-pointer"
+                              title="删除知识库"
+                              onClick={() => showToast('演示：删除', 'error')}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <div className="pt-3">
+              <div className="pt-3 mt-3 border-t border-neutral-200">
                 <ListPagination total={36} page={page} onPageChange={setPage} />
               </div>
             </div>
@@ -1463,10 +1885,10 @@ export const ComponentLibraryPage: React.FC = () => {
                   value={tplStatus}
                   onValueChange={(v) => v && setTplStatus(v as TplStatusKey)}
                 >
-                  <SelectTrigger className={SELECT_TRIGGER} aria-label="筛选状态">
+                  <SelectTrigger className={SELECT_TRIGGER} aria-label="筛选计划状态">
                     <SelectValue>{tplStatusLabel}</SelectValue>
                   </SelectTrigger>
-                  <SelectContent align="end">
+                  <SelectContent align="start">
                     {TPL_STATUS_FILTERS.map(({ key, label }) => (
                       <SelectItem key={key} value={key}>
                         {label}
@@ -1626,34 +2048,64 @@ export const ComponentLibraryPage: React.FC = () => {
 
         <Section
           id="tpl-layered-tabs"
-          source="PrimaryNavRail + navSecondaryTabClass"
-          desc="分层导航：左侧一级域 + 顶栏二级能力 Tab。二级激活为渐变字 + 底部胶囊条。"
-          dos={['一级在窄轨，二级在顶栏横排', '当前域高亮，其余弱化']}
-          donts={['不要和下划线 Tab 再叠一层同级分段', '不要把二级做成侧栏树（默认布局）']}
+          source="PrimaryNavRail + Navigation · QC_APP_MAIN_TABS"
+          desc="对齐产品「智能质检」：左侧窄轨一级域 + 顶栏二级能力 Tab（质检计划 / 数据汇总 / 质检模板…）。激活态为渐变字 + 底部胶囊条。"
+          dos={[
+            '二级 Tab 用 QC_APP_MAIN_TABS / navSecondaryTabClass',
+            '窄轨激活：灰底描边 + NAV_ACTIVE_GRADIENT 字色',
+            '内容区按子页换 OnlinePageHeader（与 QcPlanBoard 等同构）',
+          ]}
+          donts={['不要用 text-live 实色代替渐变激活', '不要和下划线 Tab 再叠一层同级分段']}
         >
           <PageMock className="flex min-h-[280px]">
-            <aside className="w-[52px] shrink-0 border-r border-neutral-200 bg-neutral-50 p-2 flex flex-col items-center gap-1.5">
-              <div className="w-9 h-9 rounded-[10px] bg-white text-live grid place-items-center shadow-[0_1px_3px_rgba(0,0,0,0.04)] ring-1 ring-sky-100">
-                <ClipboardCheck size={16} />
-              </div>
-              <div className="w-9 h-9 rounded-[10px] text-neutral-400 grid place-items-center">
-                <Headphones size={16} />
-              </div>
-              <div className="w-9 h-9 rounded-[10px] text-neutral-400 grid place-items-center">
-                <Home size={16} />
-              </div>
+            <aside className="w-[56px] shrink-0 border-r border-neutral-200 bg-white p-1.5 flex flex-col items-center gap-1">
+              {(
+                [
+                  { id: 'home', label: '数字员工', Icon: Home, active: false },
+                  { id: 'online', label: '在线客服', Icon: Headphones, active: false },
+                  { id: 'qc', label: '智能质检', Icon: ClipboardCheck, active: true },
+                ] as const
+              ).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={cn(
+                    'w-full flex flex-col items-center gap-1 py-2 px-1 rounded-[10px] border transition-all duration-200',
+                    item.active
+                      ? 'bg-[#F3F5F8] shadow-[0_1px_3px_rgba(0,0,0,0.04)] border-[#E4E6EA]'
+                      : 'border-transparent text-neutral-500',
+                  )}
+                  title={item.label}
+                >
+                  <item.Icon
+                    size={18}
+                    className={item.active ? 'text-neutral-800' : undefined}
+                    strokeWidth={1.75}
+                  />
+                  <span
+                    className={cn(
+                      'text-[9px] leading-none font-medium',
+                      item.active ? NAV_ACTIVE_GRADIENT_TEXT : 'text-neutral-500',
+                    )}
+                  >
+                    {item.label.slice(0, 2)}
+                  </span>
+                </button>
+              ))}
             </aside>
             <div className="flex-1 min-w-0 flex flex-col bg-white">
               <div className="px-3 border-b border-neutral-200">
-                <nav className="flex items-center gap-1 overflow-x-auto" aria-label="二级能力">
+                <nav className="flex items-center gap-1 overflow-x-auto" aria-label="智能质检二级能力">
                   {TPL_LAYER_TABS.map((tab) => {
                     const active = tplLayerTab === tab.id;
+                    const implemented = QC_APP_IMPLEMENTED_TABS.has(tab.id);
                     return (
                       <button
                         key={tab.id}
                         type="button"
                         onClick={() => setTplLayerTab(tab.id)}
                         className={navSecondaryTabClass(active)}
+                        title={implemented ? tab.label : `${tab.label}（即将上线）`}
                       >
                         {tab.label}
                         {active ? (
@@ -1664,17 +2116,59 @@ export const ComponentLibraryPage: React.FC = () => {
                   })}
                 </nav>
               </div>
-              <div className="px-5 pt-5 pb-6">
-                <OnlinePageHeader
-                  title={TPL_LAYER_TABS.find((t) => t.id === tplLayerTab)?.label ?? ''}
-                >
-                  <button type="button" className={BTN_INK}>
-                    主操作
-                  </button>
-                </OnlinePageHeader>
-                <p className="text-[12px] text-neutral-500">
-                  当前层：智能质检 / {TPL_LAYER_TABS.find((t) => t.id === tplLayerTab)?.label}
-                </p>
+              <div className="flex-1 min-h-0 px-5 pt-5 pb-6">
+                {tplLayerTab === 'plans' ? (
+                  <>
+                    <OnlinePageHeader title="质检计划">
+                      <button type="button" className={cn(BTN_INK, 'h-8 px-3.5')}>
+                        + 新建质检计划
+                      </button>
+                    </OnlinePageHeader>
+                    <p className="text-[12px] text-neutral-500">
+                      卡片列表区 · 与 QcPlanBoard 同构
+                    </p>
+                  </>
+                ) : tplLayerTab === 'summary' ? (
+                  <>
+                    <OnlinePageHeader title="数据汇总">
+                      <label className="relative inline-flex items-center">
+                        <Search
+                          size={14}
+                          className="absolute left-2.5 text-neutral-400 pointer-events-none"
+                        />
+                        <input
+                          className={cn(SEARCH_FIELD, 'pl-8 w-[200px]')}
+                          type="search"
+                          placeholder="搜索会话…"
+                          readOnly
+                        />
+                      </label>
+                    </OnlinePageHeader>
+                    <p className="text-[12px] text-neutral-500">
+                      筛选条 + 会话表 · 与 QcDataSummaryView 同构
+                    </p>
+                  </>
+                ) : tplLayerTab === 'templates' ? (
+                  <>
+                    <OnlinePageHeader title="质检模板">
+                      <button type="button" className={cn(BTN_INK, 'h-8 px-3.5')}>
+                        + 新建模板
+                      </button>
+                    </OnlinePageHeader>
+                    <p className="text-[12px] text-neutral-500">
+                      模板卡片列表 · 与 QcTemplatesView 同构
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <OnlinePageHeader
+                      title={TPL_LAYER_TABS.find((t) => t.id === tplLayerTab)?.label ?? ''}
+                    />
+                    <p className="text-[12px] text-neutral-500">
+                      即将上线占位 · 见 QC_APP_IMPLEMENTED_TABS
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </PageMock>
@@ -1682,68 +2176,72 @@ export const ComponentLibraryPage: React.FC = () => {
 
         <Section
           id="tpl-dual-tabs"
-          source="navSecondaryTabClass + navSecondarySubTabClass"
-          desc="双层标签：第一行能力分组，第二行子页。无子项时收起第二行。催收等域的真实写法。"
-          dos={['子 Tab 用 h-9 / 12px', '两组之间用发丝线分隔', '点分组时落到该组默认子页']}
-          donts={['不要用两行同级下划线抢权重', '不要把子页做成 Segmented 叠在下划线上']}
+          source="SkillPage · OnlinePageHeader + 页内子 Tab"
+          desc="对齐「数字员工技能」：页头（标题 + 搜索 + 新建）下方再挂页内子 Tab（我的技能 / 技能市场）。激活为墨黑字 + 墨黑底条，不是顶栏渐变胶囊。"
+          dos={[
+            '页头与子 Tab 同在 shrink-0 顶区',
+            '子 Tab：h-9 / 13px，底条 absolute left-3 right-3 h-0.5 bg-neutral-900',
+            '市场 Tab 可隐藏「新建」',
+          ]}
+          donts={[
+            '不要用 navSecondaryTabClass 渐变条做页内子 Tab',
+            '不要把页内子 Tab 做成 Segmented 叠在页头上',
+          ]}
         >
           <PageMock>
-            <div className="px-4 pt-1">
-              <nav className="min-w-0" aria-label="双层标签示例">
-                <div className="flex items-center gap-1 overflow-x-auto">
-                  {TPL_DUAL_GROUPS.map((group) => {
-                    const active = tplDualGroup === group.id;
-                    return (
-                      <button
-                        key={group.id}
-                        type="button"
-                        onClick={() => {
-                          setTplDualGroup(group.id);
-                          if (group.children[0]) setTplDualChild(group.children[0].id);
-                        }}
-                        className={navSecondaryTabClass(active)}
-                      >
-                        {group.label}
-                        {active ? (
-                          <span className={NAV_SECONDARY_TAB_INDICATOR} aria-hidden />
-                        ) : null}
-                      </button>
-                    );
-                  })}
+            <div className="px-5 pt-5">
+              <OnlinePageHeader title="数字员工技能">
+                <div className="relative w-full sm:w-64 shrink-0">
+                  <Search
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder={
+                      tplSkillTab === 'market' ? '搜索技能市场...' : '搜索技能...'
+                    }
+                    className={cn(SEARCH_FIELD, 'w-full pl-9 pr-4')}
+                    readOnly
+                  />
                 </div>
-                {tplDualChildren.length > 0 ? (
-                  <div className="flex items-center gap-1 overflow-x-auto border-t border-neutral-200/80 pl-1">
-                    {tplDualChildren.map((child) => {
-                      const active = tplDualChild === child.id;
-                      return (
-                        <button
-                          key={child.id}
-                          type="button"
-                          onClick={() => setTplDualChild(child.id)}
-                          className={navSecondarySubTabClass(active)}
-                        >
-                          {child.label}
-                          {active ? (
-                            <span className={NAV_SECONDARY_SUBTAB_INDICATOR} aria-hidden />
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
+                {tplSkillTab !== 'market' ? (
+                  <button type="button" className={BTN_INK}>
+                    <Plus size={14} />
+                    <span>新建技能</span>
+                  </button>
                 ) : null}
+              </OnlinePageHeader>
+              <nav
+                className="flex items-center gap-1 mb-5 -mt-1 overflow-x-auto"
+                aria-label="技能子页"
+              >
+                {TPL_SKILL_SUB_TABS.map((tab) => {
+                  const active = tplSkillTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setTplSkillTab(tab.id)}
+                      className={skillPageSubTabClass(active)}
+                    >
+                      {tab.label}
+                      {active ? (
+                        <span
+                          className="absolute left-3 right-3 bottom-0 h-0.5 rounded-full bg-neutral-900"
+                          aria-hidden
+                        />
+                      ) : null}
+                    </button>
+                  );
+                })}
               </nav>
             </div>
-            <div className="px-5 py-5 border-t border-neutral-100">
-              <p className="text-[13px] font-semibold text-neutral-900">
-                {tplDualActive?.label}
-                {tplDualChildren.length > 0
-                  ? ` · ${tplDualChildren.find((c) => c.id === tplDualChild)?.label ?? ''}`
-                  : ''}
-              </p>
-              <p className="mt-1 text-[12px] text-neutral-500">
-                {tplDualChildren.length > 0
-                  ? '第二行切换子页，内容区只渲染当前子页。'
-                  : '该分组无子页，第二行隐藏。'}
+            <div className="px-5 pb-5">
+              <p className="text-[12px] text-neutral-500">
+                {tplSkillTab === 'market'
+                  ? '技能市场卡片列表 · 与 SkillPage market 同构'
+                  : '我的技能 / 已订阅列表 · 与 SkillPage mine 同构'}
               </p>
             </div>
           </PageMock>
@@ -1752,30 +2250,41 @@ export const ComponentLibraryPage: React.FC = () => {
         {/* ── Token ── */}
         <Section
           id="token-color"
-          source="index.css · color-tokens.md · badgeTones"
-          desc="骨架用 neutral 灰阶；彩色只用于语义状态。代码禁止裸 Hex，对照设计稿用下表 Tailwind class。"
+          source="DongDesign 功能色 · color-tokens.md · badgeTones"
+          desc="除主色外，场景用功能色（成功 / 警告 / 错误 / 信息）。标签与状态强调统一映射 FUNCTIONAL_COLORS。"
         >
           <div className="space-y-6">
             {COLOR_GROUPS.map((group) => (
               <div key={group.groupEn}>
                 <div className="flex items-baseline gap-2 mb-2.5">
                   <h3 className="text-[13px] font-semibold text-neutral-900">{group.groupZh}</h3>
-                  <span className="text-[10px] text-neutral-300 tabular-nums">{group.items.length}</span>
+                  <span className="text-[10px] text-neutral-300 tabular-nums">
+                    {group.kind === 'functional' ? 4 : group.items.length}
+                  </span>
                 </div>
-                {group.groupEn === 'Neutral scale' ? (
+                {group.kind === 'neutral' || group.groupEn === 'Neutral scale' ? (
                   <NeutralScaleStrip items={group.items} />
-                ) : group.groupEn === 'badgeClass tones' ? (
+                ) : group.kind === 'functional' ? (
                   <div className="space-y-3">
-                    <div className="flex flex-wrap gap-2">
+                    <p className="text-[12px] text-neutral-500 leading-relaxed max-w-2xl">
+                      除了主颜色外，您需要在不同的场景中使用不同的场景颜色（例如，危险的颜色表示危险的操作）。
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                      {FUNCTIONAL_COLOR_FAMILIES.map((fam) => (
+                        <FunctionalColorFamilyCard
+                          key={fam.key}
+                          zh={fam.zh}
+                          en={fam.en}
+                          palette={FUNCTIONAL_COLORS[fam.key]}
+                          badgeTone={fam.badgeTone}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1">
                       {TAG_TONES.map((tone) => (
                         <span key={tone} className={badgeClass(tone)}>
                           {TONE_ZH[tone]}
                         </span>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
-                      {group.items.map((c) => (
-                        <ColorSwatchCard key={c.en} swatch={c} />
                       ))}
                     </div>
                   </div>
@@ -1791,7 +2300,7 @@ export const ComponentLibraryPage: React.FC = () => {
           </div>
         </Section>
 
-        <Section id="token-type" source="Inter + PingFang SC" desc="全站字阶只使用下列档位。">
+        <Section id="token-type" source="Inter + PingFang SC · DESIGN.md §10" desc="全站字阶只使用下列档位；AI 气泡另有 dongDesign regular-14 字阶。">
           <SpecPanel className="p-0 overflow-hidden max-w-2xl">
             {[
               { sample: 'Banner 大标题', className: 'text-2xl font-bold text-neutral-800', meta: '24 · bold' },
@@ -1809,6 +2318,16 @@ export const ComponentLibraryPage: React.FC = () => {
                 meta: '11 · #737373',
               },
               { sample: 'TAG / 分页', className: 'text-[10px] font-semibold text-neutral-500', meta: '10 · semibold' },
+              {
+                sample: 'AI 气泡一级标题',
+                className: 'text-[18px] leading-[28px] font-semibold text-[#262626]',
+                meta: '18/28 · #262626',
+              },
+              {
+                sample: 'AI 气泡正文',
+                className: 'text-[14px] leading-[22px] text-[#595959]',
+                meta: '14/22 · #595959',
+              },
             ].map((row) => (
               <div
                 key={row.meta}
@@ -1823,32 +2342,76 @@ export const ComponentLibraryPage: React.FC = () => {
 
         <Section
           id="token-icon"
-          source="lib/icons.tsx · Hugeicons"
-          desc="尺寸：表内 13 · 控件 14 · 导航 16。下列为 lib/icons 常用包装组件（按场景分组）。"
+          source="PrimaryNavRail · SecondarySideNav · lib/icons"
         >
           <SpecStage>
-            <div className="flex flex-wrap gap-5 items-end mb-4 pb-4 border-b border-neutral-200/70">
-              <div className="flex flex-col items-center gap-1.5 text-neutral-400">
-                <Search size={13} className="text-neutral-800" />
-                <span className="text-[10px]">13</span>
+            <div className="space-y-5 mb-6 pb-6 border-b border-neutral-200/70">
+              <div>
+                <div className="mb-2 text-[11px] font-semibold text-neutral-500">
+                  一级导航（窄轨）
+                </div>
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                  {PRODUCT_PRIMARY_NAV_ICONS.map((item) => (
+                    <div
+                      key={`primary-${item.id}`}
+                      className="flex flex-col items-center gap-2 py-3 rounded-[10px] bg-white border border-neutral-200/80"
+                      title={item.label}
+                    >
+                      {item.markup ? (
+                        <span
+                          className="shrink-0 inline-flex [&_svg]:block opacity-80"
+                          aria-hidden
+                          dangerouslySetInnerHTML={{
+                            __html: prepareNavRailSvg(item.markup, {
+                              size: item.size,
+                              active: false,
+                            }),
+                          }}
+                        />
+                      ) : (
+                        <Icon
+                          icon={item.icon}
+                          width={item.size}
+                          height={item.size}
+                          className="shrink-0 text-neutral-800"
+                          aria-hidden
+                        />
+                      )}
+                      <span className="text-[10px] text-neutral-500 truncate max-w-full px-1">
+                        {item.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-col items-center gap-1.5 text-neutral-400">
-                <Search size={14} className="text-neutral-800" />
-                <span className="text-[10px]">14</span>
-              </div>
-              <div className="flex flex-col items-center gap-1.5 text-neutral-400">
-                <Search size={16} className="text-neutral-800" />
-                <span className="text-[10px]">16</span>
-              </div>
-              <div className="flex flex-col items-center gap-1.5 text-neutral-400">
-                <Search size={14} className="text-neutral-400" />
-                <span className="text-[10px]">弱色</span>
-              </div>
-              <div className="flex flex-col items-center gap-1.5 text-neutral-400">
-                <Search size={14} className="text-live" />
-                <span className="text-[10px]">主色</span>
+
+              <div>
+                <div className="mb-2 text-[11px] font-semibold text-neutral-500">
+                  二级侧栏（Solar）
+                </div>
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                  {PRODUCT_SECONDARY_NAV_ICONS.map((item) => (
+                    <div
+                      key={`secondary-${item.id}`}
+                      className="flex flex-col items-center gap-2 py-3 rounded-[10px] bg-white border border-neutral-200/80"
+                      title={`${item.label} · ${item.icon}`}
+                    >
+                      <Icon
+                        icon={item.icon}
+                        width={18}
+                        height={18}
+                        className="shrink-0 text-neutral-800"
+                        aria-hidden
+                      />
+                      <span className="text-[10px] text-neutral-500 truncate max-w-full px-1">
+                        {item.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
+
             <div className="space-y-5">
               {ICON_GROUPS.map((group) => (
                 <div key={group.titleEn}>
@@ -1856,13 +2419,13 @@ export const ComponentLibraryPage: React.FC = () => {
                     {group.titleZh}
                   </div>
                   <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-                    {group.items.map(([Icon, name]) => (
+                    {group.items.map(([IconCmp, name]) => (
                       <div
                         key={`${group.titleEn}-${name}`}
                         className="flex flex-col items-center gap-2 py-3 rounded-[10px] bg-white border border-neutral-200/80"
                         title={name}
                       >
-                        <Icon size={16} className="text-neutral-800" />
+                        <IconCmp size={16} className="text-neutral-800" />
                         <span className="text-[10px] text-neutral-500 truncate max-w-full px-1">
                           {name}
                         </span>
@@ -1878,150 +2441,127 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section
           id="token-space"
           source="H5=20 · V4=16 · V1=4 · h-8=32"
-          desc="紧凑密度：用真实空隙示意，不用抽象短条。页面 20 · 表单项 16 · 标签→输入 4。"
+          desc="用真实页面片段展示间距：外壳 H5、表单栈 V4、标签→输入 V1、页脚 gap-2；不再用抽象短条。"
         >
-          {/* 等比刻度：相对最长档对齐，一眼比出大小 */}
-          <SpecPanel className="mb-4 p-4 sm:p-5">
-            <div className="text-[11px] font-semibold text-neutral-500 mb-3">
-              等比对照
-            </div>
-            <div className="space-y-2.5">
-              {(
-                [
-                  { token: 'H5', px: 20, zh: '页面 / 弹窗内边距', en: 'PAGE / Modal' },
-                  { token: 'V4', px: 16, zh: '表单项 / 网格', en: 'Form / Grid' },
-                  { token: 'gap-3', px: 12, zh: '卡片流', en: 'Card flow' },
-                  { token: 'gap-2', px: 8, zh: '页脚按钮距', en: 'Footer gap' },
-                  { token: 'V1', px: 4, zh: '标签 → 输入', en: 'Label → Field' },
-                ] as const
-              ).map((row) => (
-                <div key={row.token} className="flex items-center gap-3">
-                  <code className="w-12 shrink-0 text-[10px] font-mono font-semibold text-neutral-700">
-                    {row.token}
-                  </code>
-                  <div className="flex-1 h-6 rounded-md bg-neutral-100 overflow-hidden relative">
-                    <div
-                      className="h-full bg-neutral-800 rounded-md flex items-center justify-end pr-2"
-                      style={{ width: `${(row.px / 20) * 100}%`, minWidth: row.px <= 4 ? 28 : undefined }}
-                    >
-                      <span className="text-[10px] font-bold text-white tabular-nums">{row.px}</span>
-                    </div>
-                  </div>
-                  <span className="w-[140px] shrink-0 text-[11px] text-neutral-500 truncate text-right">
-                    {row.zh}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </SpecPanel>
+          <SpecStage className="p-0 overflow-hidden">
+            {/* 嵌套实物：外框 = H5，内部表单 = V4 / V1，页脚 = gap-2 */}
+            <div className="relative bg-neutral-100/80 p-4 sm:p-6">
+              <div className="pointer-events-none absolute left-4 top-3 z-[2] sm:left-6">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-white/95 px-2 py-1 text-[10px] font-semibold text-neutral-700 shadow-sm border border-neutral-200/80">
+                  <span className="font-mono text-live">H5</span>
+                  外框内边距 20px · p-5
+                </span>
+              </div>
 
-          {/* 实物空隙：两块之间就是真实 px */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {(
-              [
-                {
-                  token: 'H5',
-                  px: 20,
-                  zh: '页面内边距',
-                  en: 'PAGE padding',
-                  cls: 'p-5',
-                  note: 'PAGE / Modal 外壳',
-                },
-                {
-                  token: 'V4',
-                  px: 16,
-                  zh: '表单项间距',
-                  en: 'Form stack',
-                  cls: 'space-y-4',
-                  note: '字段与字段之间',
-                },
-                {
-                  token: 'gap-3',
-                  px: 12,
-                  zh: '卡片流',
-                  en: 'Card gap',
-                  cls: 'gap-3',
-                  note: '网格 / 卡片列表',
-                },
-                {
-                  token: 'gap-2',
-                  px: 8,
-                  zh: '页脚间距',
-                  en: 'Footer gap',
-                  cls: 'gap-2',
-                  note: '取消 · 确定',
-                },
-                {
-                  token: 'V1',
-                  px: 4,
-                  zh: '标签 → 输入',
-                  en: 'Label → Field',
-                  cls: 'mb-1 / LABEL',
-                  note: 'Label 下方',
-                },
-              ] as const
-            ).map((item) => (
-              <div
-                key={item.token}
-                className="rounded-[13px] border border-neutral-200 bg-white p-3.5 shadow-[0_2px_10px_rgba(31,35,41,0.02)]"
-              >
-                <div className="flex items-baseline justify-between gap-2 mb-3">
-                  <div>
-                    <div className="text-[12px] font-semibold text-neutral-900">
-                      {item.zh}
-                    </div>
-                    <code className="text-[10px] font-mono text-neutral-400">{item.cls}</code>
+              <div className="mx-auto max-w-md rounded-[13px] border border-neutral-200 bg-white p-5 shadow-[0_2px_12px_rgba(17,17,17,0.04)]">
+                <div className="border-b border-neutral-100 pb-3 mb-4">
+                  <div className="text-[14px] font-semibold text-neutral-900 leading-[22px]">
+                    新建技能
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-[18px] font-bold tabular-nums text-neutral-900 leading-none">
-                      {item.px}
-                      <span className="text-[11px] font-semibold text-neutral-400 ml-0.5">px</span>
-                    </div>
-                    <code className="text-[10px] font-mono font-semibold text-live">{item.token}</code>
-                  </div>
+                  <p className="mt-1 text-[12px] text-neutral-500 leading-[18px]">
+                    示意：标题区与表单之间也走模块节奏
+                  </p>
                 </div>
-                <div className="rounded-[10px] bg-neutral-50 border border-neutral-100 p-2.5">
-                  <div className="h-7 rounded-md bg-white border border-neutral-200" />
-                  <div
-                    className="relative flex items-center justify-center"
-                    style={{ height: item.px }}
-                  >
-                    <div className="absolute inset-x-3 top-1/2 h-px bg-live/40" />
-                    <span className="relative z-[1] px-1.5 rounded bg-neutral-50 text-[9px] font-bold tabular-nums text-live">
-                      {item.px}px
+
+                <div className="relative space-y-4">
+                  <div className="pointer-events-none absolute -right-1 top-0 z-[2] translate-x-full sm:translate-x-[calc(100%+4px)] hidden md:block">
+                    <span className="inline-flex whitespace-nowrap items-center gap-1 rounded-md bg-white px-2 py-1 text-[10px] font-semibold text-neutral-700 shadow-sm border border-neutral-200/80">
+                      <span className="font-mono text-live">V4</span>
+                      16px · space-y-4
                     </span>
                   </div>
-                  <div className="h-7 rounded-md bg-white border border-neutral-200" />
-                </div>
-                <p className="mt-2 text-[10px] text-neutral-400 leading-snug">{item.note}</p>
-              </div>
-            ))}
 
-            {/* 控件高度单独一张 */}
-            <div className="rounded-[13px] border border-neutral-200 bg-white p-3.5 shadow-[0_2px_10px_rgba(31,35,41,0.02)]">
-              <div className="flex items-baseline justify-between gap-2 mb-3">
-                <div>
-                  <div className="text-[12px] font-semibold text-neutral-900">
-                    控件高度
+                  <div>
+                    <label className={cn(LABEL, 'relative')}>
+                      技能名称
+                      <span className="pointer-events-none absolute left-full top-1/2 ml-2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-white px-2 py-0.5 text-[10px] font-semibold text-neutral-600 shadow-sm border border-neutral-200/80 lg:inline-flex">
+                        <span className="font-mono text-live mr-1">V1</span>
+                        4px · mb-1
+                      </span>
+                    </label>
+                    <input
+                      className={cn(FIELD, FIELD_CTRL)}
+                      defaultValue="理赔资料预审"
+                      readOnly
+                      tabIndex={-1}
+                    />
                   </div>
-                  <code className="text-[10px] font-mono text-neutral-400">h-8</code>
+                  <div>
+                    <label className={LABEL}>一句话介绍</label>
+                    <input
+                      className={cn(FIELD, FIELD_CTRL)}
+                      defaultValue="帮用户核验理赔材料是否齐全"
+                      readOnly
+                      tabIndex={-1}
+                    />
+                  </div>
+                  <div>
+                    <label className={LABEL}>触发场景</label>
+                    <input
+                      className={cn(FIELD, FIELD_CTRL)}
+                      defaultValue="用户咨询理赔怎么报"
+                      readOnly
+                      tabIndex={-1}
+                    />
+                  </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <div className="text-[18px] font-bold tabular-nums text-neutral-900 leading-none">
-                    32
-                    <span className="text-[11px] font-semibold text-neutral-400 ml-0.5">px</span>
-                  </div>
-                  <code className="text-[10px] font-mono font-semibold text-live">h-8</code>
+
+                <div className="mt-6 flex items-center justify-end gap-2 border-t border-neutral-100 pt-3">
+                  <span className="mr-auto hidden sm:inline-flex items-center gap-1 rounded-md bg-neutral-50 px-2 py-1 text-[10px] font-semibold text-neutral-600 border border-neutral-200/70">
+                    <span className="font-mono text-live">gap-2</span>
+                    8px · 取消 / 确定
+                  </span>
+                  <button type="button" className={BTN_OUTLINE} tabIndex={-1}>
+                    取消
+                  </button>
+                  <button type="button" className={BTN_INK} tabIndex={-1}>
+                    确定
+                  </button>
                 </div>
               </div>
-              <div className="rounded-[10px] bg-neutral-50 border border-neutral-100 p-3 flex items-center justify-center">
-                <button type="button" className={BTN_INK} tabIndex={-1}>
-                  确定 32px
-                </button>
-              </div>
-              <p className="mt-2 text-[10px] text-neutral-400 leading-snug">主按钮 / 输入框统一高度</p>
+
+              <p className="mt-3 text-center text-[11px] text-neutral-500 md:hidden">
+                V4 = 字段间距 16px · V1 = 标签下 4px · gap-2 = 页脚按钮 8px
+              </p>
             </div>
-          </div>
+
+            {/* 底部刻度：真实方块边长 = px，一眼比大小 */}
+            <div className="border-t border-neutral-200/80 bg-white px-4 py-4 sm:px-5">
+              <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                <div className="text-[11px] font-semibold text-neutral-500">间距刻度（方块边长 = px）</div>
+                <div className="text-[11px] text-neutral-400">
+                  控件高度 <code className="font-mono text-neutral-600">h-8 = 32</code>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-end gap-5">
+                {(
+                  [
+                    { token: 'V1', px: 4, note: '标签→输入' },
+                    { token: 'gap-2', px: 8, note: '页脚按钮' },
+                    { token: 'gap-3', px: 12, note: '卡片流' },
+                    { token: 'V4', px: 16, note: '表单栈' },
+                    { token: 'H5', px: 20, note: '页面外壳' },
+                    { token: 'h-8', px: 32, note: '控件高度' },
+                  ] as const
+                ).map((item) => (
+                  <div key={item.token} className="flex flex-col items-center gap-2">
+                    <div
+                      className="rounded-[4px] bg-neutral-800"
+                      style={{ width: item.px, height: item.px }}
+                      title={`${item.token} · ${item.px}px`}
+                    />
+                    <div className="text-center">
+                      <div className="font-mono text-[11px] font-semibold text-neutral-800">
+                        {item.token}
+                      </div>
+                      <div className="text-[10px] tabular-nums text-neutral-500">{item.px}px</div>
+                      <div className="text-[10px] text-neutral-400">{item.note}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </SpecStage>
         </Section>
 
         <Section
@@ -2048,26 +2588,44 @@ export const ComponentLibraryPage: React.FC = () => {
           </SpecStage>
         </Section>
 
-        <Section id="token-shadow" source="CARD · MODAL · Toast">
+        <Section id="token-shadow" source="CARD · MODAL · Toast" desc="同尺寸同圆角同底色，仅阴影不同。">
           <SpecStage className="flex flex-wrap gap-4">
-            <div className={cn(CARD, 'w-36 h-20 grid place-items-center text-neutral-500')}>
-              <span className="text-center leading-tight">卡片静态</span>
-            </div>
-            <div
-              className={cn(
-                CARD,
-                CARD_HOVER,
-                'w-36 h-20 grid place-items-center text-neutral-500 -translate-y-0.5 shadow-[0_4px_12px_rgba(31,35,41,0.08)]',
-              )}
-            >
-              <span className="text-center leading-tight">卡片悬停</span>
-            </div>
-            <div className="w-36 h-20 rounded-[13px] bg-white shadow-lg ring-1 ring-black/10 grid place-items-center text-neutral-500">
-              <span className="text-center leading-tight">弹窗</span>
-            </div>
-            <div className="w-36 h-20 rounded-[7px] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.15)] grid place-items-center text-neutral-500">
-              <span className="text-center leading-tight">轻提示</span>
-            </div>
+            {(
+              [
+                {
+                  label: '卡片静态',
+                  shadow: 'shadow-[0_2px_10px_rgba(31,35,41,0.02)]',
+                  note: 'CARD',
+                },
+                {
+                  label: '卡片悬停',
+                  shadow: 'shadow-[0_4px_12px_rgba(31,35,41,0.08)]',
+                  note: 'CARD_HOVER',
+                },
+                {
+                  label: '弹窗',
+                  shadow: 'shadow-lg',
+                  note: 'MODAL_PANEL',
+                },
+                {
+                  label: '轻提示',
+                  shadow: 'shadow-[0_10px_30px_rgba(0,0,0,0.15)]',
+                  note: 'Toast',
+                },
+              ] as const
+            ).map((item) => (
+              <div key={item.label} className="flex flex-col items-center gap-2">
+                <div
+                  className={cn(
+                    'w-36 h-20 rounded-[13px] bg-white grid place-items-center text-neutral-500',
+                    item.shadow,
+                  )}
+                >
+                  <span className="text-center leading-tight text-[12px]">{item.label}</span>
+                </div>
+                <code className="text-[10px] font-mono text-neutral-400">{item.note}</code>
+              </div>
+            ))}
           </SpecStage>
         </Section>
 
@@ -2109,18 +2667,19 @@ export const ComponentLibraryPage: React.FC = () => {
         {/* ── Atom ── */}
         <Section
           id="atom-button"
-          source="BTN_INK / SOFT / OUTLINE / DANGER · Loading=disabled+LoadingCircle"
-          desc="悬停态按源码模拟（主按钮 opacity-90 等）。加载态：禁用 + 内嵌圆环加载（14），可选文案“提交中…”。"
+          source="主按钮 / 次级 / 描边 / 危险 / AI色 · 加载=禁用+圆环"
+          desc="悬停态按源码模拟（主按钮 opacity-90 等）。加载态：禁用 + 内嵌圆环加载（14），可选文案“提交中…”。AI 色为黑→#1565BF 渐变，用于创作发送。"
           dos={[
-            '主 CTA 用 BTN_INK',
-            '取消用 BTN_SOFT 或 OUTLINE',
-            '危险操作用 BTN_DANGER',
-            '加载中必须 disabled，用 LoadingCircle / MatrixLoader / Loader2',
+            '主操作：主按钮（墨黑）',
+            '取消：次级或描边',
+            '危险操作：危险按钮',
+            'AI 创作/发送：AI 色按钮（BTN_AI）',
+            '加载中必须禁用，用圆环加载动画',
           ]}
           donts={[
-            '主色不要用蓝色',
-            '不要自造圆角/高度（保持 h-8 / 7px）',
-            '不要用 CSS border 圆环替代 LoadingCircle',
+            '业务主 CTA 不要用蓝色实心（用墨黑）',
+            '不要自造圆角/高度（保持 h-8 / 7px；AI 发送为 36×36）',
+            '不要用 CSS border 圆环替代加载组件',
           ]}
         >
           <SpecPanel className="p-0 overflow-x-auto">
@@ -2132,33 +2691,40 @@ export const ComponentLibraryPage: React.FC = () => {
                   <th className="py-2.5 px-2 font-semibold text-center"><BiLabel zh="悬停" en="Hover" /></th>
                   <th className="py-2.5 px-2 font-semibold text-center"><BiLabel zh="禁用" en="Disabled" /></th>
                   <th className="py-2.5 px-2 font-semibold text-center"><BiLabel zh="加载" en="Loading" /></th>
-                  <th className="py-2.5 px-4 font-semibold text-center"><BiLabel zh="可点" en="Live" /></th>
+                  <th className="py-2.5 px-2 font-semibold text-center"><BiLabel zh="可点" en="Live" /></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {(
                   [
-                    ['BTN_INK', BTN_INK, '确定', true],
-                    ['BTN_SOFT', BTN_SOFT, '取消', false],
-                    ['BTN_OUTLINE', BTN_OUTLINE, '培训', false],
-                    ['BTN_DANGER', BTN_DANGER, '删除', false],
+                    ['主按钮', 'BTN_INK', BTN_INK, '确定', true, false],
+                    ['次级按钮', 'BTN_SOFT', BTN_SOFT, '取消', false, false],
+                    ['描边按钮', 'BTN_OUTLINE', BTN_OUTLINE, '培训', false, false],
+                    ['危险按钮', 'BTN_DANGER', BTN_DANGER, '删除', false, false],
+                    ['AI 发送', 'BTN_AI', BTN_AI, null, true, true],
+                    ['AI 文案', 'BTN_AI_TEXT', BTN_AI_TEXT, '开始创作', true, false],
                   ] as const
-                ).map(([name, cls, label, onDark]) => (
-                  <tr key={name} className="hover:bg-neutral-50/60">
-                    <td className="py-3.5 px-4 font-semibold text-neutral-800 whitespace-nowrap font-mono text-[11px]">
-                      {name}
+                ).map(([zh, token, cls, label, onDark, isIcon]) => (
+                  <tr key={token} className="hover:bg-neutral-50/60">
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <div className="text-[13px] font-semibold text-neutral-800">{zh}</div>
+                      <code className="mt-0.5 block font-mono text-[10px] font-medium text-neutral-400">
+                        {token}
+                      </code>
                     </td>
                     <td className="py-3.5 px-2 text-center">
-                      <ForcedBtn className={cls}>{label}</ForcedBtn>
+                      <ForcedBtn className={cls}>
+                        {isIcon ? <ArrowUp size={18} /> : label}
+                      </ForcedBtn>
                     </td>
                     <td className="py-3.5 px-2 text-center">
                       <ForcedBtn className={cls} force="hover">
-                        {label}
+                        {isIcon ? <ArrowUp size={18} /> : label}
                       </ForcedBtn>
                     </td>
                     <td className="py-3.5 px-2 text-center">
                       <ForcedBtn className={cls} force="disabled">
-                        {label}
+                        {isIcon ? <ArrowUp size={18} /> : label}
                       </ForcedBtn>
                     </td>
                     <td className="py-3.5 px-2 text-center">
@@ -2167,8 +2733,8 @@ export const ComponentLibraryPage: React.FC = () => {
                       </ForcedBtn>
                     </td>
                     <td className="py-3.5 px-4 text-center">
-                      <button type="button" className={cls}>
-                        {label}
+                      <button type="button" className={cls} aria-label={zh}>
+                        {isIcon ? <ArrowUp size={18} /> : label}
                       </button>
                     </td>
                   </tr>
@@ -2207,7 +2773,7 @@ export const ComponentLibraryPage: React.FC = () => {
               </button>
             </SpecStage>
             <p className="mt-2 text-[11px] text-neutral-400 leading-relaxed max-w-2xl">
-              深色底（BTN_INK）对加载圈加{' '}
+              主按钮深色底对加载圈加{' '}
               <code className="px-1 py-0.5 rounded bg-neutral-100 text-neutral-600 text-[10px]">
                 brightness-0 invert
               </code>
@@ -2220,54 +2786,99 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section
           id="atom-field"
           source="FIELD · LABEL · 无 CARD 壳"
-          desc="LABEL + FIELD 上下排布，直接铺在白底或 Modal 内容区。"
+          desc="LABEL + FIELD 上下排布。切换状态查看真实交互；聚焦请点选「聚焦」或直接点输入框。"
           dos={['Label→输入 4px（LABEL）', '表单项间距 space-y-4', '错误用 destructive 描边 + 文案']}
-          donts={['禁止 rounded-[13px] 卡片包裹整块表单', '不要用蓝色 focus ring']}
+          donts={['禁止 rounded-[13px] 卡片包裹整块表单', '不要用蓝色 focus ring', '不要用静态假聚焦替代真实 :focus']}
         >
           <div className="mb-4 px-3.5 py-2.5 rounded-[10px] bg-neutral-100/80 border-l-[3px] border-neutral-800 text-neutral-600 max-w-xl text-[12px] leading-relaxed">
             硬规则：禁止用 rounded-[13px] 卡片包裹整块表单。
           </div>
+
           <SpecStage className="max-w-lg bg-white">
-            <div className="space-y-4 max-w-md">
-              <div>
-                <label className={LABEL}>
-                  知识库名称 <span className="text-rose-500">*</span>
-                </label>
-                <input className={cn(FIELD, FIELD_CTRL)} placeholder="请输入知识库名称" />
-              </div>
-              <div>
-                <label className={LABEL}>聚焦（示意）</label>
+            <div className="mb-4 flex flex-wrap gap-1.5">
+              {(
+                [
+                  { id: 'default', label: '默认' },
+                  { id: 'focus', label: '聚焦' },
+                  { id: 'error', label: '错误' },
+                  { id: 'disabled', label: '禁用' },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    setFieldDemoState(opt.id);
+                    if (opt.id === 'focus') {
+                      requestAnimationFrame(() => fieldDemoRef.current?.focus());
+                    } else {
+                      fieldDemoRef.current?.blur();
+                    }
+                  }}
+                  className={cn(
+                    'h-7 px-2.5 rounded-[7px] text-[12px] font-medium transition cursor-pointer',
+                    fieldDemoState === opt.id
+                      ? 'bg-neutral-800 text-white'
+                      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200',
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="max-w-md">
+              <label className={LABEL}>
+                知识库名称 <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
                 <input
-                  className={cn(FIELD, FIELD_CTRL, 'border-neutral-400 ring-2 ring-ring/30')}
-                  defaultValue="售后政策库"
-                  readOnly
+                  ref={fieldDemoRef}
+                  className={cn(
+                    FIELD,
+                    FIELD_CTRL,
+                    fieldDemoState === 'error' && 'border-destructive ring-2 ring-destructive/20',
+                  )}
+                  placeholder="请输入知识库名称"
+                  value={fieldDemoState === 'disabled' ? '不可编辑' : fieldDemoValue}
+                  disabled={fieldDemoState === 'disabled'}
+                  readOnly={fieldDemoState === 'error'}
+                  onChange={(e) => setFieldDemoValue(e.target.value)}
+                  onFocus={() => {
+                    if (fieldDemoState !== 'error' && fieldDemoState !== 'disabled') {
+                      setFieldDemoState('focus');
+                    }
+                  }}
+                  onBlur={() => {
+                    if (fieldDemoState === 'focus') setFieldDemoState('default');
+                  }}
                 />
               </div>
-              <div>
-                <label className={LABEL}>错误</label>
-                <input
-                  className={cn(FIELD, FIELD_CTRL, 'border-destructive ring-2 ring-destructive/20')}
-                  placeholder="名称不能为空"
-                  readOnly
-                />
+              {fieldDemoState === 'error' ? (
                 <p className="text-[10px] text-destructive mt-1">请填写知识库名称</p>
-              </div>
-              <div>
-                <label className={LABEL}>禁用</label>
-                <input className={cn(FIELD, FIELD_CTRL)} defaultValue="不可编辑" disabled />
-              </div>
-              <div>
-                <label className={LABEL}>搜索</label>
-                <div className="relative">
-                  <Search
-                    size={14}
-                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400"
-                  />
-                  <input className={cn(SEARCH_FIELD, 'pl-9')} placeholder="按工号或姓名查找…" />
-                </div>
+              ) : (
+                <p className="text-[10px] text-neutral-400 mt-1.5">
+                  {fieldDemoState === 'focus'
+                    ? '当前为真实 :focus（ring-ring/30），非静态描边'
+                    : fieldDemoState === 'disabled'
+                      ? 'disabled 态：opacity-50，不可编辑'
+                      : '点输入框或上方「聚焦」查看焦点环'}
+                </p>
+              )}
+            </div>
+
+            <div className="mt-6 pt-5 border-t border-neutral-100 max-w-md">
+              <label className={LABEL}>搜索</label>
+              <div className="relative">
+                <Search
+                  size={14}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400"
+                />
+                <input className={cn(SEARCH_FIELD, 'pl-9')} placeholder="按工号或姓名查找…" />
               </div>
             </div>
           </SpecStage>
+
           <div className="mt-4 max-w-md">
             <p className="text-[11px] font-semibold text-rose-600 mb-2">
               反例 · 不要这样
@@ -2283,10 +2894,10 @@ export const ComponentLibraryPage: React.FC = () => {
 
         <Section
           id="atom-tag"
-          source="badgeClass / badgeTones"
-          desc="语义固定：成功=开箱即用 · 警告=定制 · 信息=AI/休息 · 危险=异常。"
-          dos={['状态语义全站固定', '用 badgeClass(tone) 而非手写色']}
-          donts={['不要把标签当主按钮', '不要自造紫色/靛蓝色标签']}
+          source="badgeClass · DongDesign 功能色"
+          desc="对齐 DongDesign 功能色：Success #00B26F · Warning #F08433 · Error #F33B50 · Info #376BFA。语义：成功=开箱即用 · 警告=定制 · 信息=AI/休息 · 危险=异常。"
+          dos={['状态语义全站固定', '用 badgeClass(tone)', '底浅色 + 字功能色本体，无描边']}
+          donts={['不要把标签当主按钮', '不要自造紫色/靛蓝色标签', '不要加 border / ring']}
         >
           <SpecStage>
             <div className="flex flex-wrap gap-2 mb-5">
@@ -2346,10 +2957,10 @@ export const ComponentLibraryPage: React.FC = () => {
 
         <Section
           id="atom-chip"
-          source="SessionRecords 时间片"
-          desc="时间/快捷筛选；选中态 info 蓝底，非主色墨黑。"
-          dos={['用于互斥快捷筛选', '选中用 info 底+描边']}
-          donts={['不要替代主 CTA', '不要做成全圆大胶囊堆']}
+          source="CHIP / CHIP_ACTIVE"
+          desc="时间/快捷筛选；选中态 Info 功能色底+字，无描边。"
+          dos={['用于互斥快捷筛选', '选中用 Info 浅底，无描边', '用 CHIP / CHIP_ACTIVE']}
+          donts={['不要替代主 CTA', '不要做成全圆大胶囊堆', '不要加 border / ring']}
         >
           <SpecStage>
             <div className="flex flex-wrap gap-2 mb-4">
@@ -2363,12 +2974,7 @@ export const ComponentLibraryPage: React.FC = () => {
                   key={c.id}
                   type="button"
                   onClick={() => setChip(c.id)}
-                  className={cn(
-                    'h-7 px-2.5 rounded-full border text-[12px] cursor-pointer transition',
-                    chip === c.id
-                      ? 'bg-[#F0F7FF] border-[#91C5FF] text-[#0050D2] font-semibold'
-                      : 'bg-white border-neutral-200 text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50',
-                  )}
+                  className={chip === c.id ? CHIP_ACTIVE : CHIP}
                 >
                   {c.label}
                 </button>
@@ -2376,26 +2982,35 @@ export const ComponentLibraryPage: React.FC = () => {
             </div>
             <div className="flex flex-wrap gap-6 pt-4 border-t border-neutral-200/70">
               <StateCell zh="选中" en="Selected">
-                <span className="h-7 px-2.5 rounded-full border text-[12px] inline-flex items-center bg-[#F0F7FF] border-[#91C5FF] text-[#0050D2] font-semibold">
-                  近 24 小时
-                </span>
+                <span className={CHIP_ACTIVE}>近 24 小时</span>
               </StateCell>
               <StateCell zh="默认" en="Default">
-                <span className="h-7 px-2.5 rounded-full border text-[12px] inline-flex items-center bg-white border-neutral-200 text-neutral-500">
-                  近 7 天
-                </span>
+                <span className={CHIP}>近 7 天</span>
               </StateCell>
               <StateCell zh="悬停" en="Hover">
-                <span className="h-7 px-2.5 rounded-full border text-[12px] inline-flex items-center bg-neutral-50 border-neutral-200 text-neutral-800">
-                  近 30 天
-                </span>
+                <span className={cn(CHIP, 'text-neutral-800 bg-neutral-50')}>近 30 天</span>
               </StateCell>
               <StateCell zh="禁用" en="Disabled">
-                <span className="h-7 px-2.5 rounded-full border text-[12px] inline-flex items-center bg-white border-neutral-200 text-neutral-500 opacity-40">
-                  自定义
-                </span>
+                <span className={cn(CHIP, 'opacity-40 pointer-events-none')}>自定义</span>
               </StateCell>
             </div>
+          </SpecStage>
+        </Section>
+
+        <Section
+          id="atom-tooltip"
+          source="AppTooltip · DongDesign jd-tooltip"
+          desc="对齐 DongDesign Tooltip：dark / light、十二方位、small、click / hover。"
+          dos={['提示文案简短', '用 AppTooltip 而非手写绝对定位', '优先 hover，点击场景再开 trigger=click']}
+          donts={['不要把复杂表单塞进 Tooltip', '不要遮挡主操作', '不要自造第二套浮层色']}
+        >
+          <SpecStage>
+            <TooltipProvider delay={200}>
+              <div className="space-y-10 overflow-x-auto">
+                <TooltipPlacementDemo effect="dark" />
+                <TooltipPlacementDemo effect="light" />
+              </div>
+            </TooltipProvider>
           </SpecStage>
         </Section>
 
@@ -2466,7 +3081,11 @@ export const ComponentLibraryPage: React.FC = () => {
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <SpecPanel className="flex flex-col items-center py-10 text-center">
-              <div className="w-[120px] h-[90px] rounded-xl bg-neutral-50 border border-neutral-200 mb-3" />
+              <img
+                src={RELAY_HOME_ASSETS.employeesEmpty}
+                alt=""
+                className="w-[120px] h-[90px] object-contain mb-3"
+              />
               <div className="text-[15px] font-semibold text-neutral-900">还没有数字员工</div>
               <div className="text-[12px] text-neutral-500 mt-1">去市场雇佣一位</div>
               <button type="button" className={cn(BTN_INK, 'mt-3')}>
@@ -2504,7 +3123,7 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section id="feedback-status" source="在线点 · badge · 角标">
           <div className="flex flex-wrap gap-5 items-center">
             <span className="inline-flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-[#00AC6B] border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.06)]" />
+              <span className="w-3 h-3 rounded-full bg-[#00B26F] border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.06)]" />
               在线
             </span>
             <span className="inline-flex items-center gap-2">
@@ -2528,7 +3147,7 @@ export const ComponentLibraryPage: React.FC = () => {
           id="atom-underline"
           source="Navigation.tsx · hybrid 默认"
           desc="默认布局：PrimaryNavRail + 顶栏 Tab（非 QcAppMainTabs，后者已无引用）。"
-          dos={['二级能力在顶栏横排', '激活态 text-live + 底部蓝色胶囊条']}
+          dos={['二级能力在顶栏横排', '激活态渐变字 + 底部胶囊条（navSecondaryTabClass）']}
           donts={['不要引用已废弃的顶栏组件', '双侧导航模式下顶栏由侧栏承担']}
         >
           <SpecPanel className="p-0 overflow-hidden max-w-2xl">
@@ -2604,33 +3223,25 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section
           id="pattern-dual-nav"
           source="PrimaryNavRail + SecondarySideNav"
-          desc="VersionSwitcher 选“双侧导航”时启用；默认混合布局仍走顶栏二级导航。"
-          dos={['A/B 对比测试用', '一级域在窄轨，二级在侧栏']}
-          donts={['不要当作默认权威方案', '不要与顶栏导航同时出现']}
+          desc="VersionSwitcher 选「双侧导航」时启用；下列为真实组件（非示意）。默认 hybrid 仍走顶栏二级导航。"
+          dos={['A/B 对比测试用', '一级域在窄轨，二级在侧栏', '展台可直接点选切换']}
+          donts={['不要当作默认权威方案', '不要与顶栏 Navigation 同时全开']}
         >
-          <div className="inline-flex border border-neutral-200 rounded-[13px] overflow-hidden max-w-sm">
-            <div className="w-[52px] bg-neutral-50 border-r border-neutral-200 p-2 flex flex-col gap-1.5 items-center">
-              <div className="w-9 h-9 rounded-[10px] bg-white text-live grid place-items-center shadow-[0_1px_3px_rgba(0,0,0,0.04)] ring-1 ring-sky-100">
-                <Home size={16} />
+          <div className="h-[440px] rounded-[13px] border border-neutral-200 overflow-hidden bg-neutral-50 shadow-[0_2px_10px_rgba(31,35,41,0.02)]">
+            <div className="flex h-full min-h-0">
+              <PrimaryNavRail showRightBorder overflowToMore={false} />
+              <SecondarySideNav />
+              <div className="flex-1 min-w-0 min-h-0 bg-white rounded-tl-2xl flex flex-col">
+                <div className="px-4 py-3 border-b border-neutral-100">
+                  <p className="text-[12px] font-semibold text-neutral-800">内容区占位</p>
+                  <p className="mt-0.5 text-[11px] text-neutral-500">
+                    左侧为真实 PrimaryNavRail + SecondarySideNav，与产品双侧布局同构。
+                  </p>
+                </div>
+                <div className="flex-1 p-4 text-[12px] text-neutral-400">
+                  切换一级域后，二级侧栏会跟真实产品一样换菜单。
+                </div>
               </div>
-              <div className="w-9 h-9 rounded-[10px] text-neutral-500 grid place-items-center hover:bg-white/70">
-                <BookOpen size={16} />
-              </div>
-            </div>
-            <div className="w-48 bg-[#f7f8fa] p-2 space-y-1">
-              <button
-                type="button"
-                className="relative w-full text-left pl-3 pr-2.5 py-[7px] rounded-[10px] text-[13px] font-semibold text-live bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] ring-1 ring-sky-100"
-              >
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-3.5 w-[3px] rounded-full bg-live" />
-                我的数字员工
-              </button>
-              <button
-                type="button"
-                className="w-full text-left pl-3 pr-2.5 py-[7px] rounded-[10px] text-[13px] font-medium text-neutral-600 hover:bg-white/70"
-              >
-                数字员工市场
-              </button>
             </div>
           </div>
         </Section>
@@ -2658,14 +3269,14 @@ export const ComponentLibraryPage: React.FC = () => {
 
         <Section
           id="legacy-wide-nav"
-          source="Sidebar.tsx · 无引用"
-          desc="232px 宽侧栏方案已废弃；Sidebar.tsx 在全站无引用。现行默认混合布局，可选双侧导航。"
+          source="遗留宽侧栏示意"
+          desc="232px 宽侧栏方案已废弃。现行默认混合布局，可选双侧导航。"
           donts={['新页面禁止采用', '勿复制此结构']}
         >
           <div className="mb-2 inline-flex items-center gap-1.5">
             <span className={badgeClass('warning')}>遗留 Legacy</span>
             <span className="text-neutral-500 text-[11px]">
-              QcAppMainTabs.tsx 同为死代码，请勿引用
+              宽侧栏结构仅作展台示意，请勿引用
             </span>
           </div>
           <div className="w-[232px] bg-neutral-50 border border-neutral-200 rounded-[13px] p-3 opacity-70">
@@ -2680,62 +3291,80 @@ export const ComponentLibraryPage: React.FC = () => {
         </Section>
 
         {/* ── Pattern ── */}
-        <Section id="pattern-online" source="OnlinePageLayout">
-          <OnlinePageToolbar>
-            <div className="relative">
+        <Section
+          id="pattern-online"
+          source="OnlinePageLayout · KnowledgeBasePage"
+          desc="在线域列表壳：OnlinePageHeader（标题 + 搜索 + 新建）+ 扁平 TABLE；区块头仅用于表下详情区（如上传面板），不要压在表上方。"
+        >
+          <OnlinePageHeader title="员工知识">
+            <div className="relative w-full sm:w-64 shrink-0">
               <Search
                 size={14}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
               />
-              <input className={cn(SEARCH_FIELD, 'pl-9')} placeholder="搜索知识库…" />
+              <input
+                className={cn(SEARCH_FIELD, 'w-full pl-9 pr-4')}
+                placeholder="搜索知识库名..."
+              />
             </div>
             <button type="button" className={BTN_INK} onClick={() => setModalOpen(true)}>
-              创建知识库
+              <Plus size={14} />
+              <span>新建知识库</span>
             </button>
-          </OnlinePageToolbar>
-          <OnlineSectionHeader title="知识库列表" description="管理企业知识并用于员工培训" />
+          </OnlinePageHeader>
           <div className={onlineTableClass.wrap}>
             <table className={onlineTableClass.table}>
               <thead>
                 <tr className={onlineTableClass.headRow}>
-                  <th className={onlineTableClass.thFirst}>名称</th>
+                  <th className={onlineTableClass.thFirst}>知识库</th>
                   <th className={onlineTableClass.th}>文档数</th>
+                  <th className={onlineTableClass.th}>字符数</th>
+                  <th className={onlineTableClass.th}>更新时间</th>
                   <th className={onlineTableClass.thLast}>操作</th>
                 </tr>
               </thead>
               <tbody className={onlineTableClass.body}>
-                <tr className={onlineTableClass.row}>
-                  <td className={onlineTableClass.tdFirst}>
-                    <div className="flex items-center gap-2.5">
-                      <CardIcon seed="售后政策库" size="sm">
-                        售
-                      </CardIcon>
-                      售后政策库
-                    </div>
-                  </td>
-                  <td className={onlineTableClass.td}>24</td>
-                  <td className={onlineTableClass.tdLast}>
-                    <button type="button" className={cn(BTN_OUTLINE, 'h-6 text-[11px]')}>
-                      管理
-                    </button>
-                  </td>
-                </tr>
-                <tr className={onlineTableClass.row}>
-                  <td className={onlineTableClass.tdFirst}>
-                    <div className="flex items-center gap-2.5">
-                      <CardIcon seed="催收话术库" size="sm">
-                        催
-                      </CardIcon>
-                      催收话术库
-                    </div>
-                  </td>
-                  <td className={onlineTableClass.td}>12</td>
-                  <td className={onlineTableClass.tdLast}>
-                    <button type="button" className={cn(BTN_OUTLINE, 'h-6 text-[11px]')}>
-                      管理
-                    </button>
-                  </td>
-                </tr>
+                {TPL_LIST_ROWS.slice(0, 2).map((row) => (
+                  <tr key={row.id} className={onlineTableClass.row}>
+                    <td className={onlineTableClass.tdFirst}>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <CardIcon seed={row.id} size="sm" variant="soft">
+                          {row.firstChar}
+                        </CardIcon>
+                        <span className="font-semibold text-neutral-900 truncate">{row.name}</span>
+                      </div>
+                    </td>
+                    <td className={onlineTableClass.td}>{row.docs} 个</td>
+                    <td className={cn(onlineTableClass.td, 'font-mono tabular-nums')}>
+                      {row.words.toLocaleString()}
+                    </td>
+                    <td className={cn(onlineTableClass.td, 'text-neutral-500')}>{row.updatedAt}</td>
+                    <td className={onlineTableClass.tdLast}>
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          className="text-[11px] font-semibold text-live hover:underline cursor-pointer"
+                        >
+                          上传
+                        </button>
+                        <button
+                          type="button"
+                          className="p-1 text-neutral-400 hover:text-neutral-800 rounded-lg hover:bg-neutral-100 transition cursor-pointer"
+                          title="重命名"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className="p-1 text-neutral-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition cursor-pointer"
+                          title="删除"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -2766,21 +3395,88 @@ export const ComponentLibraryPage: React.FC = () => {
           </p>
         </Section>
 
-        <Section id="pattern-card-icon" source="common/CardIcon">
-          <div className="flex flex-wrap gap-3 items-end">
-            <CardIcon seed="a" size="sm">
-              知
-            </CardIcon>
-            <CardIcon seed="b" size="md">
-              技
-            </CardIcon>
-            <CardIcon seed="c" size="lg">
-              质
-            </CardIcon>
-            <CardIcon seed="d" size="md" variant="soft">
-              KB
-            </CardIcon>
-          </div>
+        <Section
+          id="pattern-card-icon"
+          source="common/CardIcon · KnowledgeBasePage"
+          desc="列表行首彩色圆角方块；颜色由 seed 稳定派生。产品默认：size=sm + variant=soft + 首字，与「员工知识」行首同构。"
+          dos={[
+            '知识列表用 soft + sm + 首字',
+            '同一对象固定传同一 seed',
+            '仅底色+字色，无描边',
+          ]}
+          donts={[
+            '不要手写渐变方块替代 CardIcon',
+            '不要给 soft 加 border / ring',
+            '技能卡图标走 SkillListIcon 中性灰底，不混用 CardIcon',
+          ]}
+        >
+          <SpecStage>
+            <p className="text-[11px] font-semibold text-neutral-500 mb-2.5">产品 · 知识列表行首</p>
+            <div className="space-y-2 mb-5 max-w-md">
+              {[
+                { id: 'kb-售后', name: '售后政策库', char: '售' },
+                { id: 'kb-催收', name: '催收话术库', char: '催' },
+                { id: 'kb-质检', name: '质检标准库', char: '质' },
+              ].map((row) => (
+                <div
+                  key={row.id}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] border border-neutral-200/80 bg-white"
+                >
+                  <CardIcon seed={row.id} size="sm" variant="soft">
+                    {row.char}
+                  </CardIcon>
+                  <span className="font-semibold text-neutral-900 text-[13px] truncate">
+                    {row.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-4 border-t border-neutral-200/70 space-y-4">
+              <div>
+                <p className="text-[11px] font-semibold text-neutral-500 mb-2.5">尺寸</p>
+                <div className="flex flex-wrap gap-3 items-end">
+                  {(['sm', 'md', 'lg', 'xl'] as const).map((size) => (
+                    <div key={size} className="flex flex-col items-center gap-1.5">
+                      <CardIcon seed={`size-${size}`} size={size} variant="soft">
+                        知
+                      </CardIcon>
+                      <code className="text-[10px] font-mono text-neutral-400">{size}</code>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-neutral-500 mb-2.5">变体</p>
+                <div className="flex flex-wrap gap-4 items-end">
+                  <div className="flex flex-col items-center gap-1.5">
+                    <CardIcon seed="var-soft" size="md" variant="soft">
+                      知
+                    </CardIcon>
+                    <code className="text-[10px] font-mono text-neutral-400">soft</code>
+                  </div>
+                  <div className="flex flex-col items-center gap-1.5">
+                    <CardIcon seed="var-solid" size="md" variant="solid">
+                      知
+                    </CardIcon>
+                    <code className="text-[10px] font-mono text-neutral-400">solid</code>
+                  </div>
+                  <div className="flex flex-col items-center gap-1.5">
+                    <CardIcon seed="var-ai" size="md" variant="ai">
+                      AI
+                    </CardIcon>
+                    <code className="text-[10px] font-mono text-neutral-400">ai</code>
+                  </div>
+                  <div className="flex flex-col items-center gap-1.5">
+                    <CardIcon seed="var-icon" size="lg" variant="soft">
+                      <Cpu size={22} className="text-neutral-800/80" />
+                    </CardIcon>
+                    <code className="text-[10px] font-mono text-neutral-400">soft + icon</code>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </SpecStage>
         </Section>
 
         <Section id="pattern-employee" source="EmployeeCardRelay">
@@ -2960,9 +3656,9 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section
           id="pattern-composer"
           source="common/PromptComposer · SkillCreateWorkspace"
-          desc="仅技能创建工作台 1 处；大模型提示输入 PANEL + textarea + 发送。"
-          dos={['用于技能创建对话输入', '空内容禁用发送']}
-          donts={['不要用普通 FIELD 代替整块 Composer']}
+          desc="遗留：仅技能创建工作台少量场景。新创作入口请用下方「创作 Sender」（Agent Builder / skill-ai-composer）。"
+          dos={['兼容旧技能工作台', '空内容禁用发送']}
+          donts={['新页不要再引入 PromptComposer', '不要用普通 FIELD 代替 Composer']}
         >
           <SpecStage className="max-w-xl">
             <PromptComposer
@@ -2973,6 +3669,222 @@ export const ComponentLibraryPage: React.FC = () => {
                 setPromptValue('');
               }}
               placeholder="描述你希望数字员工掌握的技能…"
+            />
+          </SpecStage>
+        </Section>
+
+        <Section
+          id="pattern-goal-composer"
+          source="GoalComposerGhost · skill-ai-composer · PlatformHomePage"
+          desc="dongDesign-AI Sender：Agent Builder 与技能落地页创作输入。Ghost 打字机 + Tab 补全；发送钮用 SKILL_AOP_SEND_BTN / NAV_ACTIVE_GRADIENT_BG。"
+          dos={['芯片只填入输入框，不直接跳转', '发送后进入创建流程并带入文案', '复用 SKILL_AOP_* 色系']}
+          donts={['不要平行造第二套创作输入壳', '禁止直角引号「」']}
+        >
+          <SpecStage className="max-w-[640px] space-y-3">
+            <div
+              className={cn(
+                'relative flex flex-col gap-0 rounded-[16px] border border-white/90 bg-white/92 p-[13px]',
+                'shadow-[0_4px_24px_rgba(21,101,191,0.06),0_1px_0_rgba(255,255,255,0.8)_inset]',
+              )}
+            >
+              <div className="relative min-h-[80px]">
+                <GoalComposerGhost
+                  labels={DS_GOAL_CHIPS}
+                  tipIndex={goalGhostTip}
+                  onTipIndexChange={setGoalGhostTip}
+                  onAcceptTab={() => showToast('已 Tab 补全示例文案', 'info')}
+                  variant="skill"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3 pt-1 px-1">
+                <span className="text-[12px] text-neutral-400">索引知识</span>
+                <button
+                  type="button"
+                  className={SKILL_AOP_SEND_BTN}
+                  title="发送"
+                  onClick={() => showToast('演示：进入技能创建流程', 'success')}
+                >
+                  <ArrowUp size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {DS_GOAL_CHIPS.map((label) => (
+                <button key={label} type="button" className={CHIP}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-neutral-500 text-center">
+              渐变发送：
+              <span className={cn('ml-1 font-semibold', NAV_ACTIVE_GRADIENT_TEXT)}>
+                NAV_ACTIVE_GRADIENT
+              </span>
+            </p>
+          </SpecStage>
+        </Section>
+
+        <Section
+          id="pattern-ai-bubble"
+          source="DESIGN.md §10 · ai-product-dongdesign.mdc"
+          desc="dongDesign-AI Bubble 字阶：仅用于 AI 对话气泡正文排版；全站暖灰墨黑底盘不变。"
+          dos={['正文 14/22 #595959', '一/二/三级标题按表', '用户气泡可用 SKILL_AOP_TINT']}
+          donts={['不要用页面标题字阶套气泡', '不要引入第二套 CSS 变量前缀']}
+        >
+          <div className="grid gap-4 md:grid-cols-2 max-w-3xl">
+            <SpecStage className="space-y-2">
+              <div className="text-[10px] font-semibold text-neutral-400 mb-1">AI 气泡</div>
+              <div className="rounded-2xl bg-neutral-100 px-3.5 py-3 space-y-2">
+                <p className="text-[18px] leading-[28px] font-semibold text-[#262626]">一级标题</p>
+                <p className="text-[16px] leading-[24px] font-semibold text-[#262626]">二级标题</p>
+                <p className="text-[14px] leading-[22px] font-semibold text-[#1c1d1f]">三级标题</p>
+                <p className="text-[14px] leading-[22px] text-[#595959]">
+                  正文 regular-14：草案要点已同步到右侧配置区。
+                </p>
+                <p className="text-[14px] leading-[22px] text-[#8c8c8c]">次要说明 / 系统引导</p>
+              </div>
+            </SpecStage>
+            <SpecStage className="space-y-2">
+              <div className="text-[10px] font-semibold text-neutral-400 mb-1">用户气泡</div>
+              <div
+                className={cn(
+                  'ml-auto max-w-[88%] px-3 py-3 text-[14px] leading-[22px] text-[#181D27]',
+                  'rounded-[20px_4px_20px_20px] border',
+                  SKILL_AOP_TINT_BG,
+                  SKILL_AOP_TINT_BORDER,
+                )}
+              >
+                帮我做一个“延保进度查询”技能
+              </div>
+            </SpecStage>
+          </div>
+        </Section>
+
+        <Section
+          id="pattern-ai-thinking"
+          source="skills/SkillThinkingCard · jd-think"
+          desc="dongDesign-AI Cot / 深度思考：思考中流式输出 → 完成「已完成思考」后自动收起。与任务规划卡分离。"
+          dos={['正文流式吐字', '顶栏显示规划摘要', '完成后自动收起，可再点开']}
+          donts={['不要用本卡做任务 Step 列表', '不要用 Collect 卡替代 Cot', '正文不要重复顶栏标题']}
+        >
+          <SpecStage className="max-w-[720px] space-y-3">
+            <SkillThinkingCard
+              title="深度思考"
+              steps={[]}
+              isComplete={false}
+              loading
+            />
+            <SkillThinkingCard
+              title="已完成思考"
+              steps={[
+                {
+                  id: 'd1',
+                  label: '先总结用户想做成的能力',
+                  detail:
+                    '用户要配一项可复用的客服技能。需要把场景边界、触发条件与产出格式想清楚，再落到可确认草案。',
+                  status: 'done',
+                },
+                {
+                  id: 'd2',
+                  label: '思路收束',
+                  detail:
+                    '先澄清关键信息，再生成规格与下一步建议；想清楚后进入任务规划，而不是直接写死表单。',
+                  status: 'done',
+                },
+              ]}
+              durationSec={3}
+              isComplete
+              defaultExpanded
+            />
+          </SpecStage>
+        </Section>
+
+        <Section
+          id="pattern-ai-task-plan"
+          source="skills/SkillTaskPlanCard"
+          desc="任务规划卡：Step 列表 + 执行进度。完成态标题「N/N 任务已完成」。出现在深度思考之后。"
+          dos={['与 Cot 分卡展示', '执行中默认展开', '完成可收起']}
+          donts={['不要用 Cot 段落代替 Step', '不要一上来就任务规划（先 Collect / Think）']}
+        >
+          <SpecStage className="max-w-[720px] space-y-3">
+            <SkillTaskPlanCard
+              title="任务规划"
+              steps={DS_THINK_STEPS}
+              isComplete={false}
+              generating={false}
+              mode="executing"
+            />
+            <SkillTaskPlanCard
+              title="任务规划"
+              steps={DS_THINK_STEPS.map((s) => ({ ...s, status: 'done' as const }))}
+              durationSec={3}
+              isComplete
+              defaultExpanded={false}
+            />
+          </SpecStage>
+        </Section>
+
+        <Section
+          id="pattern-ai-collect"
+          source="skills/SkillCollectCard"
+          desc="dongDesign-AI Collect：先「搜索和分析资料中」加载态，再进入深度思考与任务规划。完成/停止自动收起。"
+          dos={['三态文案固定', '正文扫光仅 searching 末行', '内容区 max-h 300']}
+          donts={['不要一上来就任务规划', '不要用灰色 pulse 代替圆环']}
+        >
+          <SpecStage className="max-w-xl space-y-3">
+            <SkillCollectCard
+              status="searching"
+              nodes={[
+                {
+                  id: 'c1',
+                  kind: 'search',
+                  text: '梳理本轮技能目标与可用上下文',
+                  queries: ['延保进度查询', '触发条件'],
+                },
+                {
+                  id: 'c2',
+                  kind: 'read',
+                  text: '阅读并归纳可写入草案的关键信息',
+                  statusPill: '已阅读相关资料',
+                },
+              ]}
+            />
+            <SkillCollectCard
+              status="done"
+              summaryLabel="3篇资料"
+              defaultOpen={false}
+              nodes={[
+                {
+                  id: 'd1',
+                  kind: 'done',
+                  text: '已搜集和分析资料',
+                },
+              ]}
+            />
+          </SpecStage>
+        </Section>
+
+        <Section
+          id="pattern-ai-confirm"
+          source="skills/SkillRoundConfirmCard · confirmStatusBadgeClass"
+          desc="技能创建确认流：勾选 / 原位编辑 / 批量改写。员工孵化已改为规划后直接写入，不再出此卡。"
+          dos={['角标用 confirmStatusBadgeClass', '确认后写入右侧表单', '主按钮 SKILL_AOP_PRIMARY_BTN']}
+          donts={['员工孵化不要再挂确认卡', '不要用 badgeClass 代替确认角标']}
+        >
+          <div className="flex flex-wrap gap-2 mb-3">
+            <span className={confirmStatusBadgeClass('pending')}>待确认</span>
+            <span className={confirmStatusBadgeClass('confirmedSoft')}>已确认</span>
+            <span className={confirmStatusBadgeClass('confirmed')}>已确认</span>
+          </div>
+          <SpecStage className="max-w-md">
+            <SkillRoundConfirmCard
+              title="请确认技能草案要点"
+              items={dsConfirmItems}
+              onConfirm={(items) => {
+                setDsConfirmItems(items);
+                showToast('演示：已确认要点', 'success');
+              }}
+              onItemsChange={setDsConfirmItems}
             />
           </SpecStage>
         </Section>
@@ -3030,13 +3942,13 @@ export const ComponentLibraryPage: React.FC = () => {
           id="pattern-skeleton"
           source="LoadingSkeletons · 线上在用子集"
           desc="未就绪区块用 LoadingCircle / 骨架；已就绪不显示。DocumentRowSkeleton / UploadZoneSkeleton / CardListSkeleton 全站无引用。"
-          dos={['对话用 ChatReplySkeleton', '工作日志用 WorkLogSkeleton', '解析态用 ParsingStatusCell']}
+          dos={['对话用 ChatReplySkeleton', '工作日志用 WorkLogSkeleton', '上传用 UploadLoadingPanel']}
           donts={[
             '不要用灰色脉冲块替代 LoadingCircle',
             '勿使用 DocumentRow / UploadZone / CardList 骨架（未接入）',
           ]}
         >
-          <SpecStage className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <SpecStage className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div className={cn(PANEL, 'p-4')}>
               <ChatReplySkeleton />
               <p className="mt-2 text-[10px] text-neutral-400">对话骨架 · 员工页</p>
@@ -3044,10 +3956,6 @@ export const ComponentLibraryPage: React.FC = () => {
             <div className={cn(PANEL, 'p-4')}>
               <WorkLogSkeleton rows={2} className="py-2" />
               <p className="mt-2 text-[10px] text-neutral-400">工作日志骨架 · 员工页</p>
-            </div>
-            <div className={cn(PANEL, 'p-4 flex flex-col items-start gap-2')}>
-              <ParsingStatusCell progress={65} />
-              <p className="text-[10px] text-neutral-400">解析状态 · 知识库</p>
             </div>
             <div className={cn(PANEL, 'p-4 text-center')}>
               <UploadLoadingPanel title="正在上传并创建知识库…" fileName="policy.pdf" />
@@ -3080,46 +3988,60 @@ export const ComponentLibraryPage: React.FC = () => {
 
         <Section
           id="recipe-list"
-          source="OnlinePageLayout 配方"
-          desc="标题由二级导航承担；内容区只有工具栏 + 区块头 + 扁平表。"
-          dos={['右对齐 Toolbar', '行首可用 CardIcon']}
-          donts={['不要再放一个大 PageHeader 标题重复导航']}
+          source="KnowledgeBasePage 配方"
+          desc="对齐产品列表：OnlinePageHeader（标题 + 搜索 + 新建）→ 扁平表 → 底部分页。区块头留给表下详情区，不要压在表上方。"
+          dos={['页头右对齐工具', '行首 CardIcon soft', '行内：文字链 + 图标操作']}
+          donts={['不要再放大 PageHeader', '不要用「管理」描边钮', '表上方不要 OnlineSectionHeader']}
         >
           <SpecPanel>
-            <OnlinePageToolbar>
-              <div className="relative">
+            <OnlinePageHeader title="员工知识">
+              <div className="relative w-full sm:w-64 shrink-0">
                 <Search
                   size={14}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
                 />
-                <input className={cn(SEARCH_FIELD, 'pl-9')} placeholder="搜索…" />
+                <input className={cn(SEARCH_FIELD, 'w-full pl-9 pr-4')} placeholder="搜索知识库名..." />
               </div>
               <button type="button" className={BTN_INK} onClick={() => setModalOpen(true)}>
-                新建
+                <Plus size={14} />
+                <span>新建知识库</span>
               </button>
-            </OnlinePageToolbar>
-            <OnlineSectionHeader title="资源列表" description="示例配方 · 与线上知识库页同构" />
+            </OnlinePageHeader>
             <table className={onlineTableClass.table}>
               <thead>
                 <tr className={onlineTableClass.headRow}>
-                  <th className={onlineTableClass.thFirst}>名称</th>
+                  <th className={onlineTableClass.thFirst}>知识库</th>
+                  <th className={onlineTableClass.th}>文档数</th>
                   <th className={onlineTableClass.thLast}>操作</th>
                 </tr>
               </thead>
               <tbody className={onlineTableClass.body}>
                 <tr className={onlineTableClass.row}>
                   <td className={onlineTableClass.tdFirst}>
-                    <div className="flex items-center gap-2.5">
-                      <CardIcon seed="demo" size="sm">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <CardIcon seed="demo" size="sm" variant="soft">
                         示
                       </CardIcon>
-                      示例资源
+                      <span className="font-semibold text-neutral-900 truncate">示例知识库</span>
                     </div>
                   </td>
+                  <td className={onlineTableClass.td}>3 个</td>
                   <td className={onlineTableClass.tdLast}>
-                    <button type="button" className={cn(BTN_OUTLINE, 'h-6 text-[11px]')}>
-                      管理
-                    </button>
+                    <div className="inline-flex items-center gap-1">
+                      <button
+                        type="button"
+                        className="text-[11px] font-semibold text-live hover:underline cursor-pointer"
+                      >
+                        上传
+                      </button>
+                      <button
+                        type="button"
+                        className="p-1 text-neutral-400 hover:text-neutral-800 rounded-lg hover:bg-neutral-100 transition cursor-pointer"
+                        title="重命名"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -3182,10 +4104,7 @@ export const ComponentLibraryPage: React.FC = () => {
                 <option>全部业务域</option>
                 <option>客服</option>
               </select>
-              <button
-                type="button"
-                className="h-7 px-2.5 rounded-full border text-[12px] bg-[#F0F7FF] border-[#91C5FF] text-[#0050D2] font-semibold"
-              >
+              <button type="button" className={CHIP_ACTIVE}>
                 近 24 小时
               </button>
               <button type="button" className={BTN_INK}>
@@ -3316,7 +4235,7 @@ export const ComponentLibraryPage: React.FC = () => {
           </>
         }
       >
-        <p className="text-[12px] text-neutral-600">适用于运行中的计划，不会删除历史结果。</p>
+        {null}
       </Modal>
 
       <Modal
@@ -3380,18 +4299,15 @@ export const ComponentLibraryPage: React.FC = () => {
       <Modal
         open={tplModal === 'info'}
         onClose={() => setTplModal(null)}
-        icon={<Info size={16} />}
         title="如何派发质检任务"
-        description="先雇佣质检数字员工并上岗，再在本页新建计划。"
+        description="先雇佣质检数字员工并上岗，再新建计划；创建后默认暂停，点「开始」才会抽检。"
         footer={
           <button type="button" className={BTN_INK} onClick={() => setTplModal(null)}>
             知道了
           </button>
         }
       >
-        <p className="text-[12px] text-neutral-600 leading-relaxed">
-          计划创建后默认为暂停。点击卡片“开始”才会抽检。数据可在“查看数据”中核对。
-        </p>
+        {null}
       </Modal>
 
       <PanelModal
@@ -3438,17 +4354,11 @@ export const ComponentLibraryPage: React.FC = () => {
         open={workspaceOpen}
         onClose={() => setWorkspaceOpen(false)}
         ariaLabel="组件库工作台示例"
-        showCloseButton
       >
         <div className="flex flex-col h-full">
-          <div className="px-5 py-4 border-b border-neutral-200 flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-neutral-900">知识库工作台（示例）</h3>
-              <p className="text-[11px] text-neutral-500 mt-0.5">WorkspaceOverlay · Esc 关闭</p>
-            </div>
-            <button type="button" className={BTN_SOFT} onClick={() => setWorkspaceOpen(false)}>
-              关闭
-            </button>
+          <div className="px-5 py-4 border-b border-neutral-200">
+            <h3 className="text-sm font-semibold text-neutral-900">知识库工作台（示例）</h3>
+            <p className="text-[11px] text-neutral-500 mt-0.5">WorkspaceOverlay · Esc 或点遮罩关闭</p>
           </div>
           <div className="flex-1 p-5 overflow-y-auto text-[12px] text-neutral-600 leading-relaxed">
             这里放置宽屏配置、多 Tab、文档列表等内容。简单表单请继续用 Modal。

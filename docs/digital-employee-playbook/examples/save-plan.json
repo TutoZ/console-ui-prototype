@@ -1,0 +1,96 @@
+{
+  "version": "0.2",
+  "task_id": "JXL-TRAIN-01.save",
+  "intent": "保存培训要求，先不要影响正在接待的员工",
+  "domain": "online_service",
+  "object": "training_snapshot",
+  "action": "save_candidate",
+  "outcome": "candidate_saved",
+  "entity_context": {
+    "teamId": "demo-team",
+    "employeeId": "demo-agent-01"
+  },
+  "constraints": [
+    "V1 保持接待"
+  ],
+  "excluded_actions": [
+    "apply_candidate",
+    "hire_employee"
+  ],
+  "evidence_mode": "prototype",
+  "template_id": "TPL-SAVE",
+  "domain_rules": [
+    "DOM-OS-01"
+  ],
+  "product_rules": [
+    "P01",
+    "P02",
+    "P03",
+    "P04",
+    "P05",
+    "P06",
+    "P07",
+    "P08"
+  ],
+  "slots": [
+    {
+      "id": "context",
+      "component": "CMP-WORKSPACE",
+      "tokens": [
+        "K-SECONDARY"
+      ]
+    },
+    {
+      "id": "layout",
+      "component": "CMP-SPLIT",
+      "tokens": [
+        "K-PANEL"
+      ]
+    },
+    {
+      "id": "fields",
+      "component": "CMP-FIELD",
+      "tokens": [
+        "K-FIELD",
+        "K-LABEL"
+      ]
+    },
+    {
+      "id": "save",
+      "component": "CMP-PRIMARY",
+      "tokens": [
+        "K-PRIMARY"
+      ]
+    },
+    {
+      "id": "candidate_status",
+      "component": "CMP-STATUS",
+      "tokens": [
+        "K-STATUS"
+      ]
+    },
+    {
+      "id": "busy",
+      "component": "CMP-BUSY",
+      "tokens": [
+        "K-PANEL"
+      ]
+    }
+  ],
+  "unit_ids": [
+    "AU-S01",
+    "AU-S02",
+    "AU-S03",
+    "AU-S04",
+    "AU-S05",
+    "AU-S06"
+  ],
+  "scope_note": "候选保存单元，不实施应用。",
+  "unresolved_gaps": [
+    "GAP-BRAND-01",
+    "GAP-FOCUS-01",
+    "GAP-DIALOG-01",
+    "GAP-TEST-01",
+    "GAP-VERSION-01"
+  ]
+}

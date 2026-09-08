@@ -59,6 +59,9 @@ import '@joysupport/ui/styles.css';
 | 标签 | `LABEL` |
 | 卡片 | `CARD`（可交互加 `CARD_HOVER`） |
 | 徽章 | `badgeClass('neutral' \| 'ink' \| 'success' \| …)` |
+| 确认角标 | `confirmStatusBadgeClass('pending' \| 'confirmed' \| …)` |
+| 激活渐变 | `NAV_ACTIVE_GRADIENT_TEXT` / `NAV_ACTIVE_GRADIENT_BG` |
+| AI 创作色系 | `SKILL_AOP_*` / `AI_*` |
 
 ## 直接引用组件
 

@@ -128,6 +128,14 @@ export const SKILL_AOP_SEND_BTN =
 export const SKILL_AOP_PRIMARY_BTN =
   'rounded-lg bg-[linear-gradient(135deg,#000000_0%,#1565BF_100%)] text-white font-medium hover:opacity-90 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed';
 
+/**
+ * AI 色按钮（黑 → #1565BF）
+ * - BTN_AI：首页创作 / 对话发送（36×36 图标钮）
+ * - BTN_AI_TEXT：同色系带文案主按钮
+ */
+export const BTN_AI = SKILL_AOP_SEND_BTN;
+export const BTN_AI_TEXT = `${BTN_BASE} h-8 px-3 text-white hover:opacity-90 ${NAV_ACTIVE_GRADIENT_BG} shadow-[0_1px_0_rgba(0,0,0,0.05)]`;
+
 /** “改写”等 AI 轻按钮：与顶栏/发送钮同色系（黑 → #1565BF） */
 export const AI_LIGHT_BTN_BG = 'bg-[rgba(21,101,191,0.08)]';
 export const AI_GRADIENT_TEXT = NAV_ACTIVE_GRADIENT_TEXT;
@@ -174,38 +182,76 @@ export const MODAL_OVERLAY =
 export const MODAL_PANEL =
   'bg-white text-neutral-900 rounded-[13px] w-full shadow-lg ring-1 ring-black/10 p-5 animate-in fade-in zoom-in-95 duration-200';
 
-/** 筛选 / 快捷指令 Chip（#atom-chip）— 可点；不是 Badge */
+/** 筛选 / 快捷指令 Chip（#atom-chip）— 可点；不是 Badge；仅底色+字色，禁止描边 */
 export const CHIP =
-  'inline-flex items-center h-7 px-2.5 rounded-full border text-[12px] cursor-pointer transition whitespace-nowrap bg-white border-neutral-200 text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50';
+  'inline-flex items-center h-7 px-2.5 rounded-full border-0 text-[12px] cursor-pointer transition whitespace-nowrap bg-white text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50';
+/** 选中态对齐 DongDesign 功能色 Info */
 export const CHIP_ACTIVE =
-  'inline-flex items-center h-7 px-2.5 rounded-full border text-[12px] cursor-pointer transition whitespace-nowrap bg-sky-50 border-sky-300 text-live font-semibold';
+  'inline-flex items-center h-7 px-2.5 rounded-full border-0 text-[12px] cursor-pointer transition whitespace-nowrap bg-[#E8F1FF] text-[#376BFA] font-semibold';
 
-/** 语义徽章（首页 Tag 风格） */
+/**
+ * DongDesign 功能色（截图 · 色彩规范）
+ * Success #00B26F · Warning #F08433 · Error #F33B50 · Info #376BFA
+ * https://dongdesign.jd.com/vue/zh-CN/component/basic/color.html
+ */
+export const FUNCTIONAL_COLORS = {
+  success: {
+    color: '#00B26F',
+    light: '#00CA80',
+    dark: '#009B5E',
+    soft: '#80E5B9',
+    bg: '#E8F8F1',
+  },
+  warning: {
+    color: '#F08433',
+    light: '#FDA754',
+    dark: '#C86627',
+    soft: '#F9C999',
+    bg: '#FFF3E8',
+  },
+  error: {
+    color: '#F33B50',
+    light: '#FC616F',
+    dark: '#C42D40',
+    soft: '#FDB1B3',
+    bg: '#FEEBEC',
+  },
+  info: {
+    color: '#376BFA',
+    light: '#598EF8',
+    dark: '#1F57C6',
+    soft: '#ADC7FC',
+    bg: '#E8F1FF',
+  },
+} as const;
+
+/**
+ * 语义徽章 — 对齐功能色：字=本体 · 底=浅底 · 无描边
+ * live → Info；danger → Error
+ */
 export const badgeTones = {
-  neutral: 'bg-neutral-100 text-neutral-600 border-neutral-200',
-  ink: 'bg-neutral-800 text-white border-transparent',
-  success: 'bg-[#ECFDF5] text-[#009966] border-[#A4F4CF]/60',
-  warning: 'bg-[#FFFBEB] text-[#B45309] border-[#FDE68A]/60',
-  danger: 'bg-rose-50 text-rose-600 border-rose-100',
-  live: 'bg-[#F0F7FF] text-[#0050D2] border-[#91C5FF]/60',
+  neutral: 'bg-[#F4F4F5] text-[#909399]',
+  ink: 'bg-neutral-800 text-white',
+  success: 'bg-[#E8F8F1] text-[#00B26F]',
+  warning: 'bg-[#FFF3E8] text-[#F08433]',
+  danger: 'bg-[#FEEBEC] text-[#F33B50]',
+  live: 'bg-[#E8F1FF] text-[#376BFA]',
 } as const;
 
 export type BadgeTone = keyof typeof badgeTones;
 
 export function badgeClass(tone: BadgeTone = 'neutral') {
-  return `inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-px rounded border ${badgeTones[tone]}`;
+  return `inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-px rounded border-0 ${badgeTones[tone]}`;
 }
 
 /**
  * 确认流状态角标 — SkillRoundConfirmCard / SkillChatConfirmDock
- * - confirmed：确认卡标题“已确认”— emerald-100 / emerald-800 · 18px 高
- * - confirmedSoft：草案卡内联“已确认”— emerald-50 / emerald-700 · 10px
- * - pending：配对“待确认”— amber-50 / amber-700
+ * 成功 / 警告功能色
  */
 export const confirmStatusBadgeTones = {
-  confirmed: 'bg-emerald-100 text-emerald-800',
-  confirmedSoft: 'bg-emerald-50 text-emerald-700',
-  pending: 'bg-amber-50 text-amber-700',
+  confirmed: 'bg-[#E8F8F1] text-[#00B26F]',
+  confirmedSoft: 'bg-[#E8F8F1] text-[#009B5E]',
+  pending: 'bg-[#FFF3E8] text-[#F08433]',
 } as const;
 
 export type ConfirmStatusBadgeTone = keyof typeof confirmStatusBadgeTones;

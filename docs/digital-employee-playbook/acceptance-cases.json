@@ -1,0 +1,389 @@
+{
+  "feature_id": "JXL-TRAIN-01",
+  "spec_version": "0.1",
+  "status": "not_executed",
+  "cases": [
+    {
+      "id": "TC01",
+      "rules": [
+        "R01"
+      ],
+      "claims": [
+        "E2",
+        "E5"
+      ],
+      "framework": [
+        "F03",
+        "F06"
+      ],
+      "given": "在岗 V1，培训者，有 V2 未保存草稿",
+      "when": "保存培训；刷新存档列表并查看当前上岗信息",
+      "then_visible": "显示候选 V2 和尚未应用；仍为在岗 V1",
+      "then_state": "新增一份不可变存档；activeSnapshotId 和已有会话不变",
+      "evidence_required": "前后状态截图、保存记录；联调补服务端版本和会话证据",
+      "blocking": true,
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": [],
+      "notes": "原型验证可见交互及模拟状态；真实副作用需联调证明。"
+    },
+    {
+      "id": "TC02",
+      "rules": [
+        "R01",
+        "R13"
+      ],
+      "claims": [
+        "E1",
+        "E2"
+      ],
+      "framework": [
+        "F01",
+        "F04"
+      ],
+      "given": "V1 在岗，V2 草稿；预置保存明确失败",
+      "when": "点击保存；失败后再次编辑并重试",
+      "then_visible": "就地解释失败；输入保留；重试成功后明确尚未应用",
+      "then_state": "失败不产生已成功标识；重试不丢草稿，运行版本不变",
+      "evidence_required": "失败录屏、草稿前后对照、保存回执",
+      "blocking": true,
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": [],
+      "notes": "原型验证可见交互及模拟状态；真实副作用需联调证明。"
+    },
+    {
+      "id": "TC03",
+      "rules": [
+        "R02"
+      ],
+      "claims": [
+        "E5",
+        "E6"
+      ],
+      "framework": [
+        "F02",
+        "F05"
+      ],
+      "given": "已保存 V2，K1/S1/M1/Q1/B1",
+      "when": "选择 V2 启动测试；打开测试记录",
+      "then_visible": "每项结果注明 V2、样本和依据，可定位本轮记录",
+      "then_state": "记录固定存档和全部依赖版本；后续草稿不改该记录",
+      "evidence_required": "测试记录详情、输入输出及版本字段",
+      "blocking": true,
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": [],
+      "notes": "原型验证可见交互及模拟状态；真实副作用需联调证明。"
+    },
+    {
+      "id": "TC04",
+      "rules": [
+        "R02",
+        "R04"
+      ],
+      "claims": [
+        "E2",
+        "E5"
+      ],
+      "framework": [
+        "F06"
+      ],
+      "given": "V2 测试通过；随后修改草稿",
+      "when": "修改约束；尝试应用；保存为 V3",
+      "then_visible": "提示未保存更改不能应用；V3 需重新测试；V2 历史证据仍可看",
+      "then_state": "新内容不能使用 V2 的资格；当前 V1 不变",
+      "evidence_required": "修改前后资格状态和目标存档对照",
+      "blocking": true,
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": [],
+      "notes": "原型验证可见交互及模拟状态；真实副作用需联调证明。"
+    },
+    {
+      "id": "TC05",
+      "rules": [
+        "R03",
+        "R12"
+      ],
+      "claims": [
+        "E3",
+        "E6"
+      ],
+      "framework": [
+        "F03",
+        "F05"
+      ],
+      "given": "V2，三个演示样例；一项超权限回答不合格",
+      "when": "运行测试并查看失败项",
+      "then_visible": "显示未通过及实际输出、规则、下一步；不能应用",
+      "then_state": "未通过为终态，不写为 passed；模拟标签持续存在",
+      "evidence_required": "逐项测试记录与不可应用状态",
+      "blocking": true,
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": [],
+      "notes": "原型验证可见交互及模拟状态；真实副作用需联调证明。"
+    },
+    {
+      "id": "TC06",
+      "rules": [
+        "R03",
+        "R05"
+      ],
+      "claims": [
+        "E2",
+        "E6"
+      ],
+      "framework": [
+        "F03",
+        "F06"
+      ],
+      "given": "V2 未测试；再分别设置运行中、服务失败及部分完成",
+      "when": "每种状态尝试应用；对服务失败重试",
+      "then_visible": "均解释阻断原因；保留完成项，能恢复；仅全部通过时有资格",
+      "then_state": "没有任何一种未完成状态获得发布资格",
+      "evidence_required": "四种状态证据、重试后新旧测试记录",
+      "blocking": true,
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": [],
+      "notes": "原型验证可见交互及模拟状态；真实副作用需联调证明。"
+    },
+    {
+      "id": "TC07",
+      "rules": [
+        "R06",
+        "R07"
+      ],
+      "claims": [
+        "E2",
+        "E3"
+      ],
+      "framework": [
+        "F04",
+        "F05",
+        "F06"
+      ],
+      "given": "V1 在岗且有会话 A；V2 真/模拟测试通过，角色有权限",
+      "when": "打开应用弹窗并取消；再次打开确认；成功后启动会话 B",
+      "then_visible": "确认前有 V1→V2、差异和范围；取消无变化；成功后 V2 用于新会话",
+      "then_state": "A 绑定 V1，B 绑定 V2；首次上岗变体没有 A，确认前未上岗、成功后在岗",
+      "evidence_required": "确认/取消/成功录屏；原型状态记录；联调 A/B 实际版本记录",
+      "blocking": true,
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": [],
+      "notes": "原型验证可见交互及模拟状态；真实副作用需联调证明。"
+    },
+    {
+      "id": "TC08",
+      "rules": [
+        "R06",
+        "R08"
+      ],
+      "claims": [
+        "E2"
+      ],
+      "framework": [
+        "F04"
+      ],
+      "given": "可应用 V2；预置超时后成功，另有明确失败分支",
+      "when": "确认应用，等待超时并查询；再复位测试明确失败",
+      "then_visible": "超时显示正在确认，不伪报成功；查询成功再更新；明确失败保留 V1 和恢复入口",
+      "then_state": "未知期间不发冲突请求；只依权威终态更新版本",
+      "evidence_required": "带时间的录屏、请求 ID、查询终态",
+      "blocking": true,
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": [],
+      "notes": "原型验证可见交互及模拟状态；真实副作用需联调证明。"
+    },
+    {
+      "id": "TC09",
+      "rules": [
+        "R08",
+        "R09"
+      ],
+      "claims": [
+        "E2"
+      ],
+      "framework": [
+        "F04"
+      ],
+      "given": "V2 可应用，接口慢响应",
+      "when": "快速重复确认；结果未知期间再次尝试提交或刷新查询",
+      "then_visible": "重复动作被拦截；可查询原请求；最终只显示一次有效应用",
+      "then_state": "同一请求幂等，只有一次版本变更事件",
+      "evidence_required": "请求/事件记录；前端按钮状态不能替代服务端幂等证据",
+      "blocking": true,
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": [],
+      "notes": "原型验证可见交互及模拟状态；真实副作用需联调证明。"
+    },
+    {
+      "id": "TC10",
+      "rules": [
+        "R09"
+      ],
+      "claims": [
+        "E2",
+        "E5"
+      ],
+      "framework": [
+        "F02",
+        "F04"
+      ],
+      "given": "两个管理者均基于 V1，另一人先应用 V3",
+      "when": "当前人确认基于 V1 的 V2 应用；另测草稿并发保存",
+      "then_visible": "显示并发冲突与最新版本；草稿保留，可查看差异后重新确认",
+      "then_state": "V2 不覆盖 V3；草稿冲突不静默覆盖其他更改",
+      "evidence_required": "双会话或模拟并发记录、修订号和运行版本",
+      "blocking": true,
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": [],
+      "notes": "原型验证可见交互及模拟状态；真实副作用需联调证明。"
+    },
+    {
+      "id": "TC11",
+      "rules": [
+        "R10"
+      ],
+      "claims": [
+        "E2",
+        "E5"
+      ],
+      "framework": [
+        "F06"
+      ],
+      "given": "V2 草稿有修改；历史 V0 可查看；V1 正在使用",
+      "when": "预览 V0 后关闭；尝试删除当前 V1",
+      "then_visible": "只读预览明显；关闭返回原草稿；删除当前存档被阻止",
+      "then_state": "预览不改草稿/线上；当前存档仍存在",
+      "evidence_required": "预览前后内容对照、删除阻断证据",
+      "blocking": true,
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": [],
+      "notes": "原型验证可见交互及模拟状态；真实副作用需联调证明。"
+    },
+    {
+      "id": "TC12",
+      "rules": [
+        "R05",
+        "R10"
+      ],
+      "claims": [
+        "E2",
+        "E5"
+      ],
+      "framework": [
+        "F06"
+      ],
+      "given": "选择历史 V0；分别预置有效和失效测试记录",
+      "when": "退出预览后选择回退；失效时复测再确认",
+      "then_visible": "有效记录走差异确认；失效记录先要求复测，不能直接回退",
+      "then_state": "回退使用同一应用资格与幂等规则，不绕过检验",
+      "evidence_required": "两分支资格检查、确认记录和目标版本",
+      "blocking": true,
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": [],
+      "notes": "原型验证可见交互及模拟状态；真实副作用需联调证明。"
+    },
+    {
+      "id": "TC13",
+      "rules": [
+        "R05",
+        "R11"
+      ],
+      "claims": [
+        "E2"
+      ],
+      "framework": [
+        "F08"
+      ],
+      "given": "只读者和培训者；另有确认期间权限被撤销的管理者",
+      "when": "检查各入口；联调直接请求受限操作；确认后撤权再提交",
+      "then_visible": "禁用或不可操作原因明确；撤权后返回无权限，不显示成功",
+      "then_state": "服务端拒绝，版本不变，不能跨团队操作",
+      "evidence_required": "角色画面、拒绝回执、运行版本；原型不能证明服务端权限",
+      "blocking": true,
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": [],
+      "notes": "原型验证可见交互及模拟状态；真实副作用需联调证明。"
+    },
+    {
+      "id": "TC14",
+      "rules": [
+        "R05"
+      ],
+      "claims": [
+        "E6"
+      ],
+      "framework": [
+        "F06"
+      ],
+      "given": "V2 测试通过，依赖 K1 后升级 K2；另测渠道不可用",
+      "when": "刷新资格后应用；另在确认弹窗打开后改变依赖",
+      "then_visible": "说明证据失效/渠道未就绪，要求复测或修复；提交时再次校验",
+      "then_state": "不使用旧组合资格；线上版本不被静默替换",
+      "evidence_required": "前后依赖标识、阻断原因、提交校验回执",
+      "blocking": true,
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": [],
+      "notes": "原型验证可见交互及模拟状态；真实副作用需联调证明。"
+    },
+    {
+      "id": "TC15",
+      "rules": [
+        "R12"
+      ],
+      "claims": [
+        "E3",
+        "E6"
+      ],
+      "framework": [
+        "F05"
+      ],
+      "given": "原型模拟测试通过与应用演示；另有真实联调环境",
+      "when": "查看结果、日志和评审报告；尝试把模拟资格用于真实应用",
+      "then_visible": "模拟来源持续标注；记录可关联员工/存档/测试/时间；报告明确未验证真实能力",
+      "then_state": "真实应用不接受模拟资格；真实记录能回查实际使用版本",
+      "evidence_required": "页面来源标签、记录导出、联调拒绝模拟资格证据",
+      "blocking": true,
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": [],
+      "notes": "原型验证可见交互及模拟状态；真实副作用需联调证明。"
+    },
+    {
+      "id": "TC16",
+      "rules": [
+        "R13"
+      ],
+      "claims": [
+        "E1",
+        "E4"
+      ],
+      "framework": [
+        "F01",
+        "F07"
+      ],
+      "given": "1366×768 与 1024×768；键盘操作，列表已有搜索条件",
+      "when": "进入培训、修改、返回；检查离开三选项；打开关闭弹窗并遍历焦点",
+      "then_visible": "输入/列表条件按规则保留；焦点可达且关闭返回触发点；关键状态有文字，术语准确",
+      "then_state": "取消离开不丢草稿；放弃仅影响草稿；保存失败留在原页",
+      "evidence_required": "两尺寸截图、键盘录屏、返回前后状态",
+      "blocking": true,
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": [],
+      "notes": "原型验证可见交互及模拟状态；真实副作用需联调证明。"
+    }
+  ]
+}

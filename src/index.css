@@ -464,6 +464,23 @@
   animation: skill-thinking-title-shimmer 2.4s linear infinite;
 }
 
+/* SkillCollectCard — Figma Collect 正文扫光 */
+.skill-collect-body-shimmer {
+  background: linear-gradient(
+    90deg,
+    #1c1d1f 0%,
+    #1c1d1f 40%,
+    #1565bf 50%,
+    #1c1d1f 60%,
+    #1c1d1f 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: skill-thinking-title-shimmer 2.2s linear infinite;
+}
+
 /* 京东朗正体 2.0 — 优先 WOFF2，TTF 兜底 */
 @font-face {
   font-family: 'JDLangZheng';

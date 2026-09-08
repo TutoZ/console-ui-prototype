@@ -42,7 +42,7 @@ import { OnboardingConfigPanel } from '../onboarding/OnboardingConfigPanel';
 import { OnboardingCapabilityTestPanel } from '../onboarding/OnboardingCapabilityTestPanel';
 import { AgentVersionPanel } from '../onboarding/AgentVersionPanel';
 import { ONBOARDING_WORKSPACE_TABS } from '@/lib/onboardingWorkspaceTabs';
-import { SkillThinkingCard } from '../skills/SkillThinkingCard';
+import { SkillTaskPlanCard } from '../skills/SkillTaskPlanCard';
 
 export type IncubationDraft = {
   name: string;
@@ -864,13 +864,26 @@ export function EmployeeIncubationWorkspace({
 
   useEffect(() => {
     if (!trainingAgentId || !formReady) return;
+    const name = (draft.name || '新员工').slice(0, 8);
+    if (
+      trainingAgent &&
+      trainingAgent.name === name &&
+      trainingAgent.description === draft.description &&
+      trainingAgent.languageStyle === draft.personality &&
+      trainingAgent.constraints === draft.prohibited &&
+      trainingAgent.workflowNotes === draft.duties
+    ) {
+      return;
+    }
     updateHiredAgent(trainingAgentId, {
-      name: (draft.name || '新员工').slice(0, 8),
+      name,
       description: draft.description,
       languageStyle: draft.personality,
       constraints: draft.prohibited,
       workflowNotes: draft.duties,
     });
+    // updateHiredAgent 未 memo：不可放进依赖，否则会 setState → 新函数引用 → 死循环卡死页面
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync draft fields only
   }, [
     draft.name,
     draft.description,
@@ -879,7 +892,7 @@ export function EmployeeIncubationWorkspace({
     draft.prohibited,
     formReady,
     trainingAgentId,
-    updateHiredAgent,
+    trainingAgent,
   ]);
 
   const runUserTurn = async (raw: string) => {
@@ -1129,8 +1142,8 @@ export function EmployeeIncubationWorkspace({
               })}
 
               {thinking && thinkSteps.length > 0 ? (
-                <SkillThinkingCard
-                  title="正在规划数字员工"
+                <SkillTaskPlanCard
+                  title="任务规划"
                   steps={thinkSteps}
                   isComplete={false}
                   generating

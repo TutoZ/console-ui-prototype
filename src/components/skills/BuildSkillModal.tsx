@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useApp } from '@/src/context/AppContext';
 import { GoalComposerGhost } from '../GoalComposerGhost';
+import { SKILL_CREATE_CASES } from '@/lib/homeCreateCases';
 import {
   X,
   Sparkles,
@@ -30,7 +31,6 @@ import {
   GripVertical,
   ChevronDown,
   ChevronRight,
-  ChevronLeft,
   AlertCircle,
   AlertTriangle,
   Database,
@@ -93,7 +93,8 @@ import { Modal } from '../common/Modal';
 import { ManusExpertFrame } from './ManusExpertFrame';
 import { SkillRewriteField, SkillRewriteProvider } from './SkillRewriteField';
 import { SkillRoundConfirmCard, type SkillConfirmFieldKey, type SkillConfirmItem } from './SkillRoundConfirmCard';
-import { SkillThinkingCard } from './SkillThinkingCard';
+import { SkillThinkingCard, estimateThinkStreamMs } from './SkillThinkingCard';
+import { SkillTaskPlanCard } from './SkillTaskPlanCard';
 import { buildIntentThinkPlan, buildSkillClarifyQuestions, formatClarifyAnswers, type SkillThinkStep } from '@/lib/skillStudioMock';
 import { SKILL_PAGE_COPY } from '@/lib/platformTerminology';
 import { PROFILE_USER } from '@/lib/profileUser';
@@ -110,10 +111,10 @@ const FORM_SECTION_TITLES = {
   4: '补充说明',
 } as const;
 
-/** 右侧四张表单：内容区撑满一页，超出再滚动 */
+/** 右侧四张表单：内容区撑满一页，超出再滚动（不再套一层灰底卡片） */
 const FORM_SECTION_BODY = 'flex-1 min-h-0 overflow-hidden px-3 pb-3 pt-1 flex flex-col';
 const FORM_SECTION_CARD =
-  'flex-1 min-h-0 overflow-y-auto custom-scrollbar rounded-[10px] border border-neutral-200/60 bg-[#F9F9FB] p-3';
+  'flex-1 min-h-0 overflow-y-auto custom-scrollbar';
 const FORM_SECTION_CARD_INNER = 'min-h-full flex flex-col gap-3';
 
 /** 用户消息气泡 — 右上角小圆角；浅蓝底与顶栏激活渐变 #1565BF 同系 */
@@ -205,6 +206,8 @@ interface BuildSkillModalProps {
   initialMode?: 'interactive' | 'zip' | null;
   /** 智能创作入口带入的目标描述，进入后自动开聊 */
   initialPrompt?: string | null;
+  /** 首页已索引知识库名称 */
+  initialSelectedKBs?: string[];
   onPublished?: (skill: Skill) => void;
   /** 未进入多轮时的返回文案；默认“返回数字员工技能” */
   closeLabel?: string;
@@ -354,43 +357,7 @@ const AttachResourceMenu: React.FC<AttachResourceMenuProps> = ({
   );
 };
 
-const GOAL_LANDING_TIPS = [
-  {
-    label: '延保进度查询',
-    hint: '核验服务单号，告知受理 / 检测 / 维修 / 寄回节点与下一步',
-    pe: '帮我做一个“延保进度查询”技能。用户问延保进度、修到哪一步、什么时候寄回时触发。需提供延保服务单号，可用手机号后四位核验。产出当前节点（受理 / 检测 / 维修 / 寄回）、预计完成时间与下一步指引。单号无效或查无结果时引导核对，不编造进度、不承诺未核验时效；要改单或索赔金额则转人工。',
-  },
-  {
-    label: '退换货自助',
-    hint: '按订单与物流判断能否退换，说明寄回地址、时效与费用',
-    pe: '帮我做一个“退换货自助”技能。用户要退货、换货、仅退款时触发。输入订单号、商品状态与诉求类型。按签收时效、是否拆封、是否质量问题判断能否办理，给出寄回地址、运费承担与时效。不满足条件时说明原因并给替代方案。严禁越权承诺全额退款或绕过质检。',
-  },
-  {
-    label: '高危客诉安抚',
-    hint: '识别辱骂 / 曝光 / 投诉监管，先共情再收集事实并升级',
-    pe: '帮我做一个“高危客诉安抚”技能。识别辱骂、威胁曝光、投诉监管等高风险话术后触发。先共情安抚，收集订单号、诉求与证据，明确处理边界。达到红线时礼貌转人工，并把关键信息交给坐席。不争辩、不刺激、不擅自承诺赔付或处罚结果。',
-  },
-  {
-    label: '物流异常催派',
-    hint: '包裹停滞或派送失败时，判断催派 / 改址 / 转网点',
-    pe: '帮我做一个“物流异常催派”技能。用户反馈物流不更新、派送失败、滞留网点时触发。核验运单号与签收状态，判断可否催派、改址或转自提。告知预计时效与自助入口；无法处理则生成工单转人工。已签收却说没收到时走签收异常，不伪造轨迹。',
-  },
-  {
-    label: '保价差额补退',
-    hint: '核对价保规则与历史低价，计算可补差额与到账时效',
-    pe: '帮我做一个“保价差额补退”技能。用户申请价保、补差价时触发。核验订单、商品与活动规则，比对历史最低价并计算可补差额。符合则引导提交凭证并说明到账时效；不符合则解释原因与替代权益。不承诺规则外补差，金额需可核对。',
-  },
-  {
-    label: '理赔资料预审',
-    hint: '按险种核对保单 / 票据 / 事故证明，列出缺件不承诺赔付',
-    pe: '帮我做一个“理赔资料预审”技能。用户咨询理赔怎么报、要交什么材料时触发。按险种核对保单、票据、事故证明等清单，指出缺件与格式要求，说明审核时效。材料不齐给出补交清单。严禁承诺能否赔付或赔付金额，结论以审核为准。',
-  },
-  {
-    label: '发票开具指引',
-    hint: '说明能否开票、电子 / 专票类型与抬头修改路径',
-    pe: '帮我做一个“发票开具指引”技能。用户要开发票、改抬头、补开时触发。根据订单状态说明能否开票、电子票或专票、抬头信息要求，并引导自助开具。超期或订单未完成时说明原因与补救路径。不代填虚假抬头，专票需核验企业资质。',
-  },
-] as const;
+const GOAL_LANDING_TIPS = SKILL_CREATE_CASES;
 
 /** 用户已输入目标后的 Tab 补写：扩写为更完整的技能描述 */
 function expandSkillGoalDraft(raw: string): string {
@@ -416,6 +383,7 @@ export const BuildSkillModal: React.FC<BuildSkillModalProps> = ({
   draftSkillId,
   initialMode,
   initialPrompt,
+  initialSelectedKBs,
   onPublished,
   closeLabel,
 }) => {
@@ -478,7 +446,9 @@ export const BuildSkillModal: React.FC<BuildSkillModalProps> = ({
 
   // Integrated resources states
   const [selectedScripts, setSelectedScripts] = useState<string[]>([]);
-  const [selectedKBs, setSelectedKBs] = useState<string[]>([]);
+  const [selectedKBs, setSelectedKBs] = useState<string[]>(() =>
+    Array.isArray(initialSelectedKBs) ? [...initialSelectedKBs] : [],
+  );
   const [customScripts, setCustomScripts] = useState<Array<{id: string, name: string}>>([]);
   const [customKBs, setCustomKBs] = useState<string[]>([]);
 
@@ -1116,15 +1086,20 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
   const [goalGhostTipIndex, setGoalGhostTipIndex] = useState(0);
   const [showGoalRewriteTab, setShowGoalRewriteTab] = useState(false);
   const [isAiThinking, setIsAiThinking] = useState(false);
-  const [thinkPlanSteps, setThinkPlanSteps] = useState<SkillThinkStep[]>([]);
-  const [thinkPlanTitle, setThinkPlanTitle] = useState('思考过程');
-  const [thinkPlanGenerating, setThinkPlanGenerating] = useState(false);
+  /** 深度思考 Cot */
+  const [thinkCotSteps, setThinkCotSteps] = useState<SkillThinkStep[]>([]);
+  const [thinkCotGenerating, setThinkCotGenerating] = useState(false);
+  const [thinkBootLoading, setThinkBootLoading] = useState(false);
+  /** 任务规划（与 Cot 分离） */
+  const [taskPlanSteps, setTaskPlanSteps] = useState<SkillThinkStep[]>([]);
+  const [taskPlanGenerating, setTaskPlanGenerating] = useState(false);
   const thinkStepTimersRef = React.useRef<number[]>([]);
-  const thinkPlanTitleRef = React.useRef(thinkPlanTitle);
-  const thinkPlanStepsRef = React.useRef<SkillThinkStep[]>(thinkPlanSteps);
+  const thinkBootTimerRef = React.useRef<number | null>(null);
+  const thinkCotStepsRef = React.useRef<SkillThinkStep[]>(thinkCotSteps);
+  const taskPlanStepsRef = React.useRef<SkillThinkStep[]>(taskPlanSteps);
   const thinkStartedAtRef = React.useRef<number | null>(null);
-  thinkPlanTitleRef.current = thinkPlanTitle;
-  thinkPlanStepsRef.current = thinkPlanSteps;
+  thinkCotStepsRef.current = thinkCotSteps;
+  taskPlanStepsRef.current = taskPlanSteps;
   /** 用户是否已在确认坞确认过草案（用于阶段条与下一步引导）。编辑已有技能时视为已确认 */
   const [draftConfirmed, setDraftConfirmed] = useState(() => Boolean(draftSkillId));
   /** 确认卡要点：在下方输入框编辑中（可多选叠加） */
@@ -1183,7 +1158,6 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
   const pendingGoalRef = useRef<string | null>(null);
   const seedPromptConsumedRef = useRef(false);
   const handleSendChatMessageRef = useRef<(forced?: string) => void>(() => {});
-  const [pendingAutoSend, setPendingAutoSend] = useState<string | null>(null);
   const pendingGoalDraftSideRef = useRef<{
     enId: string;
     generatedSteps: ExecutionStep[];
@@ -1535,118 +1509,227 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     thinkStepTimersRef.current = [];
   };
 
+  const clearThinkBootTimer = () => {
+    if (thinkBootTimerRef.current != null) {
+      clearTimeout(thinkBootTimerRef.current);
+      thinkBootTimerRef.current = null;
+    }
+  };
+
   const archiveThinkPlanToChat = () => {
-    const steps = thinkPlanStepsRef.current;
-    if (steps.length === 0) return;
+    const stamp = new Date().toTimeString().substring(0, 5);
     const startedAt = thinkStartedAtRef.current;
     const durationSec =
       startedAt != null ? Math.max(1, Math.round((Date.now() - startedAt) / 1000)) : 0;
-    const stamp = new Date().toTimeString().substring(0, 5);
-    setChatMessages((prev) => [
-      ...prev,
-      {
+    const cotSteps = thinkCotStepsRef.current;
+    const planSteps = taskPlanStepsRef.current;
+    const extras: Array<{ sender: string; name: string; content: string; timestamp: string }> = [];
+    if (cotSteps.length > 0) {
+      extras.push({
         sender: 'skill_think',
-        name: '思考过程',
+        name: '深度思考',
         content: JSON.stringify({
-          title: thinkPlanTitleRef.current,
-          steps: steps.map((s) => ({ ...s, status: 'done' as const })),
+          title: '深度思考',
+          steps: cotSteps.map((s) => ({ ...s, status: 'done' as const })),
+          durationSec: planSteps.length > 0 ? Math.max(1, Math.round(durationSec * 0.4)) : durationSec,
+        }),
+        timestamp: stamp,
+      });
+    }
+    if (planSteps.length > 0) {
+      extras.push({
+        sender: 'skill_plan',
+        name: '任务规划',
+        content: JSON.stringify({
+          title: '任务规划',
+          steps: planSteps.map((s) => ({ ...s, status: 'done' as const })),
           durationSec,
         }),
         timestamp: stamp,
-      },
-    ]);
+      });
+    }
+    if (extras.length > 0) {
+      setChatMessages((prev) => [...prev, ...extras]);
+    }
     thinkStartedAtRef.current = null;
   };
 
-  const playThinkPlan = (title: string, steps: SkillThinkStep[], totalMs: number, onDone: () => void) => {
+  const playTaskPlan = (steps: SkillThinkStep[], totalMs: number, onDone: () => void) => {
     clearThinkStepTimers();
-    setThinkPlanGenerating(true);
-    setThinkPlanTitle(title);
-    setThinkPlanSteps(
-      steps.map((s, i) => ({ ...s, status: i === 0 ? 'running' : 'pending' })),
-    );
+    setTaskPlanGenerating(true);
+    setTaskPlanSteps(steps.map((s, i) => ({ ...s, status: i === 0 ? 'running' : 'pending' })));
     const n = Math.max(steps.length, 1);
-    const slice = Math.max(480, Math.floor(totalMs / n));
+    const slice = Math.max(1200, Math.floor(totalMs / n));
     steps.forEach((_, i) => {
       const timer = window.setTimeout(() => {
-        setThinkPlanSteps((prev) =>
+        setTaskPlanSteps((prev) =>
           prev.map((s, idx) => ({
             ...s,
             status: idx <= i ? 'done' : idx === i + 1 ? 'running' : 'pending',
           })),
         );
         if (i === n - 1) {
-          setThinkPlanGenerating(false);
-          onDone();
+          setTaskPlanGenerating(false);
+          const settle = window.setTimeout(() => onDone(), 600);
+          thinkStepTimersRef.current.push(settle);
         }
       }, slice * (i + 1));
       thinkStepTimersRef.current.push(timer);
     });
   };
 
-  const startThinkThen = (
-    plan: { title: string; steps: SkillThinkStep[]; totalMs: number },
+  const playDeepThinkThenPlan = (
+    cotSteps: SkillThinkStep[],
+    planSteps: SkillThinkStep[],
+    totalMs: number,
     onDone: () => void,
   ) => {
     clearThinkStepTimers();
+    setThinkBootLoading(false);
+    setThinkCotGenerating(true);
+    // 一次性给出全文，由 SkillThinkingCard 流式吐字
+    setThinkCotSteps(cotSteps.map((s) => ({ ...s, status: 'done' as const })));
+    const streamMs = estimateThinkStreamMs(cotSteps);
+    const planMs = Math.max(3600, Math.floor(totalMs * 0.45), planSteps.length * 1200);
+    // 流式结束后稍作停顿，再进入任务规划
+    const timer = window.setTimeout(() => {
+      setThinkCotGenerating(false);
+      const bridge = window.setTimeout(() => {
+        playTaskPlan(planSteps, planMs, onDone);
+      }, 520);
+      thinkStepTimersRef.current.push(bridge);
+    }, streamMs);
+    thinkStepTimersRef.current.push(timer);
+  };
+
+  const startThinkThen = (
+    plan: { title: string; steps: SkillThinkStep[]; totalMs: number; planSteps?: SkillThinkStep[] },
+    onDone: () => void,
+    _opts?: { seedText?: string },
+  ) => {
+    clearThinkStepTimers();
+    clearThinkBootTimer();
     if (thinkingTimerRef.current) {
       clearTimeout(thinkingTimerRef.current);
       thinkingTimerRef.current = null;
     }
+    setThinkCotSteps([]);
+    setThinkCotGenerating(false);
+    setTaskPlanSteps([]);
+    setTaskPlanGenerating(false);
+    setThinkBootLoading(true);
     setIsAiThinking(true);
     thinkStartedAtRef.current = Date.now();
-    playThinkPlan(plan.title, plan.steps, plan.totalMs, onDone);
+    const taskSteps =
+      plan.planSteps && plan.planSteps.length > 0
+        ? plan.planSteps
+        : plan.steps.map((s) => ({ ...s, detail: s.detail }));
+    /** Cot：先加载态 → 深度思考 → 任务规划 */
+    thinkBootTimerRef.current = window.setTimeout(() => {
+      thinkBootTimerRef.current = null;
+      playDeepThinkThenPlan(plan.steps, taskSteps, plan.totalMs, onDone);
+    }, 1400);
   };
 
-  const buildRoundThinkPlan = (userText: string) => ({
-    title: '任务规划',
-    totalMs: 2200 + Math.floor(Math.random() * 900),
-    steps: [
-      {
-        id: 'intent',
-        label: '理解本轮意图',
-        detail: userText.trim().slice(0, 72) || '解析用户补充与改写要求',
-        status: 'pending' as const,
-      },
-      {
-        id: 'gap',
-        label: '对照右侧表单缺口',
-        detail: '判断应更新技能定义 / 主体 / 规范 / 补充哪一块',
-        status: 'pending' as const,
-      },
-      {
-        id: 'reply',
-        label: '生成回复与写入建议',
-        detail: '准备确认要点或字段补丁',
-        status: 'pending' as const,
-      },
-    ],
-  });
+  const buildRoundThinkPlan = (userText: string) => {
+    const snippet = userText.trim().replace(/\s+/g, ' ').slice(0, 64) || '用户本轮补充';
+    return {
+      title: '深度思考',
+      totalMs: 7200 + Math.floor(Math.random() * 1800),
+      steps: [
+        {
+          id: 'intent',
+          label: '先总结本轮想改什么',
+          detail: `${snippet}。核心是在已有技能上做定向调整，而不是从零重写。`,
+          status: 'pending' as const,
+        },
+        {
+          id: 'gap',
+          label: '再看写入四张表单前还缺什么',
+          detail:
+            '优先看定义与规范里的触发边界是否要收紧；主体与补充信息若无新约束，本轮可先不动。',
+          status: 'pending' as const,
+        },
+        {
+          id: 'reply',
+          label: '思路收束',
+          detail:
+            '先给用户一句确认理解，再进入任务规划，把改写步骤拆成可执行、可回看的清单。',
+          status: 'pending' as const,
+        },
+      ],
+      planSteps: [
+        {
+          id: 'p1',
+          label: '核对可改写字段',
+          detail: '锁定本轮要动的表单区块',
+          status: 'pending' as const,
+        },
+        {
+          id: 'p2',
+          label: '生成确认要点',
+          detail: '准备可勾选的写入建议',
+          status: 'pending' as const,
+        },
+        {
+          id: 'p3',
+          label: '输出回复草案',
+          detail: '完成对话回传与右侧同步',
+          status: 'pending' as const,
+        },
+      ],
+    };
+  };
 
-  const buildClarifyThinkPlan = (userText: string) => ({
-    title: '深度思考',
-    totalMs: 1800 + Math.floor(Math.random() * 700),
-    steps: [
-      {
-        id: 'goal',
-        label: '理解技能目标',
-        detail: userText.trim().slice(0, 72) || '提炼业务能力描述',
-        status: 'pending' as const,
-      },
-      {
-        id: 'gap',
-        label: '识别信息缺口',
-        detail: '找出写入四张表单前需要补充的关键信息',
-        status: 'pending' as const,
-      },
-      {
-        id: 'ask',
-        label: '生成补充问题',
-        detail: '准备可点选的澄清卡片',
-        status: 'pending' as const,
-      },
-    ],
-  });
+  const buildClarifyThinkPlan = (userText: string) => {
+    const snippet = userText.trim().replace(/\s+/g, ' ').slice(0, 64) || '技能目标描述';
+    return {
+      title: '深度思考',
+      totalMs: 7000 + Math.floor(Math.random() * 1600),
+      steps: [
+        {
+          id: 'goal',
+          label: '先总结用户想做成的能力',
+          detail: `${snippet}。把场景、触发与产出先在脑中对齐。`,
+          status: 'pending' as const,
+        },
+        {
+          id: 'gap',
+          label: '再看写入四张表单前还缺什么',
+          detail:
+            '触发边界、必填标识、禁答范围或示例往往还不够清楚，需要先问清。',
+          status: 'pending' as const,
+        },
+        {
+          id: 'ask',
+          label: '思路收束',
+          detail:
+            '先用少量澄清问题补关键缺口，再进入任务规划生成可点选卡片，避免一上来写死规格。',
+          status: 'pending' as const,
+        },
+      ],
+      planSteps: [
+        {
+          id: 'p1',
+          label: '整理澄清问题',
+          detail: '准备可点选的澄清卡片',
+          status: 'pending' as const,
+        },
+        {
+          id: 'p2',
+          label: '对齐四张表单',
+          detail: '明确答案将写入定义 / 主体 / 规范 / 补充',
+          status: 'pending' as const,
+        },
+        {
+          id: 'p3',
+          label: '等待用户点选',
+          detail: '收集后进入确认与写入',
+          status: 'pending' as const,
+        },
+      ],
+    };
+  };
 
   const clearBubbleTimers = () => {
     bubbleTimersRef.current.forEach((t) => clearTimeout(t));
@@ -1658,7 +1741,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     parts: Array<string | { sender?: 'ai' | 'system_status' | 'skill_confirm'; content: string }>,
     opts?: { staggerMs?: number },
   ) => {
-    const stagger = opts?.staggerMs ?? 380;
+    const stagger = opts?.staggerMs ?? 900;
     const cleaned = parts
       .map((p) =>
         typeof p === 'string'
@@ -1669,8 +1752,10 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
 
     if (cleaned.length === 0) {
       setIsAiThinking(false);
-      setThinkPlanSteps([]);
-      setThinkPlanGenerating(false);
+      setThinkCotSteps([]); setTaskPlanSteps([]);
+      setThinkCotGenerating(false); setTaskPlanGenerating(false);
+      setThinkBootLoading(false);
+      clearThinkBootTimer();
       thinkingTimerRef.current = null;
       return;
     }
@@ -1682,8 +1767,9 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
         if (index === 0) {
           archiveThinkPlanToChat();
           setIsAiThinking(false);
-          setThinkPlanSteps([]);
-          setThinkPlanGenerating(false);
+          setThinkCotSteps([]); setTaskPlanSteps([]);
+          setThinkCotGenerating(false); setTaskPlanGenerating(false);
+          setThinkBootLoading(false);
           thinkingTimerRef.current = null;
         }
         const stamp = new Date().toTimeString().substring(0, 5);
@@ -1707,8 +1793,10 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
       thinkingTimerRef.current = null;
     }
     clearThinkStepTimers();
-    setThinkPlanSteps([]);
-    setThinkPlanGenerating(false);
+    clearThinkBootTimer();
+    setThinkBootLoading(false);
+    setThinkCotSteps([]); setTaskPlanSteps([]);
+    setThinkCotGenerating(false); setTaskPlanGenerating(false);
     confirmTypewriterRef.current.cancelled = true;
     setIsUpdatingForm(false);
     clearBubbleTimers();
@@ -2059,28 +2147,31 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     if (!open) {
       seedPromptConsumedRef.current = false;
       seedFirstTurnRef.current = Boolean(initialPrompt?.trim()) && !draftSkillId;
-      setPendingAutoSend(null);
-      return;
     }
-    if (seedPromptConsumedRef.current || draftSkillId) return;
-    const seed = initialPrompt?.trim();
-    if (!seed) return;
-    seedPromptConsumedRef.current = true;
-    seedFirstTurnRef.current = true;
-    setSkillGoalReady(true);
-    setRightCollapsed(true);
-    setPendingAutoSend(seed);
   }, [open, initialPrompt, draftSkillId]);
 
   React.useEffect(() => {
-    if (!open || !pendingAutoSend) return;
-    const text = pendingAutoSend;
-    setPendingAutoSend(null);
+    if (!open || draftSkillId) return;
+    const seed = initialPrompt?.trim();
+    if (!seed) return;
+    seedFirstTurnRef.current = true;
+    setSkillGoalReady(true);
+    setRightCollapsed(true);
+    if (Array.isArray(initialSelectedKBs) && initialSelectedKBs.length > 0) {
+      setSelectedKBs((prev) => Array.from(new Set([...prev, ...initialSelectedKBs])));
+    }
+    /** StrictMode 会先 cleanup 再重跑：只在真正发出时标记 consumed，避免首轮被取消后不再发 */
+    let cancelled = false;
     const timer = window.setTimeout(() => {
-      handleSendChatMessageRef.current(text);
-    }, 80);
-    return () => window.clearTimeout(timer);
-  }, [open, pendingAutoSend]);
+      if (cancelled || seedPromptConsumedRef.current) return;
+      seedPromptConsumedRef.current = true;
+      handleSendChatMessageRef.current(seed);
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [open, initialPrompt, draftSkillId, initialSelectedKBs]);
 
   React.useEffect(() => {
     if (!open || !draftSkillId) return;
@@ -2513,7 +2604,7 @@ ${usageExamples || '暂无调用示例'}
     });
   };
 
-  const CONFIRM_TYPEWRITER_MS = 18;
+  const CONFIRM_TYPEWRITER_MS = 28;
 
   const sleep = (ms: number) =>
     new Promise<void>((resolve) => {
@@ -2954,8 +3045,9 @@ ${usageExamples || '暂无调用示例'}
       const plan = buildIntentThinkPlan(enrichedGoal);
       startThinkThen(
         {
-          title: '任务规划',
+          title: plan.title,
           steps: plan.steps,
+          planSteps: plan.planSteps,
           totalMs: plan.totalMs,
         },
         () => {
@@ -2979,6 +3071,7 @@ ${usageExamples || '暂无调用示例'}
             },
           ]);
         },
+        { seedText: enrichedGoal },
       );
     },
     [pushAiTurn, selectedKBs, selectedScripts],
@@ -3108,33 +3201,39 @@ ${usageExamples || '暂无调用示例'}
       pendingGoalRef.current = userText;
       setSkillGoalReady(true);
       setRightCollapsed(true);
-      startThinkThen(buildClarifyThinkPlan(userText), () => {
-        archiveThinkPlanToChat();
-        setIsAiThinking(false);
-        setThinkPlanSteps([]);
-        setThinkPlanGenerating(false);
-        const questions = buildSkillClarifyQuestions(userText);
-        const stamp = new Date().toTimeString().substring(0, 5);
-        setChatMessages((prev) => [
-          ...prev,
-          {
-            sender: 'ai',
-            name: '技能设计助理',
-            content: '为了更准确写入右侧四张表单，请先补充以下关键信息（也可跳过）：',
-            timestamp: stamp,
-          },
-          {
-            sender: 'skill_clarify',
-            name: '补充信息',
-            content: JSON.stringify({ questions } satisfies SkillClarifyPayload),
-            timestamp: stamp,
-          },
-        ]);
-      });
+      startThinkThen(
+        buildClarifyThinkPlan(userText),
+        () => {
+          archiveThinkPlanToChat();
+          setIsAiThinking(false);
+          setThinkCotSteps([]); setTaskPlanSteps([]);
+          setThinkCotGenerating(false); setTaskPlanGenerating(false);
+          const questions = buildSkillClarifyQuestions(userText);
+          const stamp = new Date().toTimeString().substring(0, 5);
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              sender: 'ai',
+              name: '技能设计助理',
+              content: '为了更准确写入右侧四张表单，请先补充以下关键信息（也可跳过）：',
+              timestamp: stamp,
+            },
+            {
+              sender: 'skill_clarify',
+              name: '补充信息',
+              content: JSON.stringify({ questions } satisfies SkillClarifyPayload),
+              timestamp: stamp,
+            },
+          ]);
+        },
+        { seedText: userText },
+      );
       return;
     }
 
-    startThinkThen(buildRoundThinkPlan(userText), () => {
+    startThinkThen(
+      buildRoundThinkPlan(userText),
+      () => {
       /** 本轮可连发多条；pushAiTurn 负责落库与结束 thinking */
       let aiBubbles: Array<string | { sender?: 'ai' | 'system_status'; content: string }> = [];
 
@@ -3463,7 +3562,9 @@ ${usageExamples || '暂无调用示例'}
       }
 
       pushAiTurn(aiBubbles);
-    });
+    },
+      { seedText: userText },
+    );
   };
   handleSendChatMessageRef.current = handleSendChatMessage;
 
@@ -4482,8 +4583,10 @@ ${usageExamples || '暂无调用示例'}
     setIsFormDirty(true);
   }, []);
 
+  if (!open) return null;
+
 return (
-    <div className="fixed inset-0 z-[120] bg-white flex flex-col w-screen h-screen overflow-hidden text-neutral-800 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[240] bg-white flex flex-col w-screen h-screen overflow-hidden text-neutral-800 animate-in fade-in duration-200">
         {/* 落地页仅保留返回；进入对话后再显示顶栏 Tab / 操作区 */}
         {!skillGoalReady ? (
           <div className="absolute top-3 left-3 z-30">
@@ -4959,10 +5062,34 @@ return (
                   return (
                     <SkillThinkingCard
                       key={msgKey}
-                      title={thinkPayload.title || '思考过程'}
+                      title={thinkPayload.title || '深度思考'}
                       steps={thinkPayload.steps || []}
                       durationSec={thinkPayload.durationSec ?? 0}
                       isComplete
+                      className="!ml-0 mr-0"
+                    />
+                  );
+                }
+
+                if (msg.sender === 'skill_plan') {
+                  let planPayload: {
+                    title?: string;
+                    steps?: SkillThinkStep[];
+                    durationSec?: number;
+                  } = {};
+                  try {
+                    planPayload = JSON.parse(msg.content);
+                  } catch {
+                    /* keep defaults */
+                  }
+                  return (
+                    <SkillTaskPlanCard
+                      key={msgKey}
+                      title={planPayload.title || '任务规划'}
+                      steps={planPayload.steps || []}
+                      durationSec={planPayload.durationSec ?? 0}
+                      isComplete
+                      defaultExpanded={false}
                       className="!ml-0 mr-0"
                     />
                   );
@@ -5213,6 +5340,7 @@ return (
                             ...payload,
                             skipped: true,
                             submitted: false,
+                            collapsed: true,
                           };
                           setChatMessages((prev) =>
                             prev.map((m, idx) =>
@@ -5233,6 +5361,7 @@ return (
                     items?: SkillConfirmItem[];
                     confirmed?: boolean;
                     title?: string;
+                    collapsed?: boolean;
                   } = {};
                   try {
                     payload = JSON.parse(msg.content);
@@ -5245,6 +5374,11 @@ return (
                         title={payload.title || '请确认本轮变更要点'}
                         items={payload.items ?? []}
                         confirmed={Boolean(payload.confirmed)}
+                        collapsed={
+                          payload.collapsed != null
+                            ? Boolean(payload.collapsed)
+                            : Boolean(payload.confirmed)
+                        }
                         editingItemIds={
                           confirmEditTarget?.msgIndex === i
                             ? confirmEditTarget.items.map((item) => item.itemId)
@@ -5310,6 +5444,21 @@ return (
                             ),
                           );
                         }}
+                        onCollapsedChange={(nextCollapsed) => {
+                          setChatMessages((prev) =>
+                            prev.map((m, idx) =>
+                              idx === i && m.sender === 'skill_confirm'
+                                ? {
+                                    ...m,
+                                    content: JSON.stringify({
+                                      ...payload,
+                                      collapsed: nextCollapsed,
+                                    }),
+                                  }
+                                : m,
+                            ),
+                          );
+                        }}
                         onConfirm={(items) => {
                           void handleConfirmSkillItems(items);
                           setChatMessages((prev) =>
@@ -5321,6 +5470,7 @@ return (
                                       ...payload,
                                       items,
                                       confirmed: true,
+                                      collapsed: true,
                                     }),
                                   }
                                 : m,
@@ -5417,7 +5567,12 @@ return (
                   };
                   return (
                     <div key={msgKey} className="flex justify-end group/user-msg">
-                      <div className="flex flex-col items-end gap-2 max-w-[88%] min-w-0">
+                      <div
+                        className={cn(
+                          'flex flex-col items-end gap-2 min-w-0',
+                          isEditingBubble ? 'w-full max-w-[640px]' : 'max-w-[88%]',
+                        )}
+                      >
                         <div className="flex items-center gap-1.5 pr-0.5">
                           <Avatar className="h-5 w-5 rounded-full overflow-hidden after:hidden shrink-0">
                             <AvatarFallback
@@ -5430,7 +5585,7 @@ return (
                             {PROFILE_USER.name}
                           </span>
                         </div>
-                        <div className="relative max-w-full">
+                        <div className={cn('relative max-w-full', isEditingBubble && 'w-full')}>
                           {!isEditingBubble ? (
                             <div
                               className={cn(
@@ -5485,47 +5640,45 @@ return (
                             </div>
                           ) : null}
                           {isEditingBubble ? (
-                            <div className={cn(USER_CHAT_BUBBLE, 'min-w-[220px] w-[min(100%,360px)] space-y-2')}>
-                              <textarea
-                                ref={userBubbleEditRef}
-                                rows={4}
-                                maxLength={1000}
-                                value={editingUserMsgDraft}
-                                onChange={(e) => setEditingUserMsgDraft(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Escape') {
-                                    e.preventDefault();
-                                    cancelUserBubbleEdit();
-                                    return;
-                                  }
-                                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                                    e.preventDefault();
-                                    commitUserBubbleEdit();
-                                  }
-                                }}
-                                className="w-full min-h-[88px] max-h-48 bg-white/80 rounded-xl border border-neutral-200/80 px-2.5 py-2 text-[14px] leading-[22px] text-[#181D27] outline-none resize-none focus:border-neutral-400"
-                                aria-label="编辑消息内容"
-                              />
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-[10px] tabular-nums text-neutral-400">
-                                  {editingUserMsgDraft.length}/1000 · ⌘↵ 保存
-                                </span>
-                                <div className="flex items-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={cancelUserBubbleEdit}
-                                    className="h-7 px-2.5 rounded-md text-[12px] text-neutral-500 hover:bg-white/70 cursor-pointer"
-                                  >
-                                    取消
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={commitUserBubbleEdit}
-                                    className="h-7 px-2.5 rounded-md text-[12px] font-medium bg-neutral-900 text-white hover:bg-neutral-800 cursor-pointer"
-                                  >
-                                    保存
-                                  </button>
-                                </div>
+                            <div className="w-full flex flex-col gap-2">
+                              <div className="skill-ai-composer w-full overflow-hidden">
+                                <textarea
+                                  ref={userBubbleEditRef}
+                                  rows={4}
+                                  maxLength={1000}
+                                  value={editingUserMsgDraft}
+                                  onChange={(e) => setEditingUserMsgDraft(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Escape') {
+                                      e.preventDefault();
+                                      cancelUserBubbleEdit();
+                                      return;
+                                    }
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                      e.preventDefault();
+                                      commitUserBubbleEdit();
+                                    }
+                                  }}
+                                  className="w-full min-h-[88px] max-h-48 bg-transparent px-3 py-3 text-[14px] leading-[22px] text-[#181D27] outline-none resize-none placeholder:text-neutral-400"
+                                  placeholder="编辑消息内容…"
+                                  aria-label="编辑消息内容"
+                                />
+                              </div>
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={cancelUserBubbleEdit}
+                                  className={BTN_SOFT}
+                                >
+                                  取消
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={commitUserBubbleEdit}
+                                  className={BTN_INK}
+                                >
+                                  发送
+                                </button>
                               </div>
                             </div>
                           ) : (
@@ -5555,12 +5708,22 @@ return (
                 </p>
               )}
 
-              {isAiThinking && thinkPlanSteps.length > 0 ? (
+              {isAiThinking && (thinkBootLoading || thinkCotSteps.length > 0) ? (
                 <SkillThinkingCard
-                  title={thinkPlanTitle}
-                  steps={thinkPlanSteps}
-                  isComplete={false}
-                  generating={thinkPlanGenerating}
+                  title="深度思考"
+                  steps={thinkCotSteps}
+                  isComplete={!thinkBootLoading && !thinkCotGenerating && thinkCotSteps.length > 0}
+                  loading={thinkBootLoading}
+                  generating={!thinkBootLoading && thinkCotGenerating}
+                  className="!ml-0 mr-0"
+                />
+              ) : null}
+              {isAiThinking && taskPlanSteps.length > 0 ? (
+                <SkillTaskPlanCard
+                  title="任务规划"
+                  steps={taskPlanSteps}
+                  isComplete={!taskPlanGenerating && taskPlanSteps.every((s) => s.status === 'done')}
+                  generating={taskPlanGenerating}
                   className="!ml-0 mr-0"
                 />
               ) : null}
@@ -5752,16 +5915,6 @@ return (
                 >
                 <div className="shrink-0 mb-2 flex flex-col gap-2">
                   <div className="flex items-center gap-2">
-                  <motion.button
-                    type="button"
-                    disabled={activeStep <= 1}
-                    onClick={() => stepFormSection(-1)}
-                    whileTap={{ scale: 0.92 }}
-                    className="w-8 h-8 rounded-lg border border-neutral-200 bg-white text-neutral-600 inline-flex items-center justify-center shrink-0 hover:bg-neutral-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
-                    aria-label="上一张卡片"
-                  >
-                    <ChevronLeft size={16} />
-                  </motion.button>
                   <div className="flex-1 min-w-0 flex items-stretch gap-1.5 overflow-x-auto no-scrollbar py-1">
                     {FORM_SECTION_NAV.map((sec) => {
                       const isActive = activeStep === sec.id;
@@ -5807,16 +5960,6 @@ return (
                       );
                     })}
                   </div>
-                  <motion.button
-                    type="button"
-                    disabled={activeStep >= 4}
-                    onClick={() => stepFormSection(1)}
-                    whileTap={{ scale: 0.92 }}
-                    className="w-8 h-8 rounded-lg border border-neutral-200 bg-white text-neutral-600 inline-flex items-center justify-center shrink-0 hover:bg-neutral-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
-                    aria-label="下一张卡片"
-                  >
-                    <ChevronRight size={16} />
-                  </motion.button>
                   </div>
                   <div className="flex items-center gap-2 px-1">
                     <div className="flex-1 h-1 rounded-full bg-neutral-100 overflow-hidden">

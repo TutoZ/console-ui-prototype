@@ -290,7 +290,7 @@ export async function tryDownloadCosBufferWithPresignedHttp(
       redirect: "follow",
       headers: {
         Accept: "image/*,*/*;q=0.8",
-        "User-Agent": "creagic-cos-presign-fetch/1.0",
+        "User-Agent": "joyserving-cos-presign-fetch/1.0",
       },
     });
     if (!r.ok) {
@@ -501,7 +501,7 @@ export async function proxyReferenceImageUrlToCos(inputUrl: string): Promise<str
       redirect: "follow",
       headers: {
         // 尽量避免部分站点拒绝空 UA
-        "User-Agent": "creagic-cos-proxy/1.0",
+        "User-Agent": "joyserving-cos-proxy/1.0",
         Accept: "image/*,*/*;q=0.8",
       },
     });

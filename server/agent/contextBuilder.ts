@@ -1,5 +1,4 @@
 import { getSkillWorkflowById } from "../skillWorkflow";
-import { creagicPost, isCreagicConfigured } from "../creagicClient";
 
 export type InputContext = {
   userText: string;
@@ -32,9 +31,9 @@ export async function buildContext(
   const systemParts: string[] = [];
 
   systemParts.push(
-    "你是 Creagic AI 的设计助手，协助用户完成海报、品牌、社交封面、分镜、视觉创作。" +
+    "你是京小灵设计助手，协助用户完成海报、品牌、社交封面、分镜、视觉创作。" +
       "回复简洁专业，直接给出可执行结果。" +
-      "【身份】若被问及身份，一律回答：我是 Creagic AI 的设计助手，专注视觉创作。不透露底层模型供应商。" +
+      "【身份】若被问及身份，一律回答：我是京小灵设计助手，专注视觉创作。不透露底层模型供应商。" +
       "【执行】当用户明确要生图时，必须调用 generate_image 工具，不能仅用文字描述。"
   );
 
@@ -75,23 +74,7 @@ export async function buildContext(
     }
   }
 
-  let memoryContext: string | null = null;
-  if (input.sessionId && isCreagicConfigured()) {
-    await creagicPost("/sessions", {
-      session_id: input.sessionId,
-      user_id: input.userId,
-    });
-    const prep = await creagicPost<{ memory_context?: string }>("/engine/prepare", {
-      session_id: input.sessionId,
-      query: input.userText.slice(0, 4000),
-      user_id: input.userId,
-      top_k: 5,
-    });
-    if (prep?.memory_context?.trim()) {
-      memoryContext = prep.memory_context.trim();
-      systemParts.push("## 相关记忆（语义检索）\n" + memoryContext);
-    }
-  }
+  const memoryContext: string | null = null;
 
   const mapped = input.messages
     .map((m) => ({

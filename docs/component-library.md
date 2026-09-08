@@ -108,6 +108,9 @@ import '@joysupport/ui/styles.css';
 | 弹窗面板 | `MODAL_PANEL` | 弹窗白底内容区 |
 | 徽章色板 | `badgeTones` | Tag 各种颜色的定义表 |
 | 徽章样式函数 | `badgeClass` | 生成状态标签的 class |
+| 确认流角标 | `confirmStatusBadgeClass` | 确认卡「待确认 / 已确认」 |
+| 激活渐变 | `NAV_ACTIVE_GRADIENT_*` | 顶栏/发送钮黑→蓝渐变 |
+| AI 创作色系 | `SKILL_AOP_*` | 技能/孵化中间态 tint、发送钮 |
 | 类名合并工具 | `cn` | class names：合并/覆盖 Tailwind class |
 
 ### 共享组件（`import { Xxx } from '...'`）
@@ -125,7 +128,10 @@ import '@joysupport/ui/styles.css';
 | 在线页工具栏 | `OnlinePageToolbar` | 列表页右上角搜索+新建 |
 | 在线页区块头 | `OnlineSectionHeader` | 列表上方小标题+说明 |
 | 表格空行 | `OnlineEmptyRow` | 表格「暂无数据」那一行 |
-| 提示输入条 | `PromptComposer` | 技能创建对话底部输入发送区 |
+| 提示输入条 | `PromptComposer` | 技能创建对话底部输入发送区（遗留） |
+| 创作 Sender | `GoalComposerGhost` / `skill-ai-composer` | Agent Builder 创作输入（dongDesign Sender） |
+| 思考过程卡 | `SkillThinkingCard` | 规划/拆解中间态（Think） |
+| 确认信息卡 | `SkillRoundConfirmCard` | 技能草案确认（确认流） |
 | 工作台全屏层 | `WorkspaceOverlay` | 盖住整页的配置/知识工作台 |
 | 处理过程折叠 | `ExecutionProcessFold` | 对话里「正在检索/调用技能」折叠条 |
 | 可拖拽分栏 | `ResizableSplitPane` | 左右两栏可拖中间分隔线 |
@@ -135,7 +141,7 @@ import '@joysupport/ui/styles.css';
 
 | 中文 | 代码名 | 一句话 |
 |------|--------|--------|
-| 顶栏下划线 Tab | `Navigation` | 内容区顶部横排菜单，选中有蓝色底条 |
+| 顶栏二级 Tab | `Navigation` | 内容区顶栏；选中渐变字 + 胶囊底条 |
 | 左侧窄轨导航 | `PrimaryNavRail` | 最左侧图标一级导航 |
 | 二级侧栏 | `SecondarySideNav` | 双侧导航模式下的二级菜单 |
 | 员工卡片 | `EmployeeCardRelay` | 「我的数字员工」首页一张员工卡 |
@@ -172,6 +178,8 @@ import '@joysupport/ui/styles.css';
 | 发丝线 | `line` | `#E7E5E0` | 极细分隔线 |
 
 #### 状态标签色（`badgeClass`）
+
+仅底色 + 字色，**不允许描边**（`border-0`）。
 
 | 中文场景 | tone 参数 | 观感 |
 |----------|-----------|------|
@@ -311,7 +319,7 @@ import '@joysupport/ui/styles.css';
 | 推荐 | 禁止 |
 |------|------|
 | 用 `badgeClass(tone)` | 把标签做成主按钮去点 |
-| 色义全站固定 | 自己发明紫色系标签 |
+| 仅底色 + 字色（`border-0`） | 自己发明紫色系标签 / 加描边 |
 
 展台：`#atom-tag`
 
@@ -333,32 +341,52 @@ import '@joysupport/ui/styles.css';
 
 ## 5. 导航
 
-### 5.1 顶栏下划线 Tab（默认导航）
+### 5.1 顶栏二级 Tab（默认导航）
 
-**英文名**：`Navigation`（Underline Tab）  
-**意思**：内容区顶部横向菜单；当前项文字变实时蓝，底下有 2px 蓝条。
+**英文名**：`Navigation` + `navSecondaryTabClass`  
+**意思**：内容区顶部横向菜单；当前项为**黑→蓝渐变字** + 底部渐变胶囊条（不是实色 `text-live`）。
 
-**出现场景**：默认布局（hybrid）= 左侧窄轨 + 顶栏这些 Tab。  
-例如：「我的数字员工 | 数字员工市场 | 接待记录 | 员工知识」。
+**出现场景**：默认布局（hybrid）= 左侧窄轨 `PrimaryNavRail` + 顶栏这些 Tab。  
+例如数字员工域：「我的数字员工 | 数字员工市场 | …」；智能质检域：`QC_APP_MAIN_TABS`（质检计划 / 数据汇总 / 质检模板…）。
 
-**源码**：`src/components/Navigation.tsx`  
+**源码**：`src/components/Navigation.tsx` · `lib/navDomain.ts`  
 **状态**：已接入（生产默认）
 
 | 推荐 | 禁止 |
 |------|------|
-| 二级能力横排在顶栏 | 引用已废弃的 `QcAppMainTabs` |
-| 激活用 `text-live` + 底条 | 在双侧导航模式下再叠一套顶栏 |
+| 二级能力横排在顶栏 | 引用已废弃的 `QcAppMainTabs` 组件（数据仍用 `QC_APP_MAIN_TABS`） |
+| 激活用 `navSecondaryTabClass` + `NAV_SECONDARY_TAB_INDICATOR` | 在双侧导航模式下再叠一套顶栏 |
+| 分层示意见 `#tpl-layered-tabs` | 用实色蓝字代替渐变激活 |
 
-展台：`#atom-underline`
+展台：`#atom-underline` · 质检分层样例 `#tpl-layered-tabs`
 
 ---
 
-### 5.2 分段控件 Segmented
+### 5.2 页内子 Tab（技能页）
+
+**英文名**：In-page sub tabs（展台 `#tpl-dual-tabs`）  
+**意思**：`OnlinePageHeader` 下方再挂一行页内子 Tab；激活为**墨黑字 + 墨黑底条**（不是顶栏 `navSecondaryTabClass` 渐变胶囊）。
+
+**出现场景**：数字员工技能（`SkillPage`）「我的技能 | 技能市场」。
+
+**写法**：`h-9` / `text-[13px]`；激活底条 `absolute left-3 right-3 bottom-0 h-0.5 rounded-full bg-neutral-900`。市场 Tab 可隐藏「新建」。
+
+| 推荐 | 禁止 |
+|------|------|
+| 页头与子 Tab 同在 shrink-0 顶区 | 用 `navSecondaryTabClass` 渐变条做页内子 Tab |
+| 与 `SkillPage` 同构 | 做成 Segmented 叠在页头上 |
+
+展台：`#tpl-dual-tabs`  
+**状态**：已接入
+
+---
+
+### 5.3 分段控件 Segmented
 
 **英文名**：`SegmentedTabBar` / `SEGMENTED_BAR`  
 **意思**：Segmented Control = 一段灰底里的白色「滑块」切换，像 iOS 分段。
 
-**出现场景**：同一页内切换 2～5 个同级视图（员工页、技能页、任务中心、上岗配置等）。  
+**出现场景**：同一页内切换 2～5 个同级视图（员工页、任务中心、上岗配置等）。技能页用 §5.2 墨黑底条，不用 Segmented。  
 **尺寸**：外框总高 **38px**，选中片 **30px**。
 
 ```tsx
@@ -382,7 +410,7 @@ import '@joysupport/ui/styles.css';
 
 ---
 
-### 5.3 双侧导航 Dual Nav
+### 5.4 双侧导航 Dual Nav
 
 **英文名**：`PrimaryNavRail` + `SecondarySideNav`（布局名 `dualSide`）  
 **意思**：
@@ -402,7 +430,7 @@ import '@joysupport/ui/styles.css';
 
 ---
 
-### 5.4 页面头 PageHeader
+### 5.5 页面头 PageHeader
 
 **英文名**：`PageHeader`  
 **意思**：页面最上方的「大标题区」：左边图标+标题+说明，右边放搜索/按钮。
@@ -415,9 +443,9 @@ import '@joysupport/ui/styles.css';
 
 ---
 
-### 5.5 宽侧栏（废弃）
+### 5.6 宽侧栏（废弃）
 
-**英文名**：Wide Sidebar / `Sidebar.tsx`  
+**英文名**：Wide Sidebar（历史遗留示意，旧 Sidebar 已删除）  
 **意思**：以前 232px 宽侧栏方案，**已废弃**，全站无引用。  
 **状态**：Legacy — 新页面禁止复制。
 
@@ -495,13 +523,14 @@ import '@joysupport/ui/styles.css';
 **英文名**：`OnlinePageLayout` 相关导出  
 （`OnlinePageToolbar` / `OnlineSectionHeader` / `onlineTableClass` / `OnlineEmptyRow`）
 
-**白话**：知识库、技能、员工分配这类「管理列表页」的标准骨架：
+**白话**：知识库、技能、账号管理这类「管理列表页」的标准骨架（对齐 `KnowledgeBasePage`）：
 
-1. 右上角工具栏（搜索 + 新建）
-2. 小区块标题
-3. 扁平表格（不要再套大卡片包整张表）
+1. `OnlinePageHeader`：左标题（如「员工知识」）+ 右搜索 + 主按钮「新建知识库」
+2. 扁平表格列：知识库 / 文档数 / 字符数 / 更新时间 / 操作（文字链「上传」+ 图标重命名/删除）
+3. 超过 10 条：底栏 `border-t` + `ListPagination`
+4. `OnlineSectionHeader` 只用于表下详情区（如上传面板），**不要**压在表上方
 
-展台：`#pattern-online`
+展台：`#pattern-online` · 完整模板 `#tpl-list`
 
 ---
 
@@ -518,11 +547,19 @@ import '@joysupport/ui/styles.css';
 ### 7.3 卡片图标 CardIcon
 
 **英文名**：`CardIcon`  
-**白话**：列表行首的彩色圆角方块（可放字或图标）。颜色由 `seed`（如名称）稳定算出，同一对象颜色不变。
+**白话**：列表行首的彩色圆角方块（可放字或图标）。颜色由 `seed`（如 id）稳定算出，同一对象颜色不变。
+
+**产品默认**：`size="sm"` + `variant="soft"` + 首字（对齐「员工知识」列表）。soft 仅底色+字色，**无描边**。
 
 ```tsx
-<CardIcon seed="售后政策库" size="sm">售</CardIcon>
+<CardIcon seed={kb.id} size="sm" variant="soft">{kb.firstChar}</CardIcon>
 ```
+
+| variant | 用途 |
+|---------|------|
+| `soft` | 列表行首（默认） |
+| `solid` | 需要更强对比的标题区 |
+| `ai` | AI 能力入口，墨黑底，不按 seed 上色 |
 
 展台：`#pattern-card-icon`
 
@@ -618,7 +655,44 @@ import '@joysupport/ui/styles.css';
 **英文名**：`PromptComposer`  
 **白话**：技能创建等对话场景底部的输入组合框（不是普通单行 `FIELD`）。空内容时发送按钮禁用。
 
-展台：`#pattern-composer` · 状态：单点
+展台：`#pattern-composer` · 状态：单点（遗留）  
+**新页请用** `#pattern-goal-composer`。
+
+---
+
+### 7.11b 创作 Sender（GoalComposer / skill-ai-composer）
+
+**英文名**：`GoalComposerGhost` + `skill-ai-composer`  
+**白话**：Agent Builder 首页与技能落地页的创作输入（dongDesign-AI **Sender**）。含 Ghost 打字机、Tab 补全、推荐芯片（只填入不跳转）、渐变发送钮。
+
+展台：`#pattern-goal-composer` · 状态：已接入  
+规范：`DESIGN.md` §10 · `.cursor/rules/ai-product-dongdesign.mdc`
+
+---
+
+### 7.11c 对话气泡字阶 AI Bubble
+
+**白话**：AI / 用户气泡内文字排版（dongDesign-AI **Bubble**）。正文 `14px/22px` `#595959`；一/二/三级标题见展台。
+
+展台：`#pattern-ai-bubble` · 状态：已接入
+
+---
+
+### 7.11d 思考过程卡 SkillThinkingCard
+
+**英文名**：`SkillThinkingCard`  
+**白话**：规划拆解时的思考链（dongDesign-AI **Think**）。模式：outline / executing / generating / nested。
+
+展台：`#pattern-ai-thinking` · 状态：已接入
+
+---
+
+### 7.11e 确认信息卡 SkillRoundConfirmCard
+
+**英文名**：`SkillRoundConfirmCard`  
+**白话**：技能创建草案确认；角标用 `confirmStatusBadgeClass`。员工孵化已改为规划后直接写入，不再挂此卡。
+
+展台：`#pattern-ai-confirm` · 状态：已接入
 
 ---
 
@@ -649,7 +723,6 @@ import '@joysupport/ui/styles.css';
 |----------|--------|
 | 对话回复加载 | `ChatReplySkeleton` |
 | 工作日志加载 | `WorkLogSkeleton` |
-| 知识解析进度 | `ParsingStatusCell` |
 | 上传创建中 | `UploadLoadingPanel` |
 
 不要用灰色脉冲块代替 `MatrixLoader`；`DocumentRowSkeleton` 等未接入，勿用。
@@ -681,9 +754,9 @@ import '@joysupport/ui/styles.css';
 ### 8.2 在线列表 CRUD
 
 **英文**：List CRUD  
-**白话**：标题交给二级导航；内容区只有「工具栏 + 区块头 + 扁平表」。不要再放一个巨大的 `PageHeader`。
+**白话**：对齐产品「员工知识」：`OnlinePageHeader` + 扁平表 + 底部分页。不要再放巨大 `PageHeader`，表上方不要再加区块头。
 
-展台：`#recipe-list`
+展台：`#recipe-list` · 完整样例 `#tpl-list`
 
 ---
 
@@ -737,12 +810,17 @@ import '@joysupport/ui/styles.css';
 | 状态标签 | `badgeClass` | `#atom-tag` |
 | 筛选药片 | Chip | `#atom-chip` |
 | 顶栏菜单 | `Navigation` | `#atom-underline` |
+| 页内子 Tab（技能） | `SkillPage` 墨黑底条 | `#tpl-dual-tabs` |
 | 分段切换 | `SegmentedTabBar` | `#atom-segmented` |
 | 双侧导航 | `PrimaryNavRail`… | `#pattern-dual-nav` |
 | 页面大标题 | `PageHeader` | `#pattern-header` |
 | 弹窗 | `Modal` | `#pattern-modal` |
 | 分页 | `ListPagination` | `#pattern-table` |
 | 加载 | `ContentBusy` | `#feedback-busy` |
+| 创作 Sender | `GoalComposer` | `#pattern-goal-composer` |
+| AI 气泡字阶 | Bubble | `#pattern-ai-bubble` |
+| 思考过程卡 | `SkillThinkingCard` | `#pattern-ai-thinking` |
+| 确认信息卡 | `SkillRoundConfirmCard` | `#pattern-ai-confirm` |
 | 在线列表壳 | `OnlinePage*` | `#pattern-online` |
 | 员工卡 | `EmployeeCardRelay` | `#pattern-employee` |
 | 市场卡 | `MarketCardRelay` | `#pattern-market` |
