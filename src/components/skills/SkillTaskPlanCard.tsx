@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * 任务规划卡 — 与深度思考（SkillThinkingCard / Cot）分离
- * Step 列表 + 执行进度；完成态标题「N/N 任务已完成」
+ * 进行中：仅顶栏扫光「任务规划中」；完成态：「已完成任务规划 · Ns」+ Step 列表
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, ChevronDown, ChevronUp } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import type { SkillThinkStep } from '@/lib/skillStudioMock';
-import { LoadingCircle } from '../common/ToastLoadingIcon';
+import { SKILL_CREATE_CHAT } from '@/lib/platformTerminology';
 
 export type SkillTaskPlanCardMode = 'outline' | 'executing' | 'nested';
 
@@ -20,7 +20,7 @@ export type SkillTaskPlanCardProps = {
   durationSec?: number;
   isComplete: boolean;
   mode?: SkillTaskPlanCardMode;
-  /** 逐步露出步骤 */
+  /** 进行中（与 loading 同视觉：仅扫光） */
   generating?: boolean;
   defaultExpanded?: boolean;
   className?: string;
@@ -55,22 +55,19 @@ function PendingRing() {
   );
 }
 
-function RunningRing() {
-  return (
-    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-      <LoadingCircle size={10} />
-    </span>
-  );
-}
-
 function StepStatusIcon({ status }: { status: SkillThinkStep['status'] }) {
   if (status === 'done') {
     return <CheckCircle2 size={14} className="shrink-0 text-[#52C41A]" strokeWidth={2} />;
   }
-  if (status === 'running') {
-    return <RunningRing />;
-  }
   return <PendingRing />;
+}
+
+function GeneratingTitle({ text }: { text: string }) {
+  return (
+    <span className="skill-thinking-generating-title text-[13px] font-semibold leading-5">
+      {text}
+    </span>
+  );
 }
 
 function CardHeader({
@@ -177,7 +174,7 @@ function PlanStepItem({
 }
 
 export const SkillTaskPlanCard: React.FC<SkillTaskPlanCardProps> = ({
-  title = '任务规划',
+  title = SKILL_CREATE_CHAT.planInProgress,
   steps,
   durationSec = 0,
   isComplete,
@@ -191,45 +188,19 @@ export const SkillTaskPlanCard: React.FC<SkillTaskPlanCardProps> = ({
   const [open, setOpen] = useState(initialOpen);
   const [expandedStepIds, setExpandedStepIds] = useState<Set<string>>(() => new Set());
 
-  const doneCount = steps.filter((s) => s.status === 'done').length;
-  const runningIndex = steps.findIndex((s) => s.status === 'running');
-  const runningStepId = runningIndex >= 0 ? steps[runningIndex]?.id : null;
-
-  const visibleCount = useMemo(() => {
-    if (!generating) return steps.length;
-    if (steps.every((s) => s.status === 'pending')) return steps.length;
-    if (runningIndex >= 0) return runningIndex + 1;
-    if (doneCount > 0) return doneCount;
-    return Math.min(2, steps.length);
-  }, [generating, steps, runningIndex, doneCount]);
+  const inProgress = !isComplete && (generating || variant === 'executing');
 
   useEffect(() => {
-    if (!isComplete && (variant === 'executing' || generating)) {
-      setOpen(true);
-    }
-  }, [isComplete, variant, generating]);
-
-  useEffect(() => {
-    if (!runningStepId) return;
-    setExpandedStepIds((prev) => {
-      if (prev.has(runningStepId)) return prev;
-      const next = new Set(prev);
-      next.add(runningStepId);
-      return next;
-    });
-  }, [runningStepId]);
+    if (inProgress) setOpen(true);
+  }, [inProgress]);
 
   const headerTitle = useMemo(() => {
-    if (isComplete) {
-      const total = Math.max(steps.length, 1);
-      const done = steps.every((s) => s.status === 'done') ? total : doneCount;
-      return `${done}/${total} 任务已完成`;
-    }
-    if (generating || variant === 'executing') return '任务规划中';
+    if (isComplete) return SKILL_CREATE_CHAT.planDone;
+    if (inProgress) return SKILL_CREATE_CHAT.planInProgress;
     return title;
-  }, [isComplete, steps, doneCount, generating, variant, title]);
+  }, [isComplete, inProgress, title]);
 
-  const visibleSteps = steps.slice(0, visibleCount);
+  const durationText = isComplete ? SKILL_CREATE_CHAT.durationSuffix(durationSec) : '';
 
   const toggleStep = (stepId: string) => {
     setExpandedStepIds((prev) => {
@@ -245,42 +216,32 @@ export const SkillTaskPlanCard: React.FC<SkillTaskPlanCardProps> = ({
       <div className="overflow-hidden rounded-lg border border-[#EBEBEB] bg-white">
         <CardHeader open={open} onToggle={() => setOpen((v) => !v)}>
           <div className="flex min-w-0 items-center gap-2">
-            <span className="text-[14px] font-semibold leading-[22px] text-[#595959]">
-              {headerTitle}
-              {isComplete && durationSec > 0 && (
-                <span className="ml-1.5 text-[12px] font-normal tabular-nums text-[#B5B5B5]">
-                  · {durationSec}s
-                </span>
-              )}
-            </span>
-            {!isComplete && (generating || variant === 'executing') ? (
-              <LoadingCircle size={12} className="shrink-0" title="任务规划中" />
-            ) : null}
+            {inProgress ? (
+              <GeneratingTitle text={headerTitle} />
+            ) : (
+              <span className="text-[13px] font-semibold leading-5 text-neutral-600">
+                {headerTitle}
+                {durationText ? (
+                  <span className="font-normal tabular-nums text-neutral-400">{durationText}</span>
+                ) : null}
+              </span>
+            )}
           </div>
         </CardHeader>
 
-        {open && visibleSteps.length > 0 ? (
+        {/* 进行中仅扫光标题；完成后才露出 Step 列表 */}
+        {open && isComplete && steps.length > 0 ? (
           <div className="flex flex-col gap-2 px-3 pb-3">
-            {visibleSteps.map((step, idx) => {
-              const isLastGenerating = generating && idx === visibleSteps.length - 1;
-              return (
-                <div key={step.id} className="flex flex-col gap-1">
-                  <PlanStepItem
-                    step={step}
-                    index={idx}
-                    variant={variant}
-                    expanded={expandedStepIds.has(step.id)}
-                    onToggle={() => toggleStep(step.id)}
-                  />
-                  {isLastGenerating ? (
-                    <span
-                      className="ml-[18px] inline-block h-[14px] w-[2px] animate-pulse bg-[linear-gradient(180deg,#000000_0%,#1565BF_100%)]"
-                      aria-hidden
-                    />
-                  ) : null}
-                </div>
-              );
-            })}
+            {steps.map((step, idx) => (
+              <PlanStepItem
+                key={step.id}
+                step={step}
+                index={idx}
+                variant="executing"
+                expanded={expandedStepIds.has(step.id)}
+                onToggle={() => toggleStep(step.id)}
+              />
+            ))}
           </div>
         ) : null}
       </div>

@@ -21,7 +21,7 @@ alwaysApply: false
 | Welcome | 欢迎空态 | 落地欢迎 / 空会话 |
 | Prompts | 提示集 / 快捷 chip | `HELP_CHIPS`、AI 帮写条 |
 | Think / Cot | 深度思考 / 思维链 | `SkillThinkingCard`（Cot：先「思考中」加载，再段落正文，完成「已完成思考」） |
-| 任务规划 | Step 执行大纲 | `SkillTaskPlanCard`（与 Cot 分卡；完成「N/N 任务已完成」） |
+| 任务规划 | Step 执行大纲 | `SkillTaskPlanCard`（与 Cot 分卡；完成「已完成任务规划 · Ns」） |
 | Sender | 底部输入框 | skill-ai-composer / GoalComposer |
 | Attachments | 输入附件 | 附件加号 / 上传区 |
 | Actions | 气泡操作（复制等） | 气泡 hover 工具条 |

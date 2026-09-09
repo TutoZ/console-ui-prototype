@@ -197,12 +197,20 @@ export const VersionSwitcher: React.FC<VersionSwitcherProps> = ({
             当前：{screenLabel} · {activeMeta?.title ?? version}
           </div>
           <div className="px-3 py-2 border-t border-neutral-100 space-y-1.5">
-            <a
-              href="/?ds=1"
-              className="flex items-center justify-center gap-1.5 w-full h-8 rounded-lg text-[11px] font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300 transition"
-            >
-              打开组件库
-            </a>
+            <div className="grid grid-cols-2 gap-1.5">
+              <a
+                href="/?ds=1"
+                className="flex items-center justify-center gap-1 h-8 rounded-lg text-[11px] font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300 transition"
+              >
+                基础组件库
+              </a>
+              <a
+                href="/?ds=ai"
+                className="flex items-center justify-center gap-1 h-8 rounded-lg text-[11px] font-semibold text-neutral-700 bg-white border border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300 transition"
+              >
+                AI 组件库
+              </a>
+            </div>
             <button
               type="button"
               onClick={handleClearCache}

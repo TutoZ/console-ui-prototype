@@ -46,6 +46,12 @@ export const BTN_MD = BTN_INK;
 /** 危险描边 */
 export const BTN_DANGER = `${BTN_BASE} h-8 px-3 bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 hover:text-rose-600`;
 
+/** 小号尺寸（对话卡内 CTA 等，h-6 / 11px） */
+export const BTN_INK_SM = `${BTN_BASE} h-6 px-2.5 text-[11px] bg-neutral-800 text-white hover:opacity-90`;
+export const BTN_SOFT_SM = `${BTN_BASE} h-6 px-2.5 text-[11px] bg-neutral-100 text-neutral-800 border border-neutral-200 hover:bg-neutral-200`;
+export const BTN_OUTLINE_SM = `${BTN_BASE} h-6 px-2.5 text-[11px] bg-white text-neutral-800 border border-neutral-200 hover:bg-neutral-50 shadow-[0_1px_0_rgba(0,0,0,0.05)]`;
+export const BTN_DANGER_SM = `${BTN_BASE} h-6 px-2.5 text-[11px] bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 hover:text-rose-600`;
+
 /** 输入框 / 下拉 / 文本域（多行勿加 FIELD_CTRL） */
 export const FIELD =
   'w-full bg-white border border-neutral-200/50 rounded-[7px] text-xs text-neutral-800 placeholder:text-neutral-800/50 px-2.5 outline-none transition duration-200 focus:border-neutral-300 disabled:opacity-50 disabled:cursor-not-allowed';
@@ -127,6 +133,8 @@ export const SKILL_AOP_SEND_BTN =
   'w-9 h-9 rounded-[7px] bg-[linear-gradient(135deg,#000000_0%,#1565BF_100%)] text-white hover:opacity-90 flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0 shadow-[0_1px_0_rgba(0,0,0,0.05)]';
 export const SKILL_AOP_PRIMARY_BTN =
   'rounded-lg bg-[linear-gradient(135deg,#000000_0%,#1565BF_100%)] text-white font-medium hover:opacity-90 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed';
+/** 对话卡内主 CTA 小号（确认执行等） */
+export const SKILL_AOP_PRIMARY_BTN_SM = `${SKILL_AOP_PRIMARY_BTN} h-6 px-2.5 rounded-md text-[11px]`;
 
 /**
  * AI 色按钮（黑 → #1565BF）

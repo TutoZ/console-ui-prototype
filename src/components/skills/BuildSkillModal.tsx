@@ -96,7 +96,7 @@ import { SkillRoundConfirmCard, type SkillConfirmFieldKey, type SkillConfirmItem
 import { SkillThinkingCard, estimateThinkStreamMs } from './SkillThinkingCard';
 import { SkillTaskPlanCard } from './SkillTaskPlanCard';
 import { buildIntentThinkPlan, buildSkillClarifyQuestions, formatClarifyAnswers, type SkillThinkStep } from '@/lib/skillStudioMock';
-import { SKILL_PAGE_COPY } from '@/lib/platformTerminology';
+import { SKILL_PAGE_COPY, SKILL_CREATE_CHAT } from '@/lib/platformTerminology';
 import { PROFILE_USER } from '@/lib/profileUser';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { SkillClarifyCard, type SkillClarifyPayload } from './SkillClarifyCard';
@@ -420,8 +420,6 @@ export const BuildSkillModal: React.FC<BuildSkillModalProps> = ({
   // Validation error field IDs for highlighting & scrolling
   const [validationErrorFields, setValidationErrorFields] = useState<Set<string>>(new Set());
   const [validationPromptBanner, setValidationPromptBanner] = useState<{ show: boolean; messages: string[] }>({ show: false, messages: [] });
-  const prevCompletedRef = useRef<number[]>([]);
-  const isFirstCompletedCheckRef = useRef(true);
 
   const [creationMode, setCreationMode] = useState<'interactive' | 'zip'>('interactive');
   const [rightCollapsed, setRightCollapsed] = useState(true);
@@ -604,9 +602,8 @@ export const BuildSkillModal: React.FC<BuildSkillModalProps> = ({
 
   const goToFormSection = (sectionId: number) => {
     if (sectionId < 1 || sectionId > 4) return;
-    if (isUpdatingForm) {
-      confirmTypewriterRef.current.followUi = false;
-    }
+    // 用户手动切卡：AI 继续在后台写，不再抢焦点
+    confirmTypewriterRef.current.followUi = false;
     formStepDirRef.current = sectionId > activeStep ? 1 : sectionId < activeStep ? -1 : 0;
     openFormSection(sectionId);
   };
@@ -1118,8 +1115,10 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
   const [editingUserMsgDraft, setEditingUserMsgDraft] = useState('');
   const confirmTypewriterRef = useRef({
     cancelled: false,
-    /** 用户未手动切卡时，写入跟随切到对应表单页 */
-    followUi: true,
+    /** 写入时是否自动切卡/滚动；确认写入默认 false，避免抢走用户操作 */
+    followUi: false,
+    /** 用户已上手改过的字段，AI 打字机跳过 */
+    userOwnedFields: new Set<SkillConfirmFieldKey>(),
   });
   const formSnapshotRef = useRef({
     cnName: '',
@@ -1527,9 +1526,9 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     if (cotSteps.length > 0) {
       extras.push({
         sender: 'skill_think',
-        name: '深度思考',
+        name: SKILL_CREATE_CHAT.thinkDone,
         content: JSON.stringify({
-          title: '深度思考',
+          title: SKILL_CREATE_CHAT.thinkDone,
           steps: cotSteps.map((s) => ({ ...s, status: 'done' as const })),
           durationSec: planSteps.length > 0 ? Math.max(1, Math.round(durationSec * 0.4)) : durationSec,
         }),
@@ -1539,9 +1538,9 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     if (planSteps.length > 0) {
       extras.push({
         sender: 'skill_plan',
-        name: '任务规划',
+        name: SKILL_CREATE_CHAT.planDone,
         content: JSON.stringify({
-          title: '任务规划',
+          title: SKILL_CREATE_CHAT.planDone,
           steps: planSteps.map((s) => ({ ...s, status: 'done' as const })),
           durationSec,
         }),
@@ -1613,7 +1612,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
       clearTimeout(thinkingTimerRef.current);
       thinkingTimerRef.current = null;
     }
-    setThinkCotSteps([]);
+    setThinkCotSteps(plan.steps.map((s) => ({ ...s, status: 'pending' as const })));
     setThinkCotGenerating(false);
     setTaskPlanSteps([]);
     setTaskPlanGenerating(false);
@@ -1634,7 +1633,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
   const buildRoundThinkPlan = (userText: string) => {
     const snippet = userText.trim().replace(/\s+/g, ' ').slice(0, 64) || '用户本轮补充';
     return {
-      title: '深度思考',
+      title: SKILL_CREATE_CHAT.thinkInProgress,
       totalMs: 7200 + Math.floor(Math.random() * 1800),
       steps: [
         {
@@ -1684,7 +1683,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
   const buildClarifyThinkPlan = (userText: string) => {
     const snippet = userText.trim().replace(/\s+/g, ' ').slice(0, 64) || '技能目标描述';
     return {
-      title: '深度思考',
+      title: SKILL_CREATE_CHAT.thinkInProgress,
       totalMs: 7000 + Math.floor(Math.random() * 1600),
       steps: [
         {
@@ -1777,7 +1776,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
           ...prev,
           {
             sender: part.sender,
-            name: part.sender === 'system_status' ? '系统' : part.sender === 'skill_confirm' ? '确认信息' : '技能设计助理',
+            name: part.sender === 'system_status' ? '系统' : part.sender === 'skill_confirm' ? SKILL_CREATE_CHAT.confirmTitle : SKILL_CREATE_CHAT.assistantName,
             content: part.content,
             timestamp: stamp,
           },
@@ -1901,24 +1900,6 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     // Step 4: 补充说明 (Optional: usageExamples or customNotes filled)
     if (usageExamples.trim().length > 0 || customNotes.trim().length > 0) {
       updatedCompleted.push(4);
-    }
-
-    if (isFirstCompletedCheckRef.current) {
-      prevCompletedRef.current = updatedCompleted;
-      isFirstCompletedCheckRef.current = false;
-    } else {
-      const sectionLabels: Record<number, string> = {
-        1: FORM_SECTION_TITLES[1],
-        2: FORM_SECTION_TITLES[2],
-        3: FORM_SECTION_TITLES[3],
-        4: FORM_SECTION_TITLES[4],
-      };
-      updatedCompleted.forEach(stepId => {
-        if (!prevCompletedRef.current.includes(stepId)) {
-          showToast(`✨ 段落【${sectionLabels[stepId] || stepId}】必填项已全部完成！`);
-        }
-      });
-      prevCompletedRef.current = updatedCompleted;
     }
 
     // Safely update to avoid infinite renders
@@ -2202,7 +2183,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
         setChatMessages([
           {
             sender: 'ai',
-            name: '技能设计助理',
+            name: SKILL_CREATE_CHAT.assistantName,
             content: `已载入“${skillLabel}”草稿，可直接对话优化右侧四张卡片，或测一条 / 校验发布。`,
             timestamp: new Date().toTimeString().substring(0, 5),
           },
@@ -2220,7 +2201,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     setChatMessages([
       {
         sender: 'ai',
-        name: '技能设计助理',
+        name: SKILL_CREATE_CHAT.assistantName,
         content: `已载入“${skillLabel}”，可直接对话优化右侧四张卡片，或测一条 / 校验发布。`,
         timestamp: new Date().toTimeString().substring(0, 5),
       },
@@ -2588,6 +2569,50 @@ ${usageExamples || '暂无调用示例'}
   const confirmFieldDomId = (fieldKey: SkillConfirmFieldKey) =>
     fieldKey === 'actionChain' ? 'form-section-2' : `field-${fieldKey}`;
 
+  const markConfirmFieldUserOwned = (fieldKey: SkillConfirmFieldKey) => {
+    confirmTypewriterRef.current.userOwnedFields.add(fieldKey);
+    confirmTypewriterRef.current.followUi = false;
+  };
+
+  const isConfirmFieldFocused = (fieldKey: SkillConfirmFieldKey) => {
+    const el = document.getElementById(confirmFieldDomId(fieldKey));
+    const active = document.activeElement;
+    return Boolean(el && active && el.contains(active));
+  };
+
+  const shouldSkipConfirmFieldWrite = (fieldKey: SkillConfirmFieldKey) =>
+    confirmTypewriterRef.current.userOwnedFields.has(fieldKey) ||
+    isConfirmFieldFocused(fieldKey);
+
+  const resolveConfirmFieldKeyFromDom = (node: EventTarget | null): SkillConfirmFieldKey | null => {
+    if (!(node instanceof Element)) return null;
+    const host = node.closest('[id^="field-"], #form-section-2');
+    if (!host) return null;
+    if (host.id === 'form-section-2') return 'actionChain';
+    const key = host.id.replace(/^field-/, '') as SkillConfirmFieldKey;
+    return key || null;
+  };
+
+  /** 确认写入期间：用户点进/改字段 → 该字段归用户，AI 不再抢写 */
+  useEffect(() => {
+    if (!isUpdatingForm) return;
+    const root = document.getElementById('skill-form-workspace');
+    if (!root) return;
+    const claim = (target: EventTarget | null) => {
+      const key = resolveConfirmFieldKeyFromDom(target);
+      if (!key) return;
+      markConfirmFieldUserOwned(key);
+    };
+    const onFocusIn = (e: FocusEvent) => claim(e.target);
+    const onInput = (e: Event) => claim(e.target);
+    root.addEventListener('focusin', onFocusIn);
+    root.addEventListener('input', onInput);
+    return () => {
+      root.removeEventListener('focusin', onFocusIn);
+      root.removeEventListener('input', onInput);
+    };
+  }, [isUpdatingForm]);
+
   const switchToConfirmFieldSection = (fieldKey: SkillConfirmFieldKey) => {
     if (centerTabRef.current !== 'form') return;
     const sectionId = sectionForConfirmField(fieldKey);
@@ -2727,6 +2752,10 @@ ${usageExamples || '暂无调用示例'}
   const typewriterWriteActionChain = async (value: string) => {
     const names = parseActionChainStepNames(value);
     if (names.length === 0) return;
+    if (shouldSkipConfirmFieldWrite('actionChain')) {
+      markConfirmFieldUserOwned('actionChain');
+      return;
+    }
 
     if (confirmTypewriterRef.current.followUi) {
       switchToConfirmFieldSection('actionChain');
@@ -2766,7 +2795,13 @@ ${usageExamples || '暂无调用示例'}
       const fullName = names[stepIdx];
       for (let i = 1; i <= fullName.length; i += 1) {
         if (confirmTypewriterRef.current.cancelled) return;
+        if (shouldSkipConfirmFieldWrite('actionChain')) {
+          markConfirmFieldUserOwned('actionChain');
+          setConfirmFieldTyping('actionChain', false);
+          return;
+        }
         if (getConfirmFieldSnapshot('actionChain') !== lastWritten) {
+          markConfirmFieldUserOwned('actionChain');
           setConfirmFieldTyping('actionChain', false);
           return;
         }
@@ -2818,6 +2853,10 @@ ${usageExamples || '暂无调用示例'}
   const typewriterWriteToField = async (fieldKey: SkillConfirmFieldKey, value: string) => {
     const next = value.trim();
     if (!next) return;
+    if (shouldSkipConfirmFieldWrite(fieldKey)) {
+      markConfirmFieldUserOwned(fieldKey);
+      return;
+    }
     if (fieldKey === 'actionChain') {
       await typewriterWriteActionChain(next);
       return;
@@ -2837,8 +2876,14 @@ ${usageExamples || '暂无调用示例'}
     let lastWritten = '';
     for (let i = 1; i <= next.length; i += 1) {
       if (confirmTypewriterRef.current.cancelled) return;
+      if (shouldSkipConfirmFieldWrite(fieldKey)) {
+        markConfirmFieldUserOwned(fieldKey);
+        setConfirmFieldTyping(fieldKey, false);
+        return;
+      }
       if (getConfirmFieldSnapshot(fieldKey) !== lastWritten) {
         // 用户改过该字段：停止本字段，其它字段继续写
+        markConfirmFieldUserOwned(fieldKey);
         setConfirmFieldTyping(fieldKey, false);
         return;
       }
@@ -2865,7 +2910,9 @@ ${usageExamples || '暂无调用示例'}
     setRightCollapsed(false);
     setEditingMarkdown(null);
     confirmTypewriterRef.current.cancelled = false;
-    confirmTypewriterRef.current.followUi = true;
+    // AI 后台写入，不抢切卡/滚动；用户可自由操作右侧表单
+    confirmTypewriterRef.current.followUi = false;
+    confirmTypewriterRef.current.userOwnedFields = new Set();
     setIsUpdatingForm(true);
 
     const pendingSide = pendingGoalDraftSideRef.current;
@@ -2897,14 +2944,6 @@ ${usageExamples || '暂无调用示例'}
         requestAnimationFrame(() => {
           flashConfirmWrittenFields(writtenKeys);
         });
-
-        showToast(
-          centerTabRef.current === 'editor'
-            ? `已同步到专家视图 ${writtenKeys.length} 项`
-            : `已写入右侧表单 ${writtenKeys.length} 项`,
-        );
-      } else {
-        showToast('变更要点已确认');
       }
     } finally {
       setIsUpdatingForm(false);
@@ -3058,9 +3097,9 @@ ${usageExamples || '暂无调用示例'}
           setChatStep(5);
           pushAiTurn([
             clarifyNote
-              ? '已收到补充信息，并据此拆解技能草案。'
-              : '已按你的目标拆解技能草案。',
-            { sender: 'system_status', content: '请确认下方要点后点击“确认执行”' },
+              ? SKILL_CREATE_CHAT.clarifyReceived
+              : SKILL_CREATE_CHAT.clarifySkippedAck,
+            { sender: 'system_status', content: SKILL_CREATE_CHAT.confirmPrompt },
             {
               sender: 'skill_confirm',
               content: JSON.stringify({
@@ -3145,7 +3184,7 @@ ${usageExamples || '暂无调用示例'}
         setChatInput('');
         setComposerConsumedChipIds([]);
       }
-      showToast('当前 AI 正在深度思考中，您的消息已成功加入发送队列，将在思考完成后自动处理');
+      showToast('当前 AI 正在思考中，您的消息已加入发送队列，将在思考完成后自动处理');
       return;
     }
 
@@ -3214,13 +3253,13 @@ ${usageExamples || '暂无调用示例'}
             ...prev,
             {
               sender: 'ai',
-              name: '技能设计助理',
-              content: '为了更准确写入右侧四张表单，请先补充以下关键信息（也可跳过）：',
+              name: SKILL_CREATE_CHAT.assistantName,
+              content: SKILL_CREATE_CHAT.clarifyLead,
               timestamp: stamp,
             },
             {
               sender: 'skill_clarify',
-              name: '补充信息',
+              name: SKILL_CREATE_CHAT.clarifyTitle,
               content: JSON.stringify({ questions } satisfies SkillClarifyPayload),
               timestamp: stamp,
             },
@@ -3245,7 +3284,7 @@ ${usageExamples || '暂无调用示例'}
           setChatStep(5);
           aiBubbles = [
             '已根据你重新设置的要求拆解草案，请确认下方要点。',
-            { sender: 'system_status', content: '确认后将写入右侧表单' },
+            { sender: 'system_status', content: SKILL_CREATE_CHAT.confirmWriteHint },
             {
               sender: 'skill_confirm',
               content: JSON.stringify({
@@ -4223,11 +4262,11 @@ ${usageExamples || '暂无调用示例'}
   const mountedKBsForSection2 = selectedKBs;
 
   const renderSavePublishButtons = () => {
-    const outlineBtn =
-      'h-8 px-2 rounded-lg border border-[#E9EAEB] bg-white text-[#181D27] text-sm font-medium hover:bg-neutral-50 inline-flex items-center gap-1.5 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed';
-    const publishBtn = cn(
-      'h-8 px-2 text-[#F9F9FB] text-sm font-medium shadow-[inset_0_0_16px_rgba(255,255,255,0.16)] inline-flex items-center gap-1.5',
+    /** 与 SkillRoundConfirmCard 一致：次级 BTN_SOFT，主 CTA 渐变 PRIMARY */
+    const softBtn = cn(BTN_SOFT, 'h-7 px-3 text-[13px]');
+    const primaryBtn = cn(
       SKILL_AOP_PRIMARY_BTN,
+      'h-7 px-3 rounded-md text-[13px] inline-flex items-center gap-1.5',
     );
 
     return (
@@ -4241,8 +4280,8 @@ ${usageExamples || '暂无调用示例'}
           type="button"
           onClick={toggleSkillTestPanel}
           className={cn(
-            outlineBtn,
-            (skillTestOpen || skillTestPinned) && 'bg-neutral-100 border-neutral-300',
+            softBtn,
+            (skillTestOpen || skillTestPinned) && 'border-neutral-300',
           )}
           title="技能测试"
         >
@@ -4299,7 +4338,7 @@ ${usageExamples || '暂无调用示例'}
                     setShowTestModal(true);
                     setTestSource('manual');
                   }}
-                  className={cn(BTN_OUTLINE, 'h-7 px-2.5 text-[11px] gap-1 shrink-0')}
+                  className={cn(BTN_SOFT, 'h-7 px-3 text-[13px] gap-1 shrink-0')}
                 >
                   <Plus size={12} />
                   新增
@@ -4309,7 +4348,7 @@ ${usageExamples || '暂无调用示例'}
                   type="button"
                   disabled={selectedCaseIds.length === 0}
                   onClick={() => handleExecuteR1TestBatch(selectedCaseIds)}
-                  className={cn(BTN_OUTLINE, 'h-7 px-2.5 text-[11px] gap-1 shrink-0 disabled:opacity-40')}
+                  className={cn(BTN_SOFT, 'h-7 px-3 text-[13px] gap-1 shrink-0 disabled:opacity-40')}
                 >
                   <Play size={11} />
                   运行选中{selectedCaseIds.length > 0 ? ` ${selectedCaseIds.length}` : ''}
@@ -4319,7 +4358,7 @@ ${usageExamples || '暂无调用示例'}
                   onClick={() => handleExecuteR1TestBatch()}
                   className={cn(
                     SKILL_AOP_PRIMARY_BTN,
-                    'h-7 px-2.5 text-[11px] rounded-[7px] gap-1 shrink-0 inline-flex items-center',
+                    'h-7 px-3 rounded-md text-[13px] gap-1 shrink-0 inline-flex items-center',
                   )}
                 >
                   <Play size={11} />
@@ -4452,7 +4491,7 @@ ${usageExamples || '暂无调用示例'}
                           <button
                             type="button"
                             onClick={() => setEditingCaseId(null)}
-                            className={cn(BTN_SOFT, 'h-7 px-2.5 text-[11px]')}
+                            className={cn(BTN_SOFT, 'h-7 px-3 text-[13px]')}
                           >
                             取消
                           </button>
@@ -4467,7 +4506,10 @@ ${usageExamples || '暂无调用示例'}
                               setEditingCaseId(null);
                               showToast('已更新用例');
                             }}
-                            className={cn(BTN_INK, 'h-7 px-2.5 text-[11px]')}
+                            className={cn(
+                              SKILL_AOP_PRIMARY_BTN,
+                              'h-7 px-3 rounded-md text-[13px]',
+                            )}
                           >
                             保存
                           </button>
@@ -4497,7 +4539,7 @@ ${usageExamples || '暂无调用示例'}
         onClick={handleSaveAsDraft}
         disabled={!isDraftDirty}
         title={isDraftDirty ? '保存到“我的技能”' : '已保存，修改后可再次保存'}
-        className={outlineBtn}
+        className={softBtn}
       >
         保存草稿
       </button>
@@ -4506,7 +4548,7 @@ ${usageExamples || '暂无调用示例'}
         onClick={handleValidateAndPublish}
         disabled={isVerifying || Boolean(publishBlockedReason)}
         title={publishBlockedReason || '发布技能'}
-        className={publishBtn}
+        className={primaryBtn}
       >
         {isVerifying ? (
           <>
@@ -5062,7 +5104,7 @@ return (
                   return (
                     <SkillThinkingCard
                       key={msgKey}
-                      title={thinkPayload.title || '深度思考'}
+                      title={thinkPayload.title || SKILL_CREATE_CHAT.thinkDone}
                       steps={thinkPayload.steps || []}
                       durationSec={thinkPayload.durationSec ?? 0}
                       isComplete
@@ -5085,7 +5127,7 @@ return (
                   return (
                     <SkillTaskPlanCard
                       key={msgKey}
-                      title={planPayload.title || '任务规划'}
+                      title={planPayload.title || SKILL_CREATE_CHAT.planDone}
                       steps={planPayload.steps || []}
                       durationSec={planPayload.durationSec ?? 0}
                       isComplete
@@ -5270,14 +5312,14 @@ return (
                                       onClick={() => {
                                         setChatInput(`针对【${sug.fieldLabel}】，我想微调改写为：`);
                                       }}
-                                      className={cn(BTN_SOFT, 'h-7 px-2.5 text-[11px] font-medium cursor-pointer')}
+                                      className={cn(BTN_SOFT, 'h-7 px-3 text-[13px]')}
                                     >
                                       调整
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => handleIgnoreSuggestion(sug.id)}
-                                      className={cn(BTN_OUTLINE, 'h-7 px-2.5 text-[11px] font-medium cursor-pointer')}
+                                      className={cn(BTN_SOFT, 'h-7 px-3 text-[13px]')}
                                     >
                                       忽略
                                     </button>
@@ -5287,7 +5329,7 @@ return (
                                       onClick={() => handleApplySuggestion(sug.id)}
                                       className={cn(
                                         SKILL_AOP_PRIMARY_BTN,
-                                        'h-7 px-3 text-[11px] font-medium inline-flex items-center gap-1 cursor-pointer',
+                                        'h-7 px-3 rounded-md text-[13px] inline-flex items-center gap-1',
                                         isApplied && 'opacity-80 cursor-default',
                                       )}
                                     >
@@ -5570,7 +5612,7 @@ return (
                       <div
                         className={cn(
                           'flex flex-col items-end gap-2 min-w-0',
-                          isEditingBubble ? 'w-full max-w-[640px]' : 'max-w-[88%]',
+                          isEditingBubble ? 'w-2/3 max-w-[480px]' : 'max-w-[88%]',
                         )}
                       >
                         <div className="flex items-center gap-1.5 pr-0.5">
@@ -5640,42 +5682,44 @@ return (
                             </div>
                           ) : null}
                           {isEditingBubble ? (
-                            <div className="w-full flex flex-col gap-2">
-                              <div className="skill-ai-composer w-full overflow-hidden">
-                                <textarea
-                                  ref={userBubbleEditRef}
-                                  rows={4}
-                                  maxLength={1000}
-                                  value={editingUserMsgDraft}
-                                  onChange={(e) => setEditingUserMsgDraft(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Escape') {
-                                      e.preventDefault();
-                                      cancelUserBubbleEdit();
-                                      return;
-                                    }
-                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                      e.preventDefault();
-                                      commitUserBubbleEdit();
-                                    }
-                                  }}
-                                  className="w-full min-h-[88px] max-h-48 bg-transparent px-3 py-3 text-[14px] leading-[22px] text-[#181D27] outline-none resize-none placeholder:text-neutral-400"
-                                  placeholder="编辑消息内容…"
-                                  aria-label="编辑消息内容"
-                                />
-                              </div>
-                              <div className="flex items-center justify-end gap-2">
+                            <div className="skill-ai-composer relative w-full overflow-hidden">
+                              <textarea
+                                ref={userBubbleEditRef}
+                                rows={4}
+                                maxLength={1000}
+                                value={editingUserMsgDraft}
+                                onChange={(e) => setEditingUserMsgDraft(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    cancelUserBubbleEdit();
+                                    return;
+                                  }
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    commitUserBubbleEdit();
+                                  }
+                                }}
+                                className="w-full min-h-[88px] max-h-48 bg-transparent px-3 pt-3 pb-12 text-[14px] leading-[22px] text-[#181D27] outline-none resize-none placeholder:text-neutral-400"
+                                placeholder="编辑消息内容…"
+                                aria-label="编辑消息内容"
+                              />
+                              <div className="absolute bottom-3 right-3 flex items-center gap-2">
                                 <button
                                   type="button"
                                   onClick={cancelUserBubbleEdit}
-                                  className={BTN_SOFT}
+                                  className={cn(BTN_SOFT, 'h-7 px-3 text-[13px]')}
                                 >
                                   取消
                                 </button>
                                 <button
                                   type="button"
                                   onClick={commitUserBubbleEdit}
-                                  className={BTN_INK}
+                                  disabled={!editingUserMsgDraft.trim()}
+                                  className={cn(
+                                    SKILL_AOP_PRIMARY_BTN,
+                                    'h-7 px-3 rounded-md text-[13px]',
+                                  )}
                                 >
                                   发送
                                 </button>
@@ -5710,7 +5754,7 @@ return (
 
               {isAiThinking && (thinkBootLoading || thinkCotSteps.length > 0) ? (
                 <SkillThinkingCard
-                  title="深度思考"
+                  title={SKILL_CREATE_CHAT.thinkInProgress}
                   steps={thinkCotSteps}
                   isComplete={!thinkBootLoading && !thinkCotGenerating && thinkCotSteps.length > 0}
                   loading={thinkBootLoading}
@@ -5720,7 +5764,7 @@ return (
               ) : null}
               {isAiThinking && taskPlanSteps.length > 0 ? (
                 <SkillTaskPlanCard
-                  title="任务规划"
+                  title={SKILL_CREATE_CHAT.planInProgress}
                   steps={taskPlanSteps}
                   isComplete={!taskPlanGenerating && taskPlanSteps.every((s) => s.status === 'done')}
                   generating={taskPlanGenerating}
@@ -5830,7 +5874,7 @@ return (
                   }}
                   placeholder={
                     hasPendingClarify
-                      ? '请先在上方“补充信息”卡片中提交或跳过…'
+                      ? `请先在上方“${SKILL_CREATE_CHAT.clarifyTitle}”卡片中提交或跳过…`
                       : confirmEditTarget
                         ? confirmEditTarget.items.length > 1
                           ? `说明如何改写已选 ${confirmEditTarget.items.length} 条要点，发送后由 AI 更新…`
@@ -5894,7 +5938,10 @@ return (
           </div>
 
           {!rightCollapsed && (
-          <div className="flex-1 flex flex-col min-h-0 bg-[#F9F9FB] pl-3 pr-3 pt-0 pb-3 relative transition-all duration-200 select-text">
+          <div
+            id="skill-form-workspace"
+            className="flex-1 flex flex-col min-h-0 bg-[#F9F9FB] pl-3 pr-3 pt-0 pb-3 relative transition-all duration-200 select-text"
+          >
             <div className="flex-1 min-h-0 flex flex-col bg-white border border-[#E9EAEB] rounded-2xl shadow-[0_1px_4px_-1px_rgba(0,0,0,0.06)] overflow-hidden">
               {centerTab === 'editor' ? (
                 <ManusExpertFrame
@@ -6368,7 +6415,7 @@ return (
                             };
                             input.click();
                           }}
-                          className="h-7 px-3 rounded-lg border border-neutral-200 bg-white text-[11px] font-semibold text-neutral-700 hover:bg-neutral-50 transition cursor-pointer shrink-0"
+                          className={cn(BTN_SOFT, 'h-7 px-3 text-[13px] shrink-0')}
                         >
                           选择文件
                         </button>

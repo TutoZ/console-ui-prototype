@@ -59,7 +59,8 @@ import { cn } from '@/lib/utils';
 const DESIGN_SYSTEM_PATHS = ['/design-system', '/component-library', '/ds'] as const;
 
 const isDesignSystemRoute = () => {
-  if (new URLSearchParams(window.location.search).get('ds') === '1') return true;
+  const ds = new URLSearchParams(window.location.search).get('ds');
+  if (ds === '1' || ds === 'ai') return true;
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   return DESIGN_SYSTEM_PATHS.some((p) => path === p || path.endsWith(p));
 };
@@ -69,20 +70,22 @@ const shouldSkipLogin = () => {
   return params.get('skipLogin') === '1' || isDesignSystemRoute();
 };
 
-/** 友好路径归一化到 /?ds=1，便于收藏与分享 */
+/** 友好路径归一化到 /?ds=1 或保留 /?ds=ai，便于收藏与分享 */
 const useDesignSystemUrlNormalize = () => {
   useEffect(() => {
     if (!isDesignSystemRoute()) return;
-    if (new URLSearchParams(window.location.search).get('ds') === '1') return;
+    const params = new URLSearchParams(window.location.search);
+    const ds = params.get('ds');
+    if (ds === '1' || ds === 'ai') return;
 
     const { pathname, search, hash } = window.location;
     const path = pathname.replace(/\/+$/, '') || '/';
     const onFriendlyPath = DESIGN_SYSTEM_PATHS.some(
       (p) => path === p || path.endsWith(p),
     );
-    const params = new URLSearchParams(search);
-    params.set('ds', '1');
-    const qs = params.toString();
+    const next = new URLSearchParams(search);
+    next.set('ds', '1');
+    const qs = next.toString();
     const nextPath = onFriendlyPath ? '/' : pathname;
     window.history.replaceState(null, '', `${nextPath}?${qs}${hash}`);
   }, []);

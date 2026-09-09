@@ -12,8 +12,8 @@ import { cn } from '@/lib/utils';
 import {
   AI_GRADIENT_TEXT,
   AI_REWRITE_CHIP,
-  BTN_INK,
   BTN_SOFT,
+  SKILL_AOP_PRIMARY_BTN,
 } from '@/lib/ui';
 
 export async function mockSkillFieldRewrite(
@@ -274,7 +274,7 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
           <div
             ref={bubbleShellRef}
             data-skill-rewrite-bubble
-            className="fixed z-[250] rounded-[16px] bg-neutral-100 shadow-[0_4px_16px_rgba(17,17,17,0.06)] animate-in fade-in zoom-in-95 duration-150"
+            className="fixed z-[250] rounded-[16px] border border-neutral-800 bg-white shadow-[0_4px_16px_rgba(17,17,17,0.06)] animate-in fade-in zoom-in-95 duration-150"
             style={{
               top: bubbleRect.top,
               left: bubbleRect.left,
@@ -314,7 +314,7 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
                 type="button"
                 disabled={isRewriting}
                 onClick={cancelRewrite}
-                className={cn(BTN_SOFT, 'h-7 px-3 text-[12px]', isRewriting && 'opacity-50 cursor-not-allowed')}
+                className={cn(BTN_SOFT, 'h-7 px-3 text-[13px]', isRewriting && 'opacity-50 cursor-not-allowed')}
               >
                 取消
               </button>
@@ -324,7 +324,11 @@ export const SkillRewriteField: React.FC<SkillRewriteFieldProps> = ({
                 onClick={() => void submitRewrite()}
                 title={isRewriting ? '改写中' : '发送改写'}
                 aria-busy={isRewriting}
-                className={cn(BTN_INK, 'h-7 px-3 text-[12px] gap-1.5', isRewriting && 'cursor-wait')}
+                className={cn(
+                  SKILL_AOP_PRIMARY_BTN,
+                  'h-7 px-3 rounded-md text-[13px] gap-1.5 inline-flex items-center',
+                  isRewriting && 'cursor-wait',
+                )}
               >
                 {isRewriting ? <Loader2 size={13} className="animate-spin" /> : null}
                 发送

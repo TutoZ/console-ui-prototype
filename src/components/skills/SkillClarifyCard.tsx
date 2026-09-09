@@ -8,7 +8,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Pencil, Plus } from '@/lib/icons';
 import { cn } from '@/lib/utils';
-import { SKILL_AOP_PRIMARY_BTN } from '@/lib/ui';
+import { BTN_SOFT, SKILL_AOP_PRIMARY_BTN } from '@/lib/ui';
+import { SKILL_CREATE_CHAT } from '@/lib/platformTerminology';
 
 export type SkillClarifyOption = {
   id: string;
@@ -113,16 +114,16 @@ export const SkillClarifyCard: React.FC<SkillClarifyCardProps> = ({
         onClick={toggleCollapsed}
         className="w-full flex items-center justify-between px-4 py-3 border-b border-[#E9EAEB] bg-white hover:bg-neutral-50/80 transition cursor-pointer"
       >
-        <span className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#181D27]">
-          <Pencil size={14} className="text-neutral-500" />
-          补充信息
+        <span className="inline-flex items-center gap-2 text-[13px] font-semibold text-neutral-600 leading-5">
+          <Pencil size={13} className="text-neutral-500" />
+          {SKILL_CREATE_CHAT.clarifyTitle}
           {payload.submitted ? (
             <span className="h-5 px-1.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-              已提交
+              {SKILL_CREATE_CHAT.clarifySubmitted}
             </span>
           ) : payload.skipped ? (
             <span className="h-5 px-1.5 rounded text-[11px] font-semibold bg-neutral-100 text-neutral-600 border border-neutral-200">
-              已跳过
+              {SKILL_CREATE_CHAT.clarifySkipped}
             </span>
           ) : null}
         </span>
@@ -247,7 +248,7 @@ export const SkillClarifyCard: React.FC<SkillClarifyCardProps> = ({
               <button
                 type="button"
                 onClick={onSkip}
-                className="h-9 px-5 rounded-lg border border-[#E9EAEB] bg-white text-[14px] font-medium text-[#181D27] hover:bg-neutral-50 cursor-pointer"
+                className={cn(BTN_SOFT, 'h-9 px-5 text-[14px]')}
               >
                 跳过
               </button>

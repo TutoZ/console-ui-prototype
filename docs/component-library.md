@@ -5,8 +5,10 @@
 
 | 资源 | 地址 |
 |------|------|
-| 交互展台（可点、可试） | https://dist-livid-eight-15.vercel.app/?ds=1 |
-| 本地展台 | `http://127.0.0.1:5190/?ds=1` |
+| **基础组件库**展台 | https://dist-livid-eight-15.vercel.app/?ds=1 |
+| **AI 组件库**展台 | https://dist-livid-eight-15.vercel.app/?ds=ai |
+| 本地 · 基础 | `http://127.0.0.1:5190/?ds=1` |
+| 本地 · AI | `http://127.0.0.1:5190/?ds=ai` |
 | **给其他 AI 的风格转化包** | [`ai-style-kit/`](./ai-style-kit/README.md) |
 | 样式常量源码 | [`lib/ui.ts`](../lib/ui.ts) |
 | 共享组件目录 | [`src/components/common/`](../src/components/common/) |
@@ -14,6 +16,12 @@
 | 产品设计规范 | [`DESIGN.md`](../DESIGN.md) |
 
 **裁定顺序**：`lib/ui.ts` → `common/*` 共享组件 → 业务页。冲突时以展台与源码为准。
+
+展台已拆成两套：
+- **基础**（`?ds=1`）：Token、按钮、表单、导航、列表/弹窗配方等
+- **AI**（`?ds=ai`）：技能创建 / Agent Builder 对话过程（Sender、思考、规划、补充、确认等）
+
+侧栏可一键切换；直链带 hash 时请用对应 `ds`（例：`/?ds=ai#pattern-ai-confirm`）。
 
 ---
 
@@ -28,7 +36,8 @@
 | Canonical | 权威 / 默认要用的方案 |
 | Legacy | 废弃，新页面禁止再用 |
 | Live Spec | 展台上的是真实组件，不是假图 |
-| `?ds=1` | Design System，打开组件库展台的网址参数 |
+| `?ds=1` | 打开**基础**组件库展台 |
+| `?ds=ai` | 打开 **AI** 组件库展台 |
 
 ---
 
@@ -128,9 +137,10 @@ import '@joysupport/ui/styles.css';
 | 在线页工具栏 | `OnlinePageToolbar` | 列表页右上角搜索+新建 |
 | 在线页区块头 | `OnlineSectionHeader` | 列表上方小标题+说明 |
 | 表格空行 | `OnlineEmptyRow` | 表格「暂无数据」那一行 |
-| 提示输入条 | `PromptComposer` | 技能创建对话底部输入发送区（遗留） |
+| 创作 Sender | `GoalComposer` | Agent Builder / 技能落地页创作输入 |
 | 创作 Sender | `GoalComposerGhost` / `skill-ai-composer` | Agent Builder 创作输入（dongDesign Sender） |
 | 思考过程卡 | `SkillThinkingCard` | 规划/拆解中间态（Think） |
+| 补充信息卡 | `SkillClarifyCard` | 技能创建首轮反问（提交 / 跳过） |
 | 确认信息卡 | `SkillRoundConfirmCard` | 技能草案确认（确认流） |
 | 工作台全屏层 | `WorkspaceOverlay` | 盖住整页的配置/知识工作台 |
 | 处理过程折叠 | `ExecutionProcessFold` | 对话里「正在检索/调用技能」折叠条 |
@@ -258,7 +268,7 @@ import '@joysupport/ui/styles.css';
 **英文名**：`BTN_INK` / `BTN_SOFT` / `BTN_OUTLINE` / `BTN_DANGER`  
 **意思**：Button 的四种预制样式字符串（不是 React 组件，直接当 `className` 用）。
 
-**长什么样**：高度 32px（`h-8`），圆角 7px，字号 12。
+**长什么样**：标准高度 32px（`h-8`），圆角 7px，字号 12。小号高度 24px（`h-6`），字号 11，用于对话卡内 CTA。
 
 | 变体 | 中文场景 | 样子 |
 |------|----------|------|
@@ -266,6 +276,8 @@ import '@joysupport/ui/styles.css';
 | `BTN_SOFT` | 取消、次要操作 | 浅灰底 |
 | `BTN_OUTLINE` | 次要、描边风格 | 白底灰边 |
 | `BTN_DANGER` | 删除、高风险 | 白底红字红边 |
+| `BTN_*_SM` | 对话卡内小号（同上四色） | h-6 / 11px |
+| `SKILL_AOP_PRIMARY_BTN_SM` | AI 确认执行等卡内主 CTA | 黑→蓝渐变小号 |
 
 **加载态**：按钮 `disabled`，里面放 `MatrixLoader`（点阵），可写「提交中…」。不要用旋转圆环。
 
@@ -650,27 +662,19 @@ import '@joysupport/ui/styles.css';
 
 ---
 
-### 7.11 提示输入 PromptComposer
-
-**英文名**：`PromptComposer`  
-**白话**：技能创建等对话场景底部的输入组合框（不是普通单行 `FIELD`）。空内容时发送按钮禁用。
-
-展台：`#pattern-composer` · 状态：单点（遗留）  
-**新页请用** `#pattern-goal-composer`。
-
----
-
-### 7.11b 创作 Sender（GoalComposer / skill-ai-composer）
+### 7.11 创作 Sender（GoalComposer / skill-ai-composer）
 
 **英文名**：`GoalComposerGhost` + `skill-ai-composer`  
 **白话**：Agent Builder 首页与技能落地页的创作输入（dongDesign-AI **Sender**）。含 Ghost 打字机、Tab 补全、推荐芯片（只填入不跳转）、渐变发送钮。
 
-展台：`#pattern-goal-composer` · 状态：已接入  
+展台：`/?ds=ai#pattern-goal-composer` · 状态：已接入  
 规范：`DESIGN.md` §10 · `.cursor/rules/ai-product-dongdesign.mdc`
+
+> 旧 `PromptComposer` 已从 AI 展台移除；新页勿再引入。
 
 ---
 
-### 7.11c 对话气泡字阶 AI Bubble
+### 7.11b 对话气泡字阶 AI Bubble
 
 **白话**：AI / 用户气泡内文字排版（dongDesign-AI **Bubble**）。正文 `14px/22px` `#595959`；一/二/三级标题见展台。
 
@@ -687,12 +691,38 @@ import '@joysupport/ui/styles.css';
 
 ---
 
-### 7.11e 确认信息卡 SkillRoundConfirmCard
+### 7.11e 补充信息卡 SkillClarifyCard
+
+**英文名**：`SkillClarifyCard`  
+**白话**：技能创建首轮「补充信息」选择题卡；提交或跳过后折叠。问题可由 `buildSkillClarifyQuestions` 生成。
+
+| 元素 | 规范 |
+|------|------|
+| 卡标题 | 「补充信息」；角标「已提交」/「已跳过」 |
+| 主按钮 | 「提交」→ `SKILL_AOP_PRIMARY_BTN` |
+| 次按钮 | 「跳过」→ `BTN_SOFT` |
+| 文案 | `SKILL_CREATE_CHAT.clarifyTitle` / `clarifyLead` / `clarifySubmitted` / `clarifySkipped` |
+
+展台：`#pattern-ai-clarify` · 状态：已接入（待填写可交互 + 已提交折叠样例）
+
+---
+
+### 7.11f 确认信息卡 SkillRoundConfirmCard
 
 **英文名**：`SkillRoundConfirmCard`  
-**白话**：技能创建草案确认；角标用 `confirmStatusBadgeClass`。员工孵化已改为规划后直接写入，不再挂此卡。
+**白话**：技能创建对话里的「确认信息」卡：勾选要点、原位编辑、批量编辑改写、确认执行后写入右侧表单。
 
-展台：`#pattern-ai-confirm` · 状态：已接入
+| 元素 | 规范 |
+|------|------|
+| 卡标题 | 「确认信息」；完成角标「已确认」（`confirmStatusBadgeClass`） |
+| 主按钮 | 「确认执行」→ `SKILL_AOP_PRIMARY_BTN_SM`（h-6 / 11px） |
+| 次按钮 | 「批量编辑」→ `BTN_SOFT_SM` |
+| 危险 | 「删除」→ `BTN_DANGER_SM` |
+| 文案 | `SKILL_CREATE_CHAT.confirmTitle` / `confirmDone` |
+
+展台：`#pattern-ai-confirm` · 状态：已接入（待确认可交互 + 已确认折叠样例）
+
+员工孵化已改为规划后直接写入，不再挂此卡。
 
 ---
 
@@ -800,12 +830,17 @@ import '@joysupport/ui/styles.css';
 
 ## 附录 A：常量 → 展台锚点
 
-打开展台后，地址栏加 `#锚点` 可直达，例如：  
-`https://dist-livid-eight-15.vercel.app/?ds=1#atom-segmented`
+打开展台后，地址栏加 `#锚点` 可直达。**基础**与 **AI** 锚点分属不同 `ds`：
+
+- 基础例：`https://dist-livid-eight-15.vercel.app/?ds=1#atom-segmented`
+- AI 例：`https://dist-livid-eight-15.vercel.app/?ds=ai#pattern-ai-confirm`
+
+### 基础库（`?ds=1`）
 
 | 你要找的中文 | 代码 | 锚点 |
 |--------------|------|------|
 | 主/次/描边/危险按钮 | `BTN_*` | `#atom-button` |
+| 小号按钮（对话卡） | `BTN_*_SM` / `SKILL_AOP_PRIMARY_BTN_SM` | `#atom-button` |
 | 表单输入 | `FIELD` / `LABEL` | `#atom-field` |
 | 状态标签 | `badgeClass` | `#atom-tag` |
 | 筛选药片 | Chip | `#atom-chip` |
@@ -817,13 +852,22 @@ import '@joysupport/ui/styles.css';
 | 弹窗 | `Modal` | `#pattern-modal` |
 | 分页 | `ListPagination` | `#pattern-table` |
 | 加载 | `ContentBusy` | `#feedback-busy` |
-| 创作 Sender | `GoalComposer` | `#pattern-goal-composer` |
-| AI 气泡字阶 | Bubble | `#pattern-ai-bubble` |
-| 思考过程卡 | `SkillThinkingCard` | `#pattern-ai-thinking` |
-| 确认信息卡 | `SkillRoundConfirmCard` | `#pattern-ai-confirm` |
 | 在线列表壳 | `OnlinePage*` | `#pattern-online` |
 | 员工卡 | `EmployeeCardRelay` | `#pattern-employee` |
 | 市场卡 | `MarketCardRelay` | `#pattern-market` |
+
+### AI 库（`?ds=ai`）
+
+| 你要找的中文 | 代码 | 锚点 |
+|--------------|------|------|
+| 创作 Sender | `GoalComposer` | `#pattern-goal-composer` |
+| AI 气泡字阶 | Bubble | `#pattern-ai-bubble` |
+| 思考过程卡 | `SkillThinkingCard` | `#pattern-ai-thinking` |
+| 任务规划卡 | `SkillTaskPlanCard` | `#pattern-ai-task-plan` |
+| 数据收集卡 | `SkillCollectCard` | `#pattern-ai-collect` |
+| 补充信息卡 | `SkillClarifyCard` | `#pattern-ai-clarify` |
+| 确认信息卡 | `SkillRoundConfirmCard` | `#pattern-ai-confirm` |
+| 处理过程折叠 | `ExecutionProcessFold` | `#pattern-exec-fold` |
 
 ---
 
@@ -838,4 +882,4 @@ import '@joysupport/ui/styles.css';
 
 ---
 
-*本文档镜像展台完整结构，面向产品 / 设计 / 其他项目前端。交互细节以 `/?ds=1` 为准。*
+*本文档镜像展台完整结构，面向产品 / 设计 / 其他项目前端。基础交互以 `/?ds=1` 为准，AI 对话过程以 `/?ds=ai` 为准。*

@@ -10,6 +10,7 @@ import { Check, ChevronRight } from '@/lib/icons';
 import { confirmStatusBadgeClass, FIELD, FIELD_CTRL } from '@/lib/ui';
 import { cn } from '@/lib/utils';
 import type { SkillThinkStep } from '@/lib/skillStudioMock';
+import { SKILL_CREATE_CHAT } from '@/lib/platformTerminology';
 import { SkillThinkingCard } from './SkillThinkingCard';
 import {
   SkillInterviewConfirm,
@@ -91,7 +92,7 @@ export const SkillChatConfirmDock: React.FC<SkillChatConfirmDockProps> = ({
     <div className={cn('space-y-2.5', className)}>
       {thinking && (
         <SkillThinkingCard
-          title="思考过程"
+          title={SKILL_CREATE_CHAT.thinkInProgress}
           steps={thinkSteps}
           isComplete={false}
           className="!ml-0 mr-0"

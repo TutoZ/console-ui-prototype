@@ -3,11 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * 统一的卡片图标：列表行首彩色圆角方块（知识库等）。
- * - variant="soft" ：浅色渐变底 + 语义字色（**产品默认**，见 KnowledgeBasePage）
+ * - variant="soft" ：浅色渐变底 + 语义字色（按 seed）
  * - variant="solid"：饱和渐变底 + 白色字形（工作台标题等需要更强对比时）
  * - variant="ai"   ：统一墨色底板 + 白字形，不按 seed 上色（AI 能力入口）
- * 颜色按 seed 稳定派生，使同一对象始终是同一颜色（ai 除外）。
- * soft / solid 均 **无描边**。
+ * - variant="neutral"：统一浅灰底 + 灰字（列表行首默认）
+ * 颜色按 seed 稳定派生，使同一对象始终是同一颜色（ai / neutral 除外）。
+ * soft / solid / neutral 均 **无描边**。
  */
 
 import React from 'react';
@@ -63,10 +64,10 @@ const SIZES = {
 } as const;
 
 export interface CardIconProps {
-  /** 用于稳定派生颜色的种子（如 id / 名称）；variant="ai" 时不参与上色 */
+  /** 用于稳定派生颜色的种子（如 id / 名称）；variant="ai" | "neutral" 时不参与上色 */
   seed?: string;
-  /** 默认 soft，对齐员工知识列表 */
-  variant?: 'solid' | 'soft' | 'ai';
+  /** 默认 soft；列表行首推荐 neutral */
+  variant?: 'solid' | 'soft' | 'ai' | 'neutral';
   size?: keyof typeof SIZES;
   className?: string;
   children: React.ReactNode;
@@ -83,9 +84,11 @@ export const CardIcon: React.FC<CardIconProps> = ({
   const base =
     variant === 'ai'
       ? 'bg-gradient-to-br from-neutral-800 to-neutral-950 text-white shadow-sm'
-      : variant === 'solid'
-        ? `bg-gradient-to-br ${tone.solid} text-white shadow-sm`
-        : `bg-gradient-to-br ${tone.soft} shadow-none`;
+      : variant === 'neutral'
+        ? 'bg-neutral-100 text-neutral-600 shadow-none'
+        : variant === 'solid'
+          ? `bg-gradient-to-br ${tone.solid} text-white shadow-sm`
+          : `bg-gradient-to-br ${tone.soft} shadow-none`;
 
   return (
     <div

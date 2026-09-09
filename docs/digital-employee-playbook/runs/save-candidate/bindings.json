@@ -1,0 +1,76 @@
+{
+  "file": "src/design-io/SaveCandidatePreview.tsx",
+  "bindings": [
+    {
+      "slot": "context",
+      "symbol": "OnboardingWorkspaceHeader",
+      "source": "src/components/onboarding/OnboardingWorkspaceHeader.tsx",
+      "tokens": [
+        {
+          "symbol": "BTN_SOFT",
+          "placement": "component_internal"
+        }
+      ]
+    },
+    {
+      "slot": "layout",
+      "symbol": "ResizableSplitPane",
+      "source": "src/components/common/ResizableSplitPane.tsx",
+      "tokens": [
+        {
+          "symbol": "PANEL",
+          "placement": "container"
+        }
+      ]
+    },
+    {
+      "slot": "fields",
+      "symbol": "FIELD",
+      "source": "lib/ui.ts",
+      "tokens": [
+        {
+          "symbol": "FIELD",
+          "placement": "element"
+        },
+        {
+          "symbol": "LABEL",
+          "placement": "element"
+        }
+      ]
+    },
+    {
+      "slot": "save",
+      "symbol": "BTN_INK",
+      "source": "lib/ui.ts",
+      "tokens": [
+        {
+          "symbol": "BTN_INK",
+          "placement": "element"
+        }
+      ]
+    },
+    {
+      "slot": "candidate_status",
+      "symbol": "badgeClass",
+      "source": "lib/ui.ts",
+      "tokens": [
+        {
+          "symbol": "badgeClass",
+          "placement": "element"
+        }
+      ]
+    },
+    {
+      "slot": "busy",
+      "symbol": "ContentBusy",
+      "source": "src/components/common/ContentBusy.tsx",
+      "tokens": [
+        {
+          "symbol": "PANEL",
+          "placement": "container"
+        }
+      ]
+    }
+  ],
+  "note": "多行字段不使用 FIELD_CTRL；PANEL为外部容器，不声明组件内部已绑定。"
+}

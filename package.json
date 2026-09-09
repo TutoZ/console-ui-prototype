@@ -20,7 +20,14 @@
     "setup:cos": "node scripts/setup-and-deploy-cos.mjs",
     "bind:cos-domain": "node scripts/bind-cos-domain.mjs",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "design-io:plan": "python3 -B docs/digital-employee-playbook/tools/design_evaluator.py check",
+    "design-io:bindings": "node scripts/check-design-io-bindings.mjs",
+    "design-io:test": "tsx --test src/design-io/trainingState.test.ts scripts/check-design-io-bindings.test.mjs",
+    "design-io:build": "vite build --config vite.design-io.config.ts",
+    "design-io:verify": "npm run design-io:bindings && npm run design-io:typecheck && npm run design-io:test && npm run design-io:build",
+    "design-io:typecheck": "tsc --noEmit -p tsconfig.design-io.json",
+    "design-io:preview": "vite preview --config vite.design-io.config.ts --host 127.0.0.1 --port 5274 --strictPort"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

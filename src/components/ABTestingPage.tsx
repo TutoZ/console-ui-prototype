@@ -168,27 +168,37 @@ function KpiCompareCard({
   const improved = higherIsBetter ? delta < 0 : delta > 0;
   const worse = higherIsBetter ? delta > 0 : delta < 0;
   return (
-    <div className="rounded-[13px] border border-neutral-200 bg-neutral-50/50 px-3 py-2 min-w-0">
-      <div className="flex items-center justify-between gap-2 mb-1.5">
-        <p className="text-[10px] font-semibold text-neutral-600 truncate">{title}</p>
+    <div className="min-w-0 py-0.5">
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <p className="text-[10px] font-medium text-neutral-500 truncate">{title}</p>
         <span
           className={cn(
-            'text-[10px] font-bold tabular-nums shrink-0',
-            Math.abs(delta) < 0.05 ? 'text-neutral-400' : improved ? 'text-emerald-600' : worse ? 'text-rose-500' : 'text-neutral-500',
+            'text-[10px] font-semibold tabular-nums shrink-0',
+            Math.abs(delta) < 0.05
+              ? 'text-neutral-400'
+              : improved
+                ? 'text-emerald-600'
+                : worse
+                  ? 'text-rose-500'
+                  : 'text-neutral-500',
           )}
         >
           {delta > 0 ? '+' : ''}
           {delta.toFixed(1)}%
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-lg bg-white border border-sky-100 px-2 py-1.5">
-          <p className="text-[9px] font-bold text-sky-600 mb-0.5">组 A</p>
-          <p className="text-[13px] font-bold text-neutral-900 tabular-nums leading-none">{valueA}</p>
+      <div className="flex items-baseline gap-4">
+        <div className="min-w-0">
+          <p className="text-[9px] text-neutral-400 leading-none mb-0.5">组 A</p>
+          <p className="text-[13px] font-semibold text-neutral-900 tabular-nums leading-tight truncate">
+            {valueA}
+          </p>
         </div>
-        <div className="rounded-lg bg-white border border-sky-100 px-2 py-1.5">
-          <p className="text-[9px] font-bold text-sky-600 mb-0.5">组 B</p>
-          <p className="text-[13px] font-bold text-neutral-900 tabular-nums leading-none">{valueB}</p>
+        <div className="min-w-0">
+          <p className="text-[9px] text-neutral-400 leading-none mb-0.5">组 B</p>
+          <p className="text-[13px] font-semibold text-neutral-900 tabular-nums leading-tight truncate">
+            {valueB}
+          </p>
         </div>
       </div>
     </div>
@@ -588,7 +598,7 @@ export const ABTestingPage: React.FC = () => {
 
               {/* KPI */}
               {metrics && (
-                <div className="px-4 py-3 border-b border-neutral-100 shrink-0 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
+                <div className="px-4 py-3 border-b border-neutral-100 shrink-0 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-x-5 gap-y-3">
                   <KpiCompareCard title="实时接待量" valueA={metrics.sessionsA} valueB={metrics.sessionsB} delta={metrics.sessionsDelta} higherIsBetter />
                   <KpiCompareCard title="平均处理时长" valueA={metrics.timeA} valueB={metrics.timeB} delta={metrics.timeDelta} higherIsBetter={false} />
                   <KpiCompareCard title="72H 一解率" valueA={metrics.fixA} valueB={metrics.fixB} delta={metrics.fixDelta} higherIsBetter />

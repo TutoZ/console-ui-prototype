@@ -419,3 +419,27 @@ export const DEPRECATED_TERM_MAP: Record<string, string> = {
   应答结果: WORKSPACE_COPY.replyResult,
   'Agent 执行记录': WORKSPACE_COPY.workLog,
 };
+
+/**
+ * 技能创建对话 — 过程卡 / 补充卡 / 确认卡文案
+ * 规范：进行中「…中」；完成「已完成…」；时长「 · Ns」；专名用弯引号“”
+ */
+export const SKILL_CREATE_CHAT = {
+  assistantName: '技能设计助理',
+  thinkInProgress: '思考中',
+  thinkDone: '已完成思考',
+  planInProgress: '任务规划中',
+  planDone: '已完成任务规划',
+  durationSuffix: (sec: number) => (sec > 0 ? ` · ${sec}s` : ''),
+  clarifyTitle: '补充信息',
+  clarifySubmitted: '已提交',
+  clarifySkipped: '已跳过',
+  clarifyLead: '请先补充以下关键信息，也可跳过：',
+  clarifyReceived: '已根据补充信息拆解技能草案。',
+  clarifySkippedAck: '已按你的目标拆解技能草案。',
+  confirmTitle: '确认信息',
+  confirmDone: '已确认',
+  confirmPrompt: '请确认下方要点后点击“确认执行”',
+  confirmWriteHint: '确认后将写入右侧表单',
+} as const;
+

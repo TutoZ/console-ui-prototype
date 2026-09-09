@@ -82,3 +82,9 @@ python3 -B -m unittest discover -s docs/digital-employee-playbook/tools -p 'test
 ## 7. 遵从性实验
 
 对同一 Spec、同一模型与固定数据比较“整页一次生成”和“单元逐步生成”，记录原子断言通过率、首轮通过率、无来源元素数、跨域规则数、导师介入和修正轮次。两组保留相同组合用例，注明执行者与任务难度差异。当前尚未开展该实验，不能宣称已经提高多少遵从率。
+
+## 8. 实现绑定校验与运行样例
+
+`npm run design-io:bindings` 检查保存样例的真实导入路径及槽位内 JSX 引用，并区分 element、container、component_internal 的 Token 放置。组件内部校验仅为源码符号检查，不证明运行时分支或最终样式；计算样式和画面另行观察。
+
+`npm run design-io:verify` 顺序执行绑定、定向类型、11 条代码测试与独立构建。它当前只覆盖 `runs/save-candidate/bindings.json` 与 `src/design-io`，不得将命令成功当成其他功能或 G1/G2 通过。新需求需要自身绑定、测试入口和运行证据。自然语言理解由助手完成，静态路由器只核对结构化结果。

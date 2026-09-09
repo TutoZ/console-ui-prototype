@@ -5,24 +5,25 @@
  * 深度思考卡（Cot / jd-think）— 与任务规划（SkillTaskPlanCard）分离
  * https://jdesign.jd.com/x/vue/component/cot
  *
- * - loading     思考中（扫光标题）
- * - generating  正文流式输出
- * - 完成态      「已完成思考」· defaultExpanded · 段落全文
+ * - loading     扫光「思考中」
+ * - generating  先「思考中」，再正文打字机 + 标题随段落切换
+ * - 完成态      「已完成思考 · Ns」· 可折叠全文
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronUp } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import type { SkillThinkStep } from '@/lib/skillStudioMock';
+import { SKILL_CREATE_CHAT } from '@/lib/platformTerminology';
 
 export type SkillThinkingCardProps = {
   title?: string;
   steps: SkillThinkStep[];
   durationSec?: number;
   isComplete: boolean;
-  /** 生成中：渐变标题 + 正文流式 */
+  /** 生成中：正文打字机 + 渐变标题按步骤切换 */
   generating?: boolean;
-  /** 纯加载态：先于正文出现 */
+  /** 纯加载态：先于正文出现，标题取首段摘要 */
   loading?: boolean;
   /** 对齐 jd-think default-expanded；默认完成态展开 */
   defaultExpanded?: boolean;
@@ -44,13 +45,12 @@ function stepStatusHint(step: SkillThinkStep): string {
   const label = step.label?.trim() ?? '';
   if (label) return label;
   const detail = step.detail?.trim() ?? '';
-  if (!detail) return '深度思考';
-  // 取首句作中间态规划摘要
+  if (!detail) return SKILL_CREATE_CHAT.thinkInProgress;
   const first = detail.split(/[。！？\n]/)[0]?.trim() ?? '';
-  return first.slice(0, 18) || '深度思考';
+  return first.slice(0, 18) || SKILL_CREATE_CHAT.thinkInProgress;
 }
 
-/** 根据已流出字数定位当前段落 index */
+/** 根据已流出字数定位当前段落 index，驱动标题切换 */
 function activeParagraphIndex(paragraphs: string[], charCount: number): number {
   if (paragraphs.length === 0) return 0;
   if (charCount <= 0) return 0;
@@ -64,7 +64,7 @@ function activeParagraphIndex(paragraphs: string[], charCount: number): number {
 
 function GeneratingTitle({ text }: { text: string }) {
   return (
-    <span className="skill-thinking-generating-title text-[14px] font-semibold leading-[22px]">
+    <span className="skill-thinking-generating-title text-[13px] font-semibold leading-5">
       {text}
     </span>
   );
@@ -163,7 +163,7 @@ function ThinkProseBody({
 }
 
 export const SkillThinkingCard: React.FC<SkillThinkingCardProps> = ({
-  title = '深度思考',
+  title = SKILL_CREATE_CHAT.thinkInProgress,
   steps,
   durationSec = 0,
   isComplete,
@@ -220,7 +220,7 @@ export const SkillThinkingCard: React.FC<SkillThinkingCardProps> = ({
       return;
     }
 
-    // 流式：约 28～32 字/秒，贴近真实对话阅读节奏
+    // 流式打字机：正文逐字露出，标题随段落切换；与 estimateThinkStreamMs 编排对齐
     const tickMs = 36;
     const charsPerTick = 1;
     streamTimerRef.current = window.setInterval(() => {
@@ -249,20 +249,23 @@ export const SkillThinkingCard: React.FC<SkillThinkingCardProps> = ({
   );
 
   const headerTitle = useMemo(() => {
-    if (loading) {
-      // 加载态也直接用首段规划摘要，不写「思考中」
-      return statusHints[0] || title;
-    }
+    // 先扫光「思考中」，再随段落切到步骤摘要
+    if (loading) return SKILL_CREATE_CHAT.thinkInProgress;
     if (generating && !isComplete) {
-      return statusHints[activeIdx] || statusHints[0] || title;
+      const introChars = 22; // ≈0.8s，先稳住「思考中」再切换
+      if (streamedChars < introChars) return SKILL_CREATE_CHAT.thinkInProgress;
+      return statusHints[activeIdx] || statusHints[0] || SKILL_CREATE_CHAT.thinkInProgress;
     }
-    if (isComplete) return '已完成思考';
-    return title;
-  }, [loading, generating, isComplete, title, statusHints, activeIdx]);
+    if (isComplete) return SKILL_CREATE_CHAT.thinkDone;
+    return title || SKILL_CREATE_CHAT.thinkInProgress;
+  }, [loading, generating, isComplete, title, statusHints, activeIdx, streamedChars]);
 
   const showShimmerTitle = loading || (generating && !isComplete);
+  /** 加载态仅标题；生成中起打字机展示正文 */
   const showProseBody = !loading && fullLen > 0;
   const streaming = generating && !isComplete && streamedChars < fullLen;
+  const bodyCharCount = isComplete || !generating ? fullLen : streamedChars;
+  const durationText = isComplete ? SKILL_CREATE_CHAT.durationSuffix(durationSec) : '';
 
   return (
     <div className={cn('w-full min-w-0 font-sans', className)}>
@@ -270,32 +273,22 @@ export const SkillThinkingCard: React.FC<SkillThinkingCardProps> = ({
         <CardHeader open={open} onToggle={() => setOpen((v) => !v)}>
           <div className="flex min-w-0 items-center gap-2">
             {showShimmerTitle ? (
-              <GeneratingTitle text={headerTitle} />
+              <GeneratingTitle key={headerTitle} text={headerTitle} />
             ) : (
-              <span className="text-[14px] font-semibold leading-[22px] text-[#595959]">
+              <span className="text-[13px] font-semibold leading-5 text-neutral-600">
                 {headerTitle}
-                {isComplete && durationSec > 0 && (
-                  <span className="ml-1.5 text-[12px] font-normal tabular-nums text-[#B5B5B5]">
-                    · {durationSec}s
-                  </span>
-                )}
+                {durationText ? (
+                  <span className="font-normal tabular-nums text-neutral-400">{durationText}</span>
+                ) : null}
               </span>
             )}
           </div>
         </CardHeader>
 
-        {open && loading ? (
-          <div className="px-3 pb-3">
-            <p className="text-[14px] leading-[22px] text-[#8C8C8C] skill-collect-body-shimmer">
-              正在理解问题并组织推理…
-            </p>
-          </div>
-        ) : null}
-
         {open && showProseBody ? (
           <ThinkProseBody
             paragraphs={paragraphs}
-            charCount={isComplete || !generating ? fullLen : streamedChars}
+            charCount={bodyCharCount}
             showCaret={streaming}
           />
         ) : null}

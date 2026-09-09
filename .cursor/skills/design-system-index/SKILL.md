@@ -18,6 +18,8 @@ description: JoyServing 京小灵设计系统全量 Token 索引。覆盖全部 
 
 **AI 产品面外部规范**：对话气泡 / 输入框 / 思考链等对齐 [dongDesign-AI](https://jdesign.jd.com/x/vue/docs/install)（见 `.cursor/rules/ai-product-dongdesign.mdc`）。全站暖灰墨黑底盘不变；仅 AI 对话内容排版跟该规范。
 
+**展台入口**：基础组件库 `/?ds=1`；AI 组件库 `/?ds=ai`（Sender / Think / Clarify / Confirm 等）。
+
 ---
 
 ## 使用方式

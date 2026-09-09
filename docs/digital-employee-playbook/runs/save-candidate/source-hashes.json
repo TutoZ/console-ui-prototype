@@ -1,0 +1,16 @@
+{
+  "algorithm": "sha256",
+  "files": {
+    "src/design-io/SaveCandidatePreview.tsx": "64f5cfe3076f2578ac03f267edeba10a1a9eb1aebf8fda809cce8abdbb189bf7",
+    "src/design-io/trainingState.ts": "d51323b9cd8e2ec4c5f67b3cbef595af7dbffbdb3e3f71955c1279f50043120a",
+    "src/design-io/trainingState.test.ts": "b7fb814b6b0ca8aca2393bc8e614390ec942b7f2752cc27ec1abd26350a8135b",
+    "scripts/check-design-io-bindings.mjs": "1d57d313b78e7db136e2fc487df7accb0862f9c4d74aa334e8dc8a42aa50be54",
+    "scripts/check-design-io-bindings.test.mjs": "f2e4669484add8baf0d02870ea61bf544cff3d85f6ffdba63a144fd0bed13d5d",
+    "lib/ui.ts": "450db1242831f39182617e0827cfa28e6c23ea0e21a17d3fb33985494eb05599",
+    "src/components/common/PageHeader.tsx": "db5dc1013adc0d42408e7b84a4421874e78ca3c4264036e62294ea38fbb325b7",
+    "src/components/common/ResizableSplitPane.tsx": "3bbce36bb1a2a35d46c9b8d48edc69698f86bae3d99219b7024e7c17ee212c9d",
+    "src/components/common/ContentBusy.tsx": "b02508ad17ae469f32fbb1be787904a4dcdb604913a08aeda28c245935991e82",
+    "src/components/onboarding/OnboardingWorkspaceHeader.tsx": "a204f4c15d12787cfa3a79053d7ba4da94393dcc3c8151ffa86ded999dc15d90",
+    "vite.design-io.config.ts": "796ea44083dc3a6ab3b5bf5500ca77e9f58ea4d2825594e039b5f70a6b556a61"
+  }
+}

@@ -1775,7 +1775,7 @@ export function buildIntentThinkPlan(intent: string): SkillThinkPlan {
     .join('；');
 
   return {
-    title: '深度思考',
+    title: '思考中',
     totalMs: 9000 + Math.floor(Math.random() * 2400),
     steps: [
       {
@@ -1995,7 +1995,7 @@ export function buildNextQuestionThinkPlan(
   };
   const cur = map[kind];
   return {
-    title: '思考过程',
+    title: '思考中',
     totalMs: 1600 + Math.floor(Math.random() * 1200),
     steps: [
       {

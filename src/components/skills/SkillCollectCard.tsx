@@ -97,16 +97,16 @@ export const SkillCollectCard: React.FC<SkillCollectCardProps> = ({
         >
           <div className="min-w-0 flex-1 flex items-center gap-2">
             {status === 'searching' ? (
-              <span className="skill-thinking-generating-title text-[14px] font-semibold leading-[22px]">
+              <span className="skill-thinking-generating-title text-[13px] font-semibold leading-5">
                 {headerLabel}
               </span>
             ) : (
-              <span className="text-[14px] font-semibold leading-[22px] text-[#515357]">
+              <span className="text-[13px] font-semibold leading-5 text-neutral-600">
                 {headerLabel}
               </span>
             )}
             {showSummary ? (
-              <span className="inline-flex items-center gap-1 text-[14px] leading-[22px] text-[#515357] shrink-0">
+              <span className="inline-flex items-center gap-1 text-[13px] leading-5 text-neutral-500 shrink-0">
                 {summaryLabel}
               </span>
             ) : null}

@@ -13,9 +13,13 @@ import { Icon, addCollection } from '@iconify/react';
 import solarIcons from '@iconify-json/solar/icons.json';
 import {
   BTN_DANGER,
+  BTN_DANGER_SM,
   BTN_INK,
+  BTN_INK_SM,
   BTN_OUTLINE,
+  BTN_OUTLINE_SM,
   BTN_SOFT,
+  BTN_SOFT_SM,
   BTN_AI,
   BTN_AI_TEXT,
   CARD,
@@ -28,6 +32,7 @@ import {
   SELECT_TRIGGER,
   badgeClass,
   confirmStatusBadgeClass,
+  SKILL_AOP_PRIMARY_BTN_SM,
   NAV_ACTIVE_GRADIENT_TEXT,
   NAV_ACTIVE_GRADIENT_BG,
   SKILL_AOP_TINT_BG,
@@ -187,12 +192,15 @@ import {
 } from '@/components/ui/tooltip';
 import { EmployeeCardRelay } from './employees/relay/EmployeeCardRelay';
 import { MarketCardRelay } from './employees/relay/MarketCardRelay';
-import { PromptComposer } from './common/PromptComposer';
 import { HoverActionMenu } from './common/HoverActionMenu';
 import { WorkspaceOverlay } from './common/WorkspaceOverlay';
 import { SkillThinkingCard } from './skills/SkillThinkingCard';
 import { SkillTaskPlanCard } from './skills/SkillTaskPlanCard';
 import { SkillCollectCard } from './skills/SkillCollectCard';
+import {
+  SkillClarifyCard,
+  type SkillClarifyPayload,
+} from './skills/SkillClarifyCard';
 import {
   SkillRoundConfirmCard,
   type SkillConfirmItem,
@@ -208,7 +216,8 @@ import { ExecutionProcessFold } from './common/ExecutionProcessFold';
 import { MasterTemplateUpgradeBanner } from './onboarding/MasterTemplateUpgradeBanner';
 import type { ThoughtStep } from '../types';
 import type { PendingTemplateUpgrade } from '@/lib/masterTemplateUpgrade';
-import type { SkillThinkStep } from '@/lib/skillStudioMock';
+import { buildSkillClarifyQuestions, type SkillThinkStep } from '@/lib/skillStudioMock';
+import { SKILL_CREATE_CHAT } from '@/lib/platformTerminology';
 import {
   QC_APP_IMPLEMENTED_TABS,
   QC_APP_MAIN_TABS,
@@ -244,11 +253,11 @@ type NavId =
   | 'pattern-market'
   | 'pattern-modal'
   | 'pattern-table'
-  | 'pattern-composer'
   | 'pattern-ai-bubble'
   | 'pattern-ai-thinking'
   | 'pattern-ai-task-plan'
   | 'pattern-ai-collect'
+  | 'pattern-ai-clarify'
   | 'pattern-ai-confirm'
   | 'pattern-goal-composer'
   | 'pattern-hover-menu'
@@ -257,7 +266,6 @@ type NavId =
   | 'pattern-exec-fold'
   | 'pattern-split-pane'
   | 'pattern-upgrade-banner'
-  | 'index'
   | 'tpl-page-header'
   | 'tpl-list'
   | 'tpl-card'
@@ -288,11 +296,11 @@ const PLATFORM_STATUS: Partial<Record<NavId, PlatformStatus>> = {
   'pattern-header': 'single',
   'legacy-wide-nav': 'legacy',
   'pattern-banner': 'single',
-  'pattern-composer': 'single',
   'pattern-ai-bubble': 'live',
   'pattern-ai-thinking': 'live',
   'pattern-ai-task-plan': 'live',
   'pattern-ai-collect': 'live',
+  'pattern-ai-clarify': 'live',
   'pattern-ai-confirm': 'live',
   'pattern-goal-composer': 'live',
   'pattern-hover-menu': 'single',
@@ -353,29 +361,45 @@ const DS_THINK_STEPS: SkillThinkStep[] = [
   },
 ];
 
+const DS_CLARIFY_QUESTIONS = buildSkillClarifyQuestions('退换货自助 订单查询 转人工');
+
+const DS_CLARIFY_PAYLOAD: SkillClarifyPayload = {
+  questions: DS_CLARIFY_QUESTIONS,
+};
+
+const DS_CLARIFY_SUBMITTED: SkillClarifyPayload = {
+  questions: DS_CLARIFY_QUESTIONS.map((q) => ({
+    ...q,
+    selectedId: q.selectedId ?? q.options[0]?.id ?? null,
+  })),
+  submitted: true,
+  collapsed: true,
+};
+
 const DS_CONFIRM_ITEMS: SkillConfirmItem[] = [
   {
-    id: 'name',
-    label: '技能名称：延保进度查询',
+    id: 'usage',
+    label: '使用示例',
     checked: true,
-    fieldLabel: '技能名称',
-    value: '延保进度查询',
+    fieldKey: 'usageExamples',
+    fieldLabel: '使用示例',
+    value:
+      '用户：“帮我查一下延保修到哪了，单号 XB20260301。”→ 确认属进度查询，核验标识通过后进入查询步骤。\n数字员工：确认标识后说明当前环节与寄回预估；若系统无时效则如实说明并给出跟进方式。',
   },
   {
-    id: 'problem',
-    label: '业务问题：用户询问延保工单进度时给出可执行结论',
+    id: 'notes',
+    label: '补充资料',
     checked: true,
-    fieldLabel: '业务问题',
-    value: '用户询问延保工单进度时给出可执行结论',
-  },
-  {
-    id: 'forbidden',
-    label: '禁止行为：不得泄露后台接口或未授权内部信息',
-    checked: true,
-    fieldLabel: '禁止行为',
-    value: '不得泄露后台接口或未授权内部信息',
+    fieldKey: 'customNotes',
+    fieldLabel: '补充资料',
+    value: '高峰或接口延迟时，3 秒内告知用户稍候。',
   },
 ];
+
+const DS_CONFIRM_ITEMS_CONFIRMED: SkillConfirmItem[] = DS_CONFIRM_ITEMS.map((item) => ({
+  ...item,
+  checked: true,
+}));
 
 const DS_GOAL_CHIPS = ['延保进度查询', '退换货自助', '高危客诉安抚'] as const;
 
@@ -388,13 +412,6 @@ const DS_TEMPLATE_UPGRADE: PendingTemplateUpgrade = {
 type TocGroup = { groupZh: string; groupEn: string; items: TocItem[] };
 
 const TOC: TocGroup[] = [
-  {
-    groupZh: '概览',
-    groupEn: 'Overview',
-    items: [
-      { id: 'index', zh: '常量索引', en: 'Constant Index', keywords: 'BTN FIELD INDEX 索引' },
-    ],
-  },
   {
     groupZh: '页面模板',
     groupEn: 'Templates',
@@ -459,7 +476,7 @@ const TOC: TocGroup[] = [
         id: 'atom-button',
         zh: '按钮',
         en: 'Button',
-        keywords: 'BTN_INK SOFT OUTLINE DANGER BTN_AI AI色 按钮 Loading 加载 MatrixLoader',
+        keywords: 'BTN_INK SOFT OUTLINE DANGER BTN_*_SM SKILL_AOP_PRIMARY_BTN_SM BTN_AI AI色 按钮 Loading 加载 MatrixLoader',
       },
       { id: 'atom-field', zh: '表单字段', en: 'Field / Form', keywords: 'FIELD LABEL 表单 输入' },
       { id: 'atom-tag', zh: '标签', en: 'Tag', keywords: 'badge badgeClass 标签' },
@@ -541,13 +558,6 @@ const TOC: TocGroup[] = [
       { id: 'pattern-modal', zh: '弹窗', en: 'Modal', keywords: 'Modal MODAL' },
       { id: 'pattern-table', zh: '表格 / 分页', en: 'Table / Pagination', keywords: 'ListPagination table' },
       {
-        id: 'pattern-exec-fold',
-        zh: '处理过程折叠',
-        en: 'ExecutionProcessFold',
-        keywords: 'ExecutionProcessFold 对话 推理',
-        status: 'live',
-      },
-      {
         id: 'pattern-split-pane',
         zh: '可拖拽分栏',
         en: 'ResizableSplitPane',
@@ -559,49 +569,6 @@ const TOC: TocGroup[] = [
         zh: '母版升级提示',
         en: 'Upgrade Banner',
         keywords: 'MasterTemplateUpgradeBanner 上岗',
-        status: 'live',
-      },
-      { id: 'pattern-composer', zh: '提示输入', en: 'PromptComposer', keywords: 'PromptComposer 技能', status: 'single' },
-      {
-        id: 'pattern-goal-composer',
-        zh: '创作 Sender',
-        en: 'GoalComposer',
-        keywords: 'GoalComposerGhost skill-ai-composer Agent Builder dongDesign Sender',
-        status: 'live',
-      },
-      {
-        id: 'pattern-ai-bubble',
-        zh: '对话气泡字阶',
-        en: 'AI Bubble',
-        keywords: 'dongDesign Bubble 气泡 标题 正文',
-        status: 'live',
-      },
-      {
-        id: 'pattern-ai-thinking',
-        zh: '深度思考卡',
-        en: 'SkillThinkingCard',
-        keywords: 'SkillThinkingCard Think Cot 深度思考',
-        status: 'live',
-      },
-      {
-        id: 'pattern-ai-task-plan',
-        zh: '任务规划卡',
-        en: 'SkillTaskPlanCard',
-        keywords: 'SkillTaskPlanCard 任务规划 Step',
-        status: 'live',
-      },
-      {
-        id: 'pattern-ai-collect',
-        zh: '数据收集卡',
-        en: 'SkillCollectCard',
-        keywords: 'SkillCollectCard Collect 搜索和分析资料',
-        status: 'live',
-      },
-      {
-        id: 'pattern-ai-confirm',
-        zh: '确认信息卡',
-        en: 'SkillRoundConfirmCard',
-        keywords: 'SkillRoundConfirmCard confirmStatusBadge',
         status: 'live',
       },
       {
@@ -643,51 +610,94 @@ const TOC: TocGroup[] = [
   },
 ];
 
-/** 常量 → 锚点索引（P0） */
-const CONSTANT_INDEX: { name: string; href: NavId; note: string }[] = [
-  { name: 'BTN_INK', href: 'atom-button', note: '主操作墨黑' },
-  { name: 'BTN_SOFT', href: 'atom-button', note: '次级柔灰' },
-  { name: 'BTN_OUTLINE', href: 'atom-button', note: '描边白底' },
-  { name: 'BTN_DANGER', href: 'atom-button', note: '危险描边' },
-  { name: 'BTN_AI', href: 'atom-button', note: 'AI 色发送（黑→蓝）' },
-  { name: 'BTN_AI_TEXT', href: 'atom-button', note: 'AI 色文案按钮' },
-  { name: 'BTN + MatrixLoader', href: 'atom-button', note: '按钮加载态' },
-  { name: 'FIELD / LABEL', href: 'atom-field', note: '表单控件' },
-  { name: 'SEARCH_FIELD', href: 'atom-field', note: '页头搜索' },
-  { name: 'badgeClass', href: 'atom-tag', note: '语义标签' },
-  { name: 'SEGMENTED_BAR', href: 'atom-segmented', note: '分段切换' },
-  { name: 'CARD / PANEL', href: 'token-shadow', note: '卡片 / 静态面板' },
-  { name: 'Navigation', href: 'atom-underline', note: '默认 hybrid 顶栏' },
-  { name: 'PageHeader', href: 'pattern-header', note: 'Dashboard / 角色' },
-  { name: 'Modal', href: 'pattern-modal', note: '弹窗 CRUD' },
-  { name: 'PanelModal', href: 'tpl-modals', note: '480px 分区窄弹窗' },
-  { name: 'ListPagination', href: 'pattern-table', note: '列表分页' },
-  { name: 'ContentBusy', href: 'feedback-busy', note: '区块加载' },
-  { name: 'OnlinePageHeader', href: 'tpl-page-header', note: '质检计划：真实 QcPlanBoard 页头' },
-  { name: '列表布局', href: 'tpl-list', note: '员工知识：页头 + 扁平表 + 分页' },
-  { name: '卡片布局', href: 'tpl-card', note: '页头 + CARD 网格' },
-  { name: '弹窗样式', href: 'tpl-modals', note: '表单 / 确认 / 危险 / 宽屏' },
-  { name: '分层选项卡', href: 'tpl-layered-tabs', note: '智能质检：窄轨 + QC_APP_MAIN_TABS' },
-  { name: '页内子标签', href: 'tpl-dual-tabs', note: '技能页：页头 + 我的技能/市场' },
-  { name: 'OnlinePageLayout', href: 'pattern-online', note: '在线列表壳' },
-  { name: 'EmployeeCardRelay', href: 'pattern-employee', note: '员工卡' },
-  { name: 'MarketCardRelay', href: 'pattern-market', note: '市场卡' },
-  { name: 'PromptComposer', href: 'pattern-composer', note: '提示输入（技能工作台遗留）' },
-  { name: 'GoalComposer / skill-ai-composer', href: 'pattern-goal-composer', note: 'Agent Builder Sender' },
-  { name: 'SkillThinkingCard', href: 'pattern-ai-thinking', note: 'Cot / 深度思考' },
-  { name: 'SkillTaskPlanCard', href: 'pattern-ai-task-plan', note: '任务规划 Step' },
-  { name: 'SkillCollectCard', href: 'pattern-ai-collect', note: 'Collect / 数据收集' },
-  { name: 'SkillRoundConfirmCard', href: 'pattern-ai-confirm', note: '确认信息卡' },
-  { name: 'confirmStatusBadgeClass', href: 'pattern-ai-confirm', note: '确认流角标' },
-  { name: 'NAV_ACTIVE_GRADIENT_*', href: 'atom-underline', note: '激活渐变文字/底' },
-  { name: 'SKILL_AOP_*', href: 'pattern-goal-composer', note: 'AI 创作色系' },
-  { name: 'HoverActionMenu', href: 'pattern-hover-menu', note: '悬停菜单' },
-  { name: 'WorkspaceOverlay', href: 'pattern-workspace', note: '知识库全屏层' },
-  { name: 'ExecutionProcessFold', href: 'pattern-exec-fold', note: '对话处理过程' },
-  { name: 'ResizableSplitPane', href: 'pattern-split-pane', note: '员工页分栏' },
-  { name: 'MasterTemplateUpgradeBanner', href: 'pattern-upgrade-banner', note: '母版升级' },
+/** AI / dongDesign 对话与技能过程组件（独立展台 ?ds=ai） */
+const TOC_AI: TocGroup[] = [
+  {
+    groupZh: '创作输入',
+    groupEn: 'Composer',
+    items: [
+      {
+        id: 'pattern-goal-composer',
+        zh: '创作 Sender',
+        en: 'GoalComposer',
+        keywords: 'GoalComposerGhost skill-ai-composer Agent Builder dongDesign Sender',
+        status: 'live',
+      },
+    ],
+  },
+  {
+    groupZh: '对话过程',
+    groupEn: 'Dialogue',
+    items: [
+      {
+        id: 'pattern-ai-bubble',
+        zh: '对话气泡字阶',
+        en: 'AI Bubble',
+        keywords: 'dongDesign Bubble 气泡 标题 正文',
+        status: 'live',
+      },
+      {
+        id: 'pattern-ai-thinking',
+        zh: '深度思考卡',
+        en: 'SkillThinkingCard',
+        keywords: 'SkillThinkingCard Think Cot 思考中',
+        status: 'live',
+      },
+      {
+        id: 'pattern-ai-task-plan',
+        zh: '任务规划卡',
+        en: 'SkillTaskPlanCard',
+        keywords: 'SkillTaskPlanCard 任务规划 Step',
+        status: 'live',
+      },
+      {
+        id: 'pattern-ai-collect',
+        zh: '数据收集卡',
+        en: 'SkillCollectCard',
+        keywords: 'SkillCollectCard Collect 搜索和分析资料',
+        status: 'live',
+      },
+      {
+        id: 'pattern-ai-clarify',
+        zh: '补充信息卡',
+        en: 'SkillClarifyCard',
+        keywords:
+          'SkillClarifyCard 补充信息 提交 跳过 SKILL_CREATE_CHAT SKILL_AOP_PRIMARY_BTN BTN_SOFT',
+        status: 'live',
+      },
+      {
+        id: 'pattern-ai-confirm',
+        zh: '确认信息卡',
+        en: 'SkillRoundConfirmCard',
+        keywords:
+          'SkillRoundConfirmCard 确认信息 确认执行 批量编辑 confirmStatusBadge SKILL_AOP_PRIMARY_BTN_SM BTN_SOFT_SM',
+        status: 'live',
+      },
+      {
+        id: 'pattern-exec-fold',
+        zh: '处理过程折叠',
+        en: 'ExecutionProcessFold',
+        keywords: 'ExecutionProcessFold 对话 推理',
+        status: 'live',
+      },
+    ],
+  },
 ];
 
+/** AI 展台锚点（用于分区显隐） */
+const AI_SECTION_IDS = new Set<NavId>(
+  TOC_AI.flatMap((g) => g.items.map((i) => i.id)),
+);
+
+type LibraryKind = 'base' | 'ai';
+
+function readLibraryKind(): LibraryKind {
+  return new URLSearchParams(window.location.search).get('ds') === 'ai' ? 'ai' : 'base';
+}
+
+function defaultTocId(kind: LibraryKind): NavId {
+  return kind === 'ai' ? 'pattern-goal-composer' : 'tpl-page-header';
+}
 type ColorSwatch = {
   zh: string;
   en: string;
@@ -1305,15 +1315,17 @@ type TplModalKind = 'form' | 'confirm' | 'danger' | 'large' | 'info';
 
 
 const TOC_BY_ID: Record<NavId, TocItem> = Object.fromEntries(
-  TOC.flatMap((g) => g.items.map((item) => [item.id, item])),
+  [...TOC, ...TOC_AI].flatMap((g) => g.items.map((item) => [item.id, item])),
 ) as Record<NavId, TocItem>;
+
+const LibraryKindContext = React.createContext<LibraryKind>('base');
 
 function PlatformStatusBadge({ status }: { status: PlatformStatus }) {
   const meta = STATUS_META[status];
   return <span className={badgeClass(meta.tone)}>{meta.zh}</span>;
 }
 
-/** 分区标题：与侧栏 TOC 同源 */
+/** 分区标题：与侧栏 TOC 同源；按基础 / AI 展台显隐 */
 function Section({
   id,
   source: _source,
@@ -1332,13 +1344,17 @@ function Section({
   donts?: string[];
   children: React.ReactNode;
 }) {
+  const libraryKind = React.useContext(LibraryKindContext);
+  const isAiSection = AI_SECTION_IDS.has(id);
+  if (libraryKind === 'ai' ? !isAiSection : isAiSection) return null;
+
   const toc = TOC_BY_ID[id];
-  const platformStatus = status ?? toc.status ?? PLATFORM_STATUS[id];
+  const platformStatus = status ?? toc?.status ?? PLATFORM_STATUS[id];
   return (
     <section id={id} className="scroll-mt-8 mb-14 last:mb-6">
       <header className="mb-4 max-w-3xl">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <h2 className="text-[17px] font-semibold text-neutral-900 tracking-tight">{toc.zh}</h2>
+          <h2 className="text-[17px] font-semibold text-neutral-900 tracking-tight">{toc?.zh ?? id}</h2>
           {platformStatus ? <PlatformStatusBadge status={platformStatus} /> : null}
         </div>
         {desc ? (
@@ -1518,6 +1534,7 @@ function BtnLoading({
 
 export const ComponentLibraryPage: React.FC = () => {
   const { showToast } = useApp();
+  const [libraryKind, setLibraryKind] = useState<LibraryKind>(() => readLibraryKind());
   const [seg, setSeg] = useState('employees');
   const [chip, setChip] = useState('24h');
   const [page, setPage] = useState(1);
@@ -1530,11 +1547,13 @@ export const ComponentLibraryPage: React.FC = () => {
   );
   const [fieldDemoValue, setFieldDemoValue] = useState('售后政策库');
   const fieldDemoRef = React.useRef<HTMLInputElement>(null);
-  const [activeToc, setActiveToc] = useState<NavId>('index');
+  const [activeToc, setActiveToc] = useState<NavId>(() => defaultTocId(readLibraryKind()));
   const [tocQuery, setTocQuery] = useState('');
-  const [promptValue, setPromptValue] = useState('');
   const [goalGhostTip, setGoalGhostTip] = useState(0);
   const [dsConfirmItems, setDsConfirmItems] = useState(DS_CONFIRM_ITEMS);
+  const [dsConfirmEditingIds, setDsConfirmEditingIds] = useState<string[]>([]);
+  const [dsConfirmConfirmed, setDsConfirmConfirmed] = useState(false);
+  const [dsClarifyPayload, setDsClarifyPayload] = useState<SkillClarifyPayload>(DS_CLARIFY_PAYLOAD);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [permOn, setPermOn] = useState(true);
   const [tplStatus, setTplStatus] = useState<TplStatusKey>('all');
@@ -1545,21 +1564,62 @@ export const ComponentLibraryPage: React.FC = () => {
   const [tplModal, setTplModal] = useState<TplModalKind | null>(null);
   const [panelModalOpen, setPanelModalOpen] = useState(false);
 
-  const filteredToc = useMemo(() => {
-    const q = tocQuery.trim().toLowerCase();
-    if (!q) return TOC;
-    return TOC.map((group) => ({
-      ...group,
-      items: group.items.filter((item) => {
-        const hay =
-          `${item.zh} ${item.en} ${group.groupZh} ${group.groupEn} ${item.keywords ?? ''} ${item.id}`.toLowerCase();
-        return hay.includes(q);
-      }),
-    })).filter((g) => g.items.length > 0);
-  }, [tocQuery]);
+  const activeTocGroups = libraryKind === 'ai' ? TOC_AI : TOC;
+
+  const switchLibrary = (kind: LibraryKind) => {
+    if (kind === libraryKind) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('ds', kind === 'ai' ? 'ai' : '1');
+    const nextId = defaultTocId(kind);
+    url.hash = nextId;
+    window.history.pushState(null, '', url.toString());
+    setLibraryKind(kind);
+    setActiveToc(nextId);
+    setTocQuery('');
+  };
 
   useEffect(() => {
-    const ids = TOC.flatMap((g) => g.items.map((i) => i.id));
+    const onPopState = () => {
+      const next = readLibraryKind();
+      setLibraryKind(next);
+      setActiveToc(defaultTocId(next));
+      setTocQuery('');
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  /** 错库 hash（如 ?ds=1#pattern-ai-confirm）纠正到当前库首页 */
+  useEffect(() => {
+    const hash = window.location.hash.replace(/^#/, '') as NavId;
+    if (!hash) return;
+    const isAiHash = AI_SECTION_IDS.has(hash);
+    if (libraryKind === 'ai' ? !isAiHash : isAiHash) {
+      const nextId = defaultTocId(libraryKind);
+      const url = new URL(window.location.href);
+      url.hash = nextId;
+      window.history.replaceState(null, '', url.toString());
+      setActiveToc(nextId);
+    }
+  }, [libraryKind]);
+
+  const filteredToc = useMemo(() => {
+    const q = tocQuery.trim().toLowerCase();
+    if (!q) return activeTocGroups;
+    return activeTocGroups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => {
+          const hay =
+            `${item.zh} ${item.en} ${group.groupZh} ${group.groupEn} ${item.keywords ?? ''} ${item.id}`.toLowerCase();
+          return hay.includes(q);
+        }),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [tocQuery, activeTocGroups]);
+
+  useEffect(() => {
+    const ids = activeTocGroups.flatMap((g) => g.items.map((i) => i.id));
     const nodes = ids
       .map((id) => document.getElementById(id))
       .filter((n): n is HTMLElement => Boolean(n));
@@ -1572,7 +1632,7 @@ export const ComponentLibraryPage: React.FC = () => {
     );
     nodes.forEach((n) => io.observe(n));
     return () => io.disconnect();
-  }, []);
+  }, [activeTocGroups]);
 
   const pageItems = useMemo(() => Array.from({ length: 36 }, (_, i) => i + 1), []);
 
@@ -1588,18 +1648,28 @@ export const ComponentLibraryPage: React.FC = () => {
   }, [tplStatus, tplSearch]);
 
   return (
+    <LibraryKindContext.Provider value={libraryKind}>
     <div className="flex h-screen w-screen overflow-hidden bg-neutral-50 text-neutral-800 font-sans text-xs antialiased">
       <aside className="w-[220px] shrink-0 border-r border-neutral-200 bg-white overflow-y-auto custom-scrollbar">
         <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm px-4 pt-5 pb-3 border-b border-neutral-200/80 space-y-3">
           <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded-[7px] bg-neutral-800 text-white text-[11px] font-bold grid place-items-center shrink-0">
-              京
+            <div
+              className={cn(
+                'h-7 w-7 rounded-[7px] text-white text-[11px] font-bold grid place-items-center shrink-0',
+                libraryKind === 'ai'
+                  ? 'bg-[linear-gradient(135deg,#000000_0%,#1565BF_100%)]'
+                  : 'bg-neutral-800',
+              )}
+            >
+              {libraryKind === 'ai' ? 'AI' : '京'}
             </div>
             <div className="min-w-0">
               <div className="text-[13px] font-bold text-neutral-900 tracking-tight truncate">
                 JoySupport
               </div>
-              <p className="text-[10px] text-neutral-400 mt-0.5 truncate">组件库 · ?ds=1</p>
+              <p className="text-[10px] text-neutral-400 mt-0.5 truncate">
+                {libraryKind === 'ai' ? 'AI 组件库 · ?ds=ai' : '基础组件库 · ?ds=1'}
+              </p>
               <a
                 href="/"
                 className="inline-block mt-1 text-[10px] font-medium text-live hover:underline"
@@ -1607,6 +1677,32 @@ export const ComponentLibraryPage: React.FC = () => {
                 返回产品
               </a>
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-1 p-0.5 rounded-[10px] bg-neutral-100">
+            <button
+              type="button"
+              onClick={() => switchLibrary('base')}
+              className={cn(
+                'h-7 rounded-[8px] text-[11px] font-medium transition cursor-pointer',
+                libraryKind === 'base'
+                  ? 'bg-white text-neutral-900 shadow-sm'
+                  : 'text-neutral-500 hover:text-neutral-700',
+              )}
+            >
+              基础
+            </button>
+            <button
+              type="button"
+              onClick={() => switchLibrary('ai')}
+              className={cn(
+                'h-7 rounded-[8px] text-[11px] font-medium transition cursor-pointer',
+                libraryKind === 'ai'
+                  ? 'bg-white text-neutral-900 shadow-sm'
+                  : 'text-neutral-500 hover:text-neutral-700',
+              )}
+            >
+              AI
+            </button>
           </div>
           <div className="relative">
             <Search
@@ -1616,7 +1712,7 @@ export const ComponentLibraryPage: React.FC = () => {
             <input
               value={tocQuery}
               onChange={(e) => setTocQuery(e.target.value)}
-              placeholder="搜索…"
+              placeholder={libraryKind === 'ai' ? '搜索 AI 组件…' : '搜索…'}
               className={cn(FIELD, FIELD_CTRL, 'pl-8 text-[11px] h-7')}
             />
           </div>
@@ -1676,62 +1772,10 @@ export const ComponentLibraryPage: React.FC = () => {
       <main className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
         <div className="max-w-[1040px] mx-auto px-6 sm:px-8 py-7 sm:py-9">
           <header className="mb-10 pb-7 border-b border-neutral-200/80">
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <span className={badgeClass('ink')}>权威源</span>
-              <span className={badgeClass('neutral')}>lib/ui.ts</span>
-              <span className={badgeClass('live')}>真组件展台</span>
-            </div>
             <h1 className="text-[28px] font-bold text-neutral-900 tracking-tight leading-tight">
-              JoySupport 组件库
+              {libraryKind === 'ai' ? 'JoySupport AI 组件库' : 'JoySupport 基础组件库'}
             </h1>
-            <p className="mt-2.5 max-w-2xl text-[13px] text-neutral-500 leading-relaxed">
-              京小灵设计系统展台。展品来自生产代码，裁定顺序为
-              <code className="mx-1 px-1 py-0.5 rounded bg-neutral-100 text-neutral-700 text-[11px]">
-                lib/ui.ts
-              </code>
-              →
-              <code className="mx-1 px-1 py-0.5 rounded bg-neutral-100 text-neutral-700 text-[11px]">
-                common/*
-              </code>
-              → 业务页。与 skill 文档冲突时，以本页与源码为准。
-            </p>
           </header>
-
-        <Section
-          id="index"
-          source="lib/ui.ts → 锚点"
-          desc="从常量名跳到对应展台。侧栏也可搜索。"
-        >
-          <SpecPanel className="p-0 overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-neutral-50 border-b border-neutral-200 text-[10px] text-neutral-400">
-                  <th className="px-4 py-2.5 font-semibold"><BiLabel zh="常量 / 组件" en="Token" /></th>
-                  <th className="px-4 py-2.5 font-semibold"><BiLabel zh="用途" en="Usage" /></th>
-                  <th className="px-4 py-2.5 font-semibold text-right"><BiLabel zh="跳转" en="Go" /></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {CONSTANT_INDEX.map((row) => (
-                  <tr key={row.name} className="hover:bg-neutral-50/70">
-                    <td className="px-4 py-2.5 font-mono text-[11px] font-semibold text-neutral-800">
-                      {row.name}
-                    </td>
-                    <td className="px-4 py-2.5 text-[11px] text-neutral-500">{row.note}</td>
-                    <td className="px-4 py-2.5 text-right">
-                      <a
-                        href={`#${row.href}`}
-                        className="text-[11px] font-medium text-live hover:underline"
-                      >
-                        查看
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </SpecPanel>
-        </Section>
 
         {/* ── Page templates ── */}
         <Section
@@ -2667,18 +2711,19 @@ export const ComponentLibraryPage: React.FC = () => {
         {/* ── Atom ── */}
         <Section
           id="atom-button"
-          source="主按钮 / 次级 / 描边 / 危险 / AI色 · 加载=禁用+圆环"
-          desc="悬停态按源码模拟（主按钮 opacity-90 等）。加载态：禁用 + 内嵌圆环加载（14），可选文案“提交中…”。AI 色为黑→#1565BF 渐变，用于创作发送。"
+          source="主按钮 / 次级 / 描边 / 危险 / 小号 / AI色 · 加载=禁用+圆环"
+          desc="默认 h-8；小号 *_SM 为 h-6 / 11px，用于对话卡内 CTA（如确认执行）。悬停态按源码模拟。AI 色为黑→#1565BF 渐变。"
           dos={[
             '主操作：主按钮（墨黑）',
             '取消：次级或描边',
             '危险操作：危险按钮',
+            '对话卡内 CTA：小号（BTN_*_SM / SKILL_AOP_PRIMARY_BTN_SM）',
             'AI 创作/发送：AI 色按钮（BTN_AI）',
             '加载中必须禁用，用圆环加载动画',
           ]}
           donts={[
             '业务主 CTA 不要用蓝色实心（用墨黑）',
-            '不要自造圆角/高度（保持 h-8 / 7px；AI 发送为 36×36）',
+            '不要自造圆角/高度（保持 h-8 / 7px；小号 h-6；AI 发送为 36×36）',
             '不要用 CSS border 圆环替代加载组件',
           ]}
         >
@@ -2701,6 +2746,11 @@ export const ComponentLibraryPage: React.FC = () => {
                     ['次级按钮', 'BTN_SOFT', BTN_SOFT, '取消', false, false],
                     ['描边按钮', 'BTN_OUTLINE', BTN_OUTLINE, '培训', false, false],
                     ['危险按钮', 'BTN_DANGER', BTN_DANGER, '删除', false, false],
+                    ['主按钮 · 小号', 'BTN_INK_SM', BTN_INK_SM, '确定', true, false],
+                    ['次级 · 小号', 'BTN_SOFT_SM', BTN_SOFT_SM, '取消', false, false],
+                    ['描边 · 小号', 'BTN_OUTLINE_SM', BTN_OUTLINE_SM, '培训', false, false],
+                    ['危险 · 小号', 'BTN_DANGER_SM', BTN_DANGER_SM, '删除', false, false],
+                    ['AI 主 CTA · 小号', 'SKILL_AOP_PRIMARY_BTN_SM', SKILL_AOP_PRIMARY_BTN_SM, '确认执行', true, false],
                     ['AI 发送', 'BTN_AI', BTN_AI, null, true, true],
                     ['AI 文案', 'BTN_AI_TEXT', BTN_AI_TEXT, '开始创作', true, false],
                   ] as const
@@ -3654,26 +3704,6 @@ export const ComponentLibraryPage: React.FC = () => {
         </Section>
 
         <Section
-          id="pattern-composer"
-          source="common/PromptComposer · SkillCreateWorkspace"
-          desc="遗留：仅技能创建工作台少量场景。新创作入口请用下方「创作 Sender」（Agent Builder / skill-ai-composer）。"
-          dos={['兼容旧技能工作台', '空内容禁用发送']}
-          donts={['新页不要再引入 PromptComposer', '不要用普通 FIELD 代替 Composer']}
-        >
-          <SpecStage className="max-w-xl">
-            <PromptComposer
-              value={promptValue}
-              onChange={setPromptValue}
-              onSubmit={() => {
-                showToast('已发送提示', 'success');
-                setPromptValue('');
-              }}
-              placeholder="描述你希望数字员工掌握的技能…"
-            />
-          </SpecStage>
-        </Section>
-
-        <Section
           id="pattern-goal-composer"
           source="GoalComposerGhost · skill-ai-composer · PlatformHomePage"
           desc="dongDesign-AI Sender：Agent Builder 与技能落地页创作输入。Ghost 打字机 + Tab 补全；发送钮用 SKILL_AOP_SEND_BTN / NAV_ACTIVE_GRADIENT_BG。"
@@ -3763,16 +3793,35 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section
           id="pattern-ai-thinking"
           source="skills/SkillThinkingCard · jd-think"
-          desc="dongDesign-AI Cot / 深度思考：思考中流式输出 → 完成「已完成思考」后自动收起。与任务规划卡分离。"
-          dos={['正文流式吐字', '顶栏显示规划摘要', '完成后自动收起，可再点开']}
-          donts={['不要用本卡做任务 Step 列表', '不要用 Collect 卡替代 Cot', '正文不要重复顶栏标题']}
+          desc="dongDesign-AI Cot / 思考：加载扫光 → 生成中正文打字机 + 标题随段落切换 → 完成「已完成思考 · Ns」。与任务规划卡分离。"
+          dos={['生成中打字机露出正文', '标题随段落摘要切换', '完成态「已完成思考 · Ns」']}
+          donts={['不要用本卡做任务 Step 列表', '不要用 Collect 卡替代 Cot', '不要混用“深度思考/思考过程”等多套叫法']}
         >
           <SpecStage className="max-w-[720px] space-y-3">
             <SkillThinkingCard
-              title="深度思考"
-              steps={[]}
+              title="思考中"
+              steps={[
+                {
+                  id: 'd0',
+                  label: '先总结用户想做成的能力',
+                  detail: '把场景边界、触发条件与产出格式想清楚。',
+                  status: 'pending',
+                },
+                {
+                  id: 'd1',
+                  label: '再看写入四张表单前还缺什么',
+                  detail: '优先看触发边界是否要收紧。',
+                  status: 'pending',
+                },
+                {
+                  id: 'd2',
+                  label: '思路收束',
+                  detail: '先澄清关键信息，再进入任务规划。',
+                  status: 'pending',
+                },
+              ]}
               isComplete={false}
-              loading
+              generating
             />
             <SkillThinkingCard
               title="已完成思考"
@@ -3802,9 +3851,9 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section
           id="pattern-ai-task-plan"
           source="skills/SkillTaskPlanCard"
-          desc="任务规划卡：Step 列表 + 执行进度。完成态标题「N/N 任务已完成」。出现在深度思考之后。"
-          dos={['与 Cot 分卡展示', '执行中默认展开', '完成可收起']}
-          donts={['不要用 Cot 段落代替 Step', '不要一上来就任务规划（先 Collect / Think）']}
+          desc="任务规划卡：进行中仅扫光「任务规划中」；完成「已完成任务规划 · Ns」。出现在思考之后。"
+          dos={['与思考分卡展示', '进行中仅扫光', '完成可展开 Step']}
+          donts={['不要用思考段落代替 Step', '不要一上来就任务规划（先 Collect / 思考）']}
         >
           <SpecStage className="max-w-[720px] space-y-3">
             <SkillTaskPlanCard
@@ -3865,28 +3914,137 @@ export const ComponentLibraryPage: React.FC = () => {
         </Section>
 
         <Section
+          id="pattern-ai-clarify"
+          source="skills/SkillClarifyCard · SKILL_CREATE_CHAT · buildSkillClarifyQuestions"
+          desc="技能创建首轮「补充信息」卡：多题单选、可添加自定义项；提交或跳过后折叠。文案走 SKILL_CREATE_CHAT（补充信息 / 已提交 / 已跳过）。"
+          dos={[
+            '标题用「补充信息」',
+            '主按钮「提交」用 SKILL_AOP_PRIMARY_BTN',
+            '「跳过」用 BTN_SOFT',
+            '必填题未选齐时提交禁用',
+          ]}
+          donts={['不要与确认信息卡混用', '跳过不要做成危险色']}
+        >
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 max-w-[960px]">
+            <SpecStage className="max-w-none">
+              <p className="mb-2 text-[11px] text-neutral-500">
+                待填写 · 引导语：「{SKILL_CREATE_CHAT.clarifyLead}」
+              </p>
+              <SkillClarifyCard
+                payload={dsClarifyPayload}
+                onChange={setDsClarifyPayload}
+                onSubmit={(next) => {
+                  setDsClarifyPayload(next);
+                  showToast('演示：已提交补充信息', 'success');
+                }}
+                onSkip={() => {
+                  setDsClarifyPayload({
+                    ...dsClarifyPayload,
+                    skipped: true,
+                    submitted: false,
+                    collapsed: true,
+                  });
+                  showToast('演示：已跳过补充信息', 'info');
+                }}
+              />
+              {dsClarifyPayload.submitted || dsClarifyPayload.skipped ? (
+                <button
+                  type="button"
+                  className={cn(BTN_SOFT, 'mt-2 h-7 px-3 text-[13px]')}
+                  onClick={() => setDsClarifyPayload(DS_CLARIFY_PAYLOAD)}
+                >
+                  重置为待填写
+                </button>
+              ) : null}
+            </SpecStage>
+            <SpecStage className="max-w-none">
+              <p className="mb-2 text-[11px] text-neutral-500">已提交 · 默认折叠可展开回看</p>
+              <SkillClarifyCard
+                payload={DS_CLARIFY_SUBMITTED}
+                onChange={() => undefined}
+                onSubmit={() => undefined}
+                onSkip={() => undefined}
+              />
+            </SpecStage>
+          </div>
+        </Section>
+
+        <Section
           id="pattern-ai-confirm"
-          source="skills/SkillRoundConfirmCard · confirmStatusBadgeClass"
-          desc="技能创建确认流：勾选 / 原位编辑 / 批量改写。员工孵化已改为规划后直接写入，不再出此卡。"
-          dos={['角标用 confirmStatusBadgeClass', '确认后写入右侧表单', '主按钮 SKILL_AOP_PRIMARY_BTN']}
-          donts={['员工孵化不要再挂确认卡', '不要用 badgeClass 代替确认角标']}
+          source="skills/SkillRoundConfirmCard · confirmStatusBadgeClass · SKILL_CREATE_CHAT"
+          desc="技能创建对话「确认信息」卡：要点勾选 / 原位编辑 / 批量编辑改写 / 确认执行。卡内 CTA 用小号：主=SKILL_AOP_PRIMARY_BTN_SM，次级=BTN_SOFT_SM，危险=BTN_DANGER_SM（h-6 / 11px）。"
+          dos={[
+            '标题用「确认信息」，完成角标「已确认」',
+            '主按钮「确认执行」用 SKILL_AOP_PRIMARY_BTN_SM',
+            '「批量编辑」用 BTN_SOFT_SM；删除用 BTN_DANGER_SM',
+            '角标用 confirmStatusBadgeClass，不用 badgeClass',
+          ]}
+          donts={[
+            '主按钮不要用 BTN_INK 纯黑替代渐变 PRIMARY',
+            '不要用 badgeClass 代替确认角标',
+            '员工孵化不要再挂确认卡（规划后直接写入）',
+          ]}
         >
           <div className="flex flex-wrap gap-2 mb-3">
             <span className={confirmStatusBadgeClass('pending')}>待确认</span>
             <span className={confirmStatusBadgeClass('confirmedSoft')}>已确认</span>
             <span className={confirmStatusBadgeClass('confirmed')}>已确认</span>
           </div>
-          <SpecStage className="max-w-md">
-            <SkillRoundConfirmCard
-              title="请确认技能草案要点"
-              items={dsConfirmItems}
-              onConfirm={(items) => {
-                setDsConfirmItems(items);
-                showToast('演示：已确认要点', 'success');
-              }}
-              onItemsChange={setDsConfirmItems}
-            />
-          </SpecStage>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 max-w-[960px]">
+            <SpecStage className="max-w-none">
+              <p className="mb-2 text-[11px] text-neutral-500">待确认 · 可点「确认执行 / 批量编辑」</p>
+              <SkillRoundConfirmCard
+                title="请确认本轮变更要点"
+                items={dsConfirmItems}
+                confirmed={dsConfirmConfirmed}
+                editingItemIds={dsConfirmEditingIds}
+                onConfirm={(items) => {
+                  setDsConfirmItems(items);
+                  setDsConfirmConfirmed(true);
+                  setDsConfirmEditingIds([]);
+                  showToast('演示：已确认要点', 'success');
+                }}
+                onEditItem={(item) => {
+                  setDsConfirmEditingIds((prev) =>
+                    prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id],
+                  );
+                }}
+                onBatchModeChange={(active) => {
+                  if (!active) setDsConfirmEditingIds([]);
+                }}
+                onItemsChange={setDsConfirmItems}
+                onDelete={() => {
+                  setDsConfirmItems(DS_CONFIRM_ITEMS);
+                  setDsConfirmConfirmed(false);
+                  setDsConfirmEditingIds([]);
+                  showToast('演示：已重置确认卡', 'info');
+                }}
+              />
+              {dsConfirmConfirmed ? (
+                <button
+                  type="button"
+                  className={cn(BTN_SOFT, 'mt-2 h-7 px-3 text-[13px]')}
+                  onClick={() => {
+                    setDsConfirmItems(DS_CONFIRM_ITEMS);
+                    setDsConfirmConfirmed(false);
+                    setDsConfirmEditingIds([]);
+                  }}
+                >
+                  重置为待确认
+                </button>
+              ) : null}
+            </SpecStage>
+            <SpecStage className="max-w-none">
+              <p className="mb-2 text-[11px] text-neutral-500">已确认 · 默认折叠可展开回看</p>
+              <SkillRoundConfirmCard
+                title="请确认本轮变更要点"
+                items={DS_CONFIRM_ITEMS_CONFIRMED}
+                confirmed
+                collapsed
+                onConfirm={() => undefined}
+              />
+            </SpecStage>
+          </div>
         </Section>
 
         <Section
@@ -4241,9 +4399,7 @@ export const ComponentLibraryPage: React.FC = () => {
       <Modal
         open={tplModal === 'danger'}
         onClose={() => setTplModal(null)}
-        icon={<Trash2 size={16} />}
         title="删除质检计划"
-        description="删除后不可恢复，关联的抽检结果将一并移除。"
         footer={
           <>
             <button type="button" className={BTN_SOFT} onClick={() => setTplModal(null)}>
@@ -4366,5 +4522,6 @@ export const ComponentLibraryPage: React.FC = () => {
         </div>
       </WorkspaceOverlay>
     </div>
+    </LibraryKindContext.Provider>
   );
 };

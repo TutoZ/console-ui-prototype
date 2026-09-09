@@ -223,7 +223,7 @@ export const KnowledgeBasePage: React.FC = () => {
                   >
                     <td className={onlineTableClass.tdFirst}>
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <CardIcon seed={kb.id} size="sm" variant="soft">
+                        <CardIcon seed={kb.id} size="sm" variant="neutral">
                           {kb.firstChar}
                         </CardIcon>
                         <span className="font-semibold text-neutral-900 truncate">{kb.name}</span>
@@ -236,16 +236,6 @@ export const KnowledgeBasePage: React.FC = () => {
                     <td className={cn(onlineTableClass.td, 'text-neutral-500')}>{kb.updatedAt}</td>
                     <td className={onlineTableClass.tdLast}>
                       <div className="inline-flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveKBId(kb.id);
-                            setUploadedMsgs(null);
-                          }}
-                          className="text-[11px] font-semibold text-live hover:underline cursor-pointer"
-                        >
-                          上传
-                        </button>
                         <button
                           type="button"
                           onClick={() => openRenameModal(kb.id, kb.name)}

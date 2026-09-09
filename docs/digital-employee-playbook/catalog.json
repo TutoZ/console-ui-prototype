@@ -461,7 +461,7 @@
   "sources": {
     "DESIGN.md": "ade7bbbafaca62780369a90aa06e75b4230bec49b6d4c1586e18e31e7d8d5bde",
     "lib/navDomain.ts": "3d2da40d963bab8fb68aa74537e9c867dcb42a3942e5c3dfb43fa3eb2031dc64",
-    "lib/platformTerminology.ts": "4fbc2aa50d9397241f76b39d797d56cff813e74a89c8dac935425a41a83a1262",
+    "lib/platformTerminology.ts": "c48ef270ca6ef6c1ee079a630cafcc7c4c2b989d611289f219cce48bc39e4a17",
     "lib/ui.ts": "450db1242831f39182617e0827cfa28e6c23ea0e21a17d3fb33985494eb05599",
     "src/components/common/ContentBusy.tsx": "b02508ad17ae469f32fbb1be787904a4dcdb604913a08aeda28c245935991e82",
     "src/components/common/PageHeader.tsx": "db5dc1013adc0d42408e7b84a4421874e78ca3c4264036e62294ea38fbb325b7",

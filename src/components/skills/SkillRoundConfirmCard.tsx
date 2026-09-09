@@ -10,7 +10,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, FileText, Pencil, Plus, Trash2 } from '@/lib/icons';
 import { cn } from '@/lib/utils';
-import { BTN_DANGER, BTN_SOFT, confirmStatusBadgeClass, SKILL_AOP_PRIMARY_BTN } from '@/lib/ui';
+import { BTN_DANGER_SM, BTN_SOFT_SM, confirmStatusBadgeClass, SKILL_AOP_PRIMARY_BTN_SM } from '@/lib/ui';
+import { SKILL_CREATE_CHAT } from '@/lib/platformTerminology';
 import { showAppToast } from '@/lib/appToast';
 
 export type SkillConfirmFieldKey =
@@ -217,9 +218,13 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
         >
           <div className="flex items-center gap-1.5 min-w-0">
             <FileText size={13} className="text-neutral-500 shrink-0" />
-            <span className="text-[13px] font-semibold text-neutral-600 leading-5">确认信息</span>
+            <span className="text-[13px] font-semibold text-neutral-600 leading-5">
+              {SKILL_CREATE_CHAT.confirmTitle}
+            </span>
             {confirmed ? (
-              <span className={confirmStatusBadgeClass('confirmed')}>已确认</span>
+              <span className={confirmStatusBadgeClass('confirmed')}>
+                {SKILL_CREATE_CHAT.confirmDone}
+              </span>
             ) : null}
             {batchMode && !confirmed ? (
               <span className="text-[11px] font-medium text-neutral-500">多选要点后发送改写</span>
@@ -511,7 +516,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
             <button
               type="button"
               onClick={() => onConfirm(rows)}
-              className={cn(SKILL_AOP_PRIMARY_BTN, 'h-7 px-3 rounded-md text-[13px]')}
+              className={SKILL_AOP_PRIMARY_BTN_SM}
             >
               确认执行
             </button>
@@ -521,11 +526,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
                   type="button"
                   onClick={toggleBatchMode}
                   aria-pressed={batchMode}
-                  className={cn(
-                    BTN_SOFT,
-                    'h-7 px-3 text-[13px]',
-                    batchMode && 'border-neutral-300',
-                  )}
+                  className={cn(BTN_SOFT_SM, batchMode && 'border-neutral-300')}
                 >
                   {batchMode ? '退出批量编辑' : '批量编辑'}
                 </button>
@@ -533,7 +534,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
                   <button
                     type="button"
                     onClick={deleteSelectedRows}
-                    className={cn(BTN_DANGER, 'h-7 px-3 text-[13px]')}
+                    className={BTN_DANGER_SM}
                     title={`删除已选 ${editingIdSet.size} 条`}
                   >
                     删除
