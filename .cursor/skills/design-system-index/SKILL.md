@@ -18,8 +18,6 @@ description: JoyServing 京小灵设计系统全量 Token 索引。覆盖全部 
 
 **AI 产品面外部规范**：对话气泡 / 输入框 / 思考链等对齐 [dongDesign-AI](https://jdesign.jd.com/x/vue/docs/install)（见 `.cursor/rules/ai-product-dongdesign.mdc`）。全站暖灰墨黑底盘不变；仅 AI 对话内容排版跟该规范。
 
-**展台入口**：基础组件库 `/?ds=1`；AI 组件库 `/?ds=ai`（Sender / Think / Clarify / Confirm 等）。
-
 ---
 
 ## 使用方式
@@ -62,12 +60,12 @@ description: JoyServing 京小灵设计系统全量 Token 索引。覆盖全部 
 | 发丝线 | `#E7E5E0` | `border-line` |
 | 聚焦环 | `#A3A3A3` | `ring-ring/30` |
 | 错误 | `#DC2626` | `text-destructive` |
-| 实时蓝 | `#376BFA` | `text-live` / Info 功能色 |
-| 信息浅蓝 | `#E8F1FF` | Info 浅底 / Chip 选中 |
-| 成功 | `#00B26F` / `#E8F8F1` | Success 字 / 底 |
-| 确认已写入（深） | `#E8F8F1` / `#00B26F` | `confirmStatusBadgeClass('confirmed')` |
-| 确认已写入（浅） | `#E8F8F1` / `#009B5E` | `confirmStatusBadgeClass('confirmedSoft')` |
-| 警告底 | `#FFF3E8` / `#F08433` | Warning |
+| 实时蓝 | `#1E90FF` | `text-live` |
+| 信息浅蓝 | `#F0F9FF`（稿 `#F2F7FF`） | `bg-sky-50` |
+| 成功底 | `#ECFDF5` | `bg-emerald-50` |
+| 确认已写入（深） | `#D1FAE5` / `#065F46` | `confirmStatusBadgeClass('confirmed')` |
+| 确认已写入（浅） | `#ECFDF5` / `#047857` | `confirmStatusBadgeClass('confirmedSoft')` |
+| 警告底 | `#FFFBEB` | `bg-amber-50` |
 
 ### 间距
 

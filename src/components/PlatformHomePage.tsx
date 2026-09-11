@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import {
   ArrowUp,
+  FileText,
   GitBranch,
   History,
   Layers,
@@ -39,6 +40,66 @@ import {
 } from '@/lib/homeCreateCases';
 
 const MAX_LEN = 1000;
+const MAX_ATTACHMENTS = 8;
+const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+const ATTACHMENT_ACCEPT =
+  '.pdf,.txt,.md,.doc,.docx,.csv,.json,.xlsx,.xls,.png,.jpg,.jpeg,.webp';
+
+type HomeAttachment = {
+  id: string;
+  name: string;
+  size: number;
+  mime: string;
+  /** 纯文本类附件摘录，提交时带入上下文 */
+  textExcerpt?: string;
+};
+
+function formatFileSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${bytes} B`;
+}
+
+function isReadableTextFile(file: File): boolean {
+  if (file.type.startsWith('text/') || file.type === 'application/json') return true;
+  return /\.(txt|md|csv|json|log)$/i.test(file.name);
+}
+
+async function buildHomeAttachment(file: File): Promise<HomeAttachment> {
+  let textExcerpt: string | undefined;
+  if (isReadableTextFile(file) && file.size <= 200_000) {
+    try {
+      const text = await file.text();
+      textExcerpt = text.replace(/\s+$/g, '').slice(0, 4000);
+    } catch {
+      /* ignore read errors */
+    }
+  }
+  return {
+    id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    name: file.name,
+    size: file.size,
+    mime: file.type || 'application/octet-stream',
+    textExcerpt,
+  };
+}
+
+import { CHAT_ATTACHMENT_MARKER } from '@/lib/chatAttachments';
+
+function buildPromptWithAttachments(prompt: string, files: HomeAttachment[]): string {
+  if (files.length === 0) return prompt.trim();
+  const lines = files.map((f) => {
+    const base = `- ${f.name}（${formatFileSize(f.size)}）`;
+    if (!f.textExcerpt) return base;
+    return `${base}\n\`\`\`\n${f.textExcerpt}\n\`\`\``;
+  });
+  const block = `${CHAT_ATTACHMENT_MARKER}\n${lines.join('\n')}`;
+  const body = prompt.trim();
+  if (!body) {
+    return `请根据附件内容开始创建。\n\n${block}`;
+  }
+  return `${body}\n\n${block}`;
+}
 
 type CreateMode = 'employee' | 'skill';
 
@@ -133,12 +194,15 @@ export const PlatformHomePage: React.FC = () => {
   const [indexTab, setIndexTab] = useState<'skill' | 'kb'>('skill');
   const [indexQuery, setIndexQuery] = useState('');
   const [ghostTipIndex, setGhostTipIndex] = useState(0);
+  const [attachments, setAttachments] = useState<HomeAttachment[]>([]);
+  const [attachDragging, setAttachDragging] = useState(false);
   const [sessions, setSessions] = useState<HomeSession[]>(SEED_SESSIONS);
   const [sessionQuery, setSessionQuery] = useState('');
   const [sessionSidebarOpen, setSessionSidebarOpen] = useState(true);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const indexPanelRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
@@ -148,6 +212,7 @@ export const PlatformHomePage: React.FC = () => {
     setIndexQuery('');
     setIndexedSkillIds([]);
     setIndexedKbIds([]);
+    setAttachments([]);
     setIndexTab(mode === 'employee' ? 'skill' : 'kb');
     setGhostTipIndex(0);
   }, [mode]);
@@ -168,11 +233,50 @@ export const PlatformHomePage: React.FC = () => {
     renameInputRef.current?.select();
   }, [renamingId]);
 
-  const canSubmit = prompt.trim().length > 0;
+  const canSubmit = prompt.trim().length > 0 || attachments.length > 0;
   const cases: readonly HomeCreateCase[] =
     mode === 'skill' ? SKILL_CREATE_CASES : EMPLOYEE_CREATE_CASES;
   const chipLabels = cases.map((c) => c.label);
   const headline = HEADLINE[mode];
+
+  const addAttachments = useCallback(
+    async (fileList: FileList | File[]) => {
+      const incoming = Array.from(fileList);
+      if (incoming.length === 0) return;
+
+      const room = MAX_ATTACHMENTS - attachments.length;
+      if (room <= 0) return;
+
+      const accepted: HomeAttachment[] = [];
+      for (const file of incoming.slice(0, room)) {
+        const extOk =
+          !ATTACHMENT_ACCEPT ||
+          ATTACHMENT_ACCEPT.split(',').some((token) => {
+            const t = token.trim().toLowerCase();
+            if (t.startsWith('.')) return file.name.toLowerCase().endsWith(t);
+            return file.type === t;
+          });
+        if (!extOk) continue;
+        if (file.size > MAX_ATTACHMENT_BYTES) continue;
+        accepted.push(await buildHomeAttachment(file));
+      }
+
+      if (accepted.length > 0) {
+        setAttachments((prev) => [...prev, ...accepted].slice(0, MAX_ATTACHMENTS));
+      }
+    },
+    [attachments.length],
+  );
+
+  const removeAttachment = useCallback((id: string) => {
+    setAttachments((prev) => prev.filter((f) => f.id !== id));
+  }, []);
+
+  const onAttachmentInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files?.length) await addAttachments(files);
+    e.currentTarget.value = '';
+  };
 
   const filteredSessions = useMemo(() => {
     const q = sessionQuery.trim().toLowerCase();
@@ -287,6 +391,7 @@ export const PlatformHomePage: React.FC = () => {
       setSkillStudioKey((k) => k + 1);
       setSkillStudioOpen(true);
       setPrompt('');
+      setAttachments([]);
       setIndexedKbIds([]);
       setIndexOpen(false);
     },
@@ -306,6 +411,7 @@ export const PlatformHomePage: React.FC = () => {
     setMode(session.mode);
     setRenamingId(null);
     setPrompt('');
+    setAttachments([]);
     setIndexOpen(false);
     setIndexedSkillIds([]);
     setIndexedKbIds([]);
@@ -346,7 +452,7 @@ export const PlatformHomePage: React.FC = () => {
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    const text = prompt.trim();
+    const text = buildPromptWithAttachments(prompt, attachments);
 
     if (mode === 'skill') {
       startSkillCreate(text);
@@ -359,6 +465,7 @@ export const PlatformHomePage: React.FC = () => {
     setIncubationKbIds(indexedKbIds);
     setIncubationOpen(true);
     setPrompt('');
+    setAttachments([]);
     setIndexedSkillIds([]);
     setIndexedKbIds([]);
     setIndexOpen(false);
@@ -550,8 +657,42 @@ export const PlatformHomePage: React.FC = () => {
               'relative z-[2] mt-1 flex flex-col gap-0 rounded-[16px] border border-white/90 bg-white/92 p-[13px]',
               'shadow-[0_4px_24px_rgba(21,101,191,0.06),0_1px_0_rgba(255,255,255,0.8)_inset]',
               'backdrop-blur-[8px]',
+              attachDragging && 'border-[#1565BF]/45 ring-2 ring-[#1565BF]/15 bg-white',
             )}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (e.dataTransfer.types.includes('Files')) setAttachDragging(true);
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (e.dataTransfer.types.includes('Files')) setAttachDragging(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                setAttachDragging(false);
+              }
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setAttachDragging(false);
+              if (e.dataTransfer.files?.length) {
+                void addAttachments(e.dataTransfer.files);
+              }
+            }}
           >
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              multiple
+              accept={ATTACHMENT_ACCEPT}
+              onChange={onAttachmentInputChange}
+            />
             <div className="relative">
               {!prompt ? (
                 <GoalComposerGhost
@@ -586,6 +727,28 @@ export const PlatformHomePage: React.FC = () => {
                 className="relative z-[1] w-full min-h-[80px] max-h-36 bg-transparent text-[14px] leading-[21px] px-1 pt-1 pb-2 outline-none resize-none text-[#181D27]"
               />
             </div>
+
+            {attachments.length > 0 ? (
+              <div className="px-1 pb-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                {attachments.map((file) => (
+                  <span key={file.id} className={INDEX_CHIP} title={`${file.name} · ${formatFileSize(file.size)}`}>
+                    <FileText size={12} className="text-neutral-500 shrink-0" />
+                    <span className="truncate min-w-0">{file.name}</span>
+                    <span className="text-[10px] tabular-nums text-neutral-400 shrink-0">
+                      {formatFileSize(file.size)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(file.id)}
+                      className="ml-0.5 text-neutral-400 hover:text-neutral-800 cursor-pointer shrink-0"
+                      aria-label={`移除 ${file.name}`}
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
 
             {(mode === 'employee'
               ? selectedSkills.length + selectedKbs.length > 0
@@ -629,11 +792,14 @@ export const PlatformHomePage: React.FC = () => {
                 <button
                   type="button"
                   title="添加附件"
+                  aria-label="添加附件"
+                  onClick={() => fileInputRef.current?.click()}
                   className={cn(
                     'flex h-8 w-8 items-center justify-center rounded-[7px]',
                     'border border-neutral-200 bg-white text-neutral-600',
                     'shadow-[0_1px_0_rgba(0,0,0,0.05)]',
                     'hover:bg-neutral-50 cursor-pointer transition',
+                    attachments.length > 0 && 'border-neutral-300 text-neutral-800',
                   )}
                 >
                   <Plus size={16} />

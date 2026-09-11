@@ -32,7 +32,7 @@ export type SkillConfirmItem = {
   id: string;
   label: string;
   checked: boolean;
-  /** 对应右侧表单字段，编辑后写回表单 */
+  /** 对应左侧表单字段，编辑后写回表单 */
   fieldKey?: SkillConfirmFieldKey;
   fieldLabel?: string;
   value?: string;
@@ -42,6 +42,11 @@ type SkillRoundConfirmCardProps = {
   title?: string;
   items: SkillConfirmItem[];
   confirmed?: boolean;
+  /**
+   * 已被更新的确认卡取代：只读回看，不可再确认/编辑/删除。
+   * 新确认表单出现后，旧卡应传 locked。
+   */
+  locked?: boolean;
   /** 完成后默认折叠；可手动展开回看 */
   collapsed?: boolean;
   /** 批量编辑：已选中、将带到输入框的要点 id */
@@ -70,6 +75,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   title = '请确认技能草案要点',
   items,
   confirmed = false,
+  locked = false,
   collapsed: collapsedProp,
   editingItemIds = [],
   onConfirm,
@@ -79,6 +85,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   onCollapsedChange,
   onDelete,
 }) => {
+  const readOnly = confirmed || locked;
   const [rows, setRows] = useState<SkillConfirmItem[]>(items);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -89,7 +96,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   const [inlineNameDraft, setInlineNameDraft] = useState('');
   const [inlineContentDraft, setInlineContentDraft] = useState('');
   const [collapsed, setCollapsed] = useState(() =>
-    collapsedProp != null ? collapsedProp : confirmed,
+    collapsedProp != null ? collapsedProp : confirmed || locked,
   );
   const inlineNameRef = useRef<HTMLInputElement>(null);
   const newContentRef = useRef<HTMLTextAreaElement>(null);
@@ -104,8 +111,16 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   }, [collapsedProp]);
 
   useEffect(() => {
-    if (confirmed) setCollapsed(true);
-  }, [confirmed]);
+    if (confirmed || locked) setCollapsed(true);
+  }, [confirmed, locked]);
+
+  useEffect(() => {
+    if (!locked) return;
+    setBatchMode(false);
+    setInlineEditId(null);
+    setAdding(false);
+    onBatchModeChange?.(false);
+  }, [locked, onBatchModeChange]);
 
   useEffect(() => {
     if (!inlineEditId) return;
@@ -122,11 +137,13 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   };
 
   const commitRows = (next: SkillConfirmItem[]) => {
+    if (readOnly) return;
     setRows(next);
     onItemsChange?.(next);
   };
 
   const addCustom = () => {
+    if (readOnly) return;
     const name = newName.trim();
     const content = newContent.trim();
     if (!name && !content) return;
@@ -154,7 +171,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   };
 
   const startInlineEdit = (row: SkillConfirmItem) => {
-    if (confirmed) return;
+    if (readOnly) return;
     setBatchMode(false);
     onBatchModeChange?.(false);
     setInlineEditId(row.id);
@@ -192,7 +209,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   };
 
   const toggleBatchMode = () => {
-    if (confirmed || !onEditItem) return;
+    if (readOnly || !onEditItem) return;
     cancelInlineEdit();
     const next = !batchMode;
     setBatchMode(next);
@@ -225,14 +242,18 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
               <span className={confirmStatusBadgeClass('confirmed')}>
                 {SKILL_CREATE_CHAT.confirmDone}
               </span>
+            ) : locked ? (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-neutral-100 text-neutral-500 font-medium">
+                已失效
+              </span>
             ) : null}
-            {batchMode && !confirmed ? (
+            {batchMode && !readOnly ? (
               <span className="text-[11px] font-medium text-neutral-500">多选要点后发送改写</span>
             ) : null}
-            {collapsed && !confirmed ? (
+            {collapsed && !confirmed && !locked ? (
               <span className="truncate text-[11px] text-neutral-400">{title}</span>
             ) : null}
-            {collapsed && confirmed ? (
+            {collapsed && (confirmed || locked) ? (
               <span className="truncate text-[11px] text-neutral-400">
                 {rows.length} 条要点
               </span>
@@ -244,7 +265,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
             <ChevronUp size={14} className="shrink-0 text-neutral-400" />
           )}
         </button>
-        {!confirmed && onDelete ? (
+        {!readOnly && onDelete ? (
           <button
             type="button"
             onClick={onDelete}
@@ -271,8 +292,8 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
               return (
                 <div
                   key={row.id}
-                  role={batchMode && !confirmed ? 'button' : undefined}
-                  tabIndex={batchMode && !confirmed ? 0 : undefined}
+                  role={batchMode && !readOnly ? 'button' : undefined}
+                  tabIndex={batchMode && !readOnly ? 0 : undefined}
                   className={cn(
                     'relative rounded px-1.5 py-1.5 -mx-0.5 border border-transparent',
                     selected
@@ -280,18 +301,19 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
                       : hovered || isInline
                         ? 'bg-neutral-50 border-neutral-100'
                         : 'border-neutral-100/80',
-                    batchMode && !confirmed && 'cursor-pointer',
+                    batchMode && !readOnly && 'cursor-pointer',
+                    locked && 'opacity-80',
                   )}
                   onMouseEnter={() => setHoveredId(row.id)}
                   onMouseLeave={() => setHoveredId((id) => (id === row.id ? null : id))}
                   onClick={(event) => {
-                    if (confirmed || !batchMode || !onEditItem || isInline) return;
+                    if (readOnly || !batchMode || !onEditItem || isInline) return;
                     const target = event.target as HTMLElement;
                     if (target.closest('button, label, a, input, textarea')) return;
                     onEditItem(row, index);
                   }}
                   onKeyDown={(event) => {
-                    if (confirmed || !batchMode || !onEditItem || isInline) return;
+                    if (readOnly || !batchMode || !onEditItem || isInline) return;
                     if (event.key !== 'Enter' && event.key !== ' ') return;
                     event.preventDefault();
                     onEditItem(row, index);
@@ -402,7 +424,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
                       )}
                     </div>
                   </div>
-                  {!isInline && (hovered || batchMode) && !confirmed ? (
+                  {!isInline && (hovered || batchMode) && !readOnly ? (
                     <div className="absolute top-1 right-1 z-[1] flex items-center gap-0.5 rounded-md border border-neutral-200/80 bg-white/95 px-0.5 py-0.5 shadow-[0_1px_4px_rgba(17,17,17,0.08)]">
                       {!batchMode ? (
                         <button
@@ -434,7 +456,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
               );
             })}
 
-            {confirmed ? null : adding ? (
+            {readOnly ? null : adding ? (
               <div className="pl-5 pt-1 space-y-2">
                 <div className="flex items-center gap-1.5 text-[13px] text-neutral-700 leading-5">
                   <Plus size={12} className="text-neutral-700 shrink-0" />
@@ -511,7 +533,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
           </div>
         </div>
 
-        {confirmed ? null : (
+        {readOnly ? null : (
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"

@@ -26,7 +26,9 @@ import { cn } from '@/lib/utils';
 import { AGENT_AVATAR_PRESETS } from '@/lib/agentAvatarDisplay';
 import { defaultOpeningLineForAgent, defaultFallbackScriptForAgent } from '@/lib/agentDefaultCopy';
 import { LIFECYCLE_TERMS } from '@/lib/platformTerminology';
+import { splitChatContentWithAttachments } from '@/lib/chatAttachments';
 import type { SkillThinkStep } from '@/lib/skillStudioMock';
+import { ChatAttachmentCards } from '../common/ChatAttachmentCards';
 import {
   createSavedSnapshot,
   ensureAgentSnapshots,
@@ -42,7 +44,7 @@ import { OnboardingConfigPanel } from '../onboarding/OnboardingConfigPanel';
 import { OnboardingCapabilityTestPanel } from '../onboarding/OnboardingCapabilityTestPanel';
 import { AgentVersionPanel } from '../onboarding/AgentVersionPanel';
 import { ONBOARDING_WORKSPACE_TABS } from '@/lib/onboardingWorkspaceTabs';
-import { SkillTaskPlanCard } from '../skills/SkillTaskPlanCard';
+import { SkillThinkingCard } from '../skills/SkillThinkingCard';
 
 export type IncubationDraft = {
   name: string;
@@ -864,26 +866,13 @@ export function EmployeeIncubationWorkspace({
 
   useEffect(() => {
     if (!trainingAgentId || !formReady) return;
-    const name = (draft.name || '新员工').slice(0, 8);
-    if (
-      trainingAgent &&
-      trainingAgent.name === name &&
-      trainingAgent.description === draft.description &&
-      trainingAgent.languageStyle === draft.personality &&
-      trainingAgent.constraints === draft.prohibited &&
-      trainingAgent.workflowNotes === draft.duties
-    ) {
-      return;
-    }
     updateHiredAgent(trainingAgentId, {
-      name,
+      name: (draft.name || '新员工').slice(0, 8),
       description: draft.description,
       languageStyle: draft.personality,
       constraints: draft.prohibited,
       workflowNotes: draft.duties,
     });
-    // updateHiredAgent 未 memo：不可放进依赖，否则会 setState → 新函数引用 → 死循环卡死页面
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync draft fields only
   }, [
     draft.name,
     draft.description,
@@ -892,7 +881,7 @@ export function EmployeeIncubationWorkspace({
     draft.prohibited,
     formReady,
     trainingAgentId,
-    trainingAgent,
+    updateHiredAgent,
   ]);
 
   const runUserTurn = async (raw: string) => {
@@ -1117,10 +1106,12 @@ export function EmployeeIncubationWorkspace({
 
               {messages.map((m) => {
                 if (m.kind === 'user') {
+                  const { text, attachments } = splitChatContentWithAttachments(m.text);
                   return (
                     <div key={m.id} className="flex justify-end">
-                      <div className="max-w-[88%] flex flex-col items-end gap-1">
-                        <div className={USER_BUBBLE}>{m.text}</div>
+                      <div className="max-w-[88%] flex flex-col items-end gap-1.5">
+                        <ChatAttachmentCards attachments={attachments} align="end" />
+                        {text ? <div className={USER_BUBBLE}>{text}</div> : null}
                         <span className="text-[10px] text-neutral-400">{m.time}</span>
                       </div>
                     </div>
@@ -1142,8 +1133,8 @@ export function EmployeeIncubationWorkspace({
               })}
 
               {thinking && thinkSteps.length > 0 ? (
-                <SkillTaskPlanCard
-                  title="任务规划"
+                <SkillThinkingCard
+                  title="正在规划数字员工"
                   steps={thinkSteps}
                   isComplete={false}
                   generating

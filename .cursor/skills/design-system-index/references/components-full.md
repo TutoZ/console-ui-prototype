@@ -54,11 +54,11 @@
 
 | size | 尺寸 | 圆角 |
 |------|------|------|
-| sm（默认） | 36×36px | rounded-[7px] |
-| md | 40×40px | rounded-[7px] |
-| lg/xl | 44~48px | rounded-[13px] |
+| sm | 36×36px | rounded-xl |
+| md | 40×40px | rounded-xl |
+| lg/xl | 44~48px | rounded-2xl |
 
-默认 `variant="soft"`（知识列表）；渐变盘见 `color-tokens.md` §2.3（仅 App 图标，非页面主色；soft 无描边）。
+渐变盘见 `color-tokens.md` §2.3（仅 App 图标，非页面主色）。
 
 ---
 
@@ -153,27 +153,7 @@
 
 ---
 
-## 五、AI 产品面（dongDesign-AI 映射）
-
-> 来源：`DESIGN.md` §10 · `.cursor/rules/ai-product-dongdesign.mdc`  
-> 展台（独立 AI 库）：`?ds=ai#pattern-goal-composer` 等；基础 Token/按钮仍在 `?ds=1`
-
-| dongDesign | 本仓库落点 | 展台锚点 |
-|------------|-----------|----------|
-| Sender | `GoalComposerGhost` + `skill-ai-composer` / `SKILL_AOP_SEND_BTN` | `#pattern-goal-composer` |
-| Bubble | 气泡字阶（14/22 `#595959` 等） | `#pattern-ai-bubble` |
-| Think | `SkillThinkingCard` | `#pattern-ai-thinking` |
-| Prompts | `CHIP` / 推荐芯片（只填入） | `#pattern-goal-composer` |
-| Collect | `SkillCollectCard` | `#pattern-ai-collect` |
-| Clarify | `SkillClarifyCard` + `SKILL_CREATE_CHAT`；提交=`SKILL_AOP_PRIMARY_BTN`，跳过=`BTN_SOFT` | `#pattern-ai-clarify` |
-| 确认流 | `SkillRoundConfirmCard` + `confirmStatusBadgeClass`；主 CTA=`SKILL_AOP_PRIMARY_BTN_SM`，次级=`BTN_SOFT_SM` | `#pattern-ai-confirm` |
-| ThoughtChain（会话内） | `ExecutionProcessFold` | `#pattern-exec-fold` |
-
-**气泡字阶 Hex**：一级/二级标题 `#262626`；三级 `#1c1d1f`；正文 `#595959`；次要 `#8c8c8c`。
-
----
-
-## 六、深色命令面
+## 五、深色命令面
 
 | 属性 | Hex | class |
 |------|-----|-------|
@@ -183,12 +163,11 @@
 
 ---
 
-## 七、校验清单
+## 六、校验清单
 
 - [ ] 页面头用 `<PageHeader>`，非手写 h1
 - [ ] 子页切换用 `<SegmentedTabs>`
 - [ ] CRUD 弹窗用 `<Modal>` + `BTN_*` + `FIELD`
 - [ ] 按钮/输入色符合 Hex 表，无裸 `#`
 - [ ] 表格 thead `#A3A3A3` + uppercase + `text-[10px]`
-- [ ] AI 对话面是否复用上表落点（勿平行造轮）
 - [ ] 与 `ui-constants.md`、`forms.md` 一致

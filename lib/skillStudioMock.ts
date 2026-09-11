@@ -1813,7 +1813,7 @@ export function buildIntentThinkPlan(intent: string): SkillThinkPlan {
       {
         id: 'p3',
         label: '交付可确认方案',
-        detail: '理解摘要与确认卡，点确认后再写入右侧',
+        detail: '理解摘要与确认卡，点确认后再写入左侧',
         status: 'pending',
       },
     ],
@@ -1841,7 +1841,7 @@ export type SkillClarifyPayload = {
   collapsed?: boolean;
 };
 
-/** 根据用户意图生成首轮反问（对齐右侧四张创建表单） */
+/** 根据用户意图生成首轮反问（对齐左侧四张创建表单） */
 export function buildSkillClarifyQuestions(intent: string): SkillClarifyQuestion[] {
   const text = intent.trim();
   const has = (...keys: string[]) => keys.some((k) => text.includes(k));

@@ -459,6 +459,8 @@ export const INITIAL_SKILLS: Skill[] = [
     usedByAgents: ['食安险商户顾问'],
     type: 'mine',
     source: 'upload',
+    status: 'published',
+    version: 'v1.2.0',
     description: '将对话中识别的门店信息、保单号与续保意向，自动同步至商户 CRM 与客户经理跟进表。'
   },
   {

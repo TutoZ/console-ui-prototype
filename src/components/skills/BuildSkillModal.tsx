@@ -30,6 +30,7 @@ import {
   RotateCcw,
   GripVertical,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   AlertCircle,
   AlertTriangle,
@@ -100,6 +101,11 @@ import { SKILL_PAGE_COPY, SKILL_CREATE_CHAT } from '@/lib/platformTerminology';
 import { PROFILE_USER } from '@/lib/profileUser';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { SkillClarifyCard, type SkillClarifyPayload } from './SkillClarifyCard';
+import { ChatAttachmentCards } from '../common/ChatAttachmentCards';
+import {
+  CHAT_ATTACHMENT_MARKER,
+  splitChatContentWithAttachments,
+} from '@/lib/chatAttachments';
 
 const BACK_TO_SKILLS_LABEL = `返回${SKILL_PAGE_COPY.title}`;
 const BACK_TO_CREATE_LABEL = '返回技能创建';
@@ -178,6 +184,67 @@ interface UploadedFile {
   inSkill: boolean;
   status?: 'success' | 'failed';
   errorMessage?: string;
+}
+
+/** 对话输入框附件（落在 composer，发送时带入上下文） */
+type ComposerAttachment = {
+  id: string;
+  name: string;
+  sizeLabel: string;
+  textExcerpt?: string;
+};
+
+const COMPOSER_FILE_ACCEPT =
+  '.pdf,.txt,.md,.doc,.docx,.csv,.json,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.ts,.tsx,.py,.js,.jsx,.sh,.yaml,.yml,.xml,.html,.css,.log,.zip';
+const COMPOSER_MAX_FILES = 8;
+const COMPOSER_MAX_BYTES = 20 * 1024 * 1024;
+
+function formatComposerFileSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${bytes} B`;
+}
+
+function isComposerReadableText(file: File): boolean {
+  if (file.type.startsWith('text/') || file.type === 'application/json') return true;
+  return /\.(txt|md|csv|json|log|ts|tsx|js|jsx|py|sh|yaml|yml|xml|html|css)$/i.test(file.name);
+}
+
+function isComposerAcceptedFile(file: File): boolean {
+  return COMPOSER_FILE_ACCEPT.split(',').some((token) => {
+    const t = token.trim().toLowerCase();
+    if (!t) return false;
+    if (t.startsWith('.')) return file.name.toLowerCase().endsWith(t);
+    return file.type === t;
+  });
+}
+
+async function buildComposerAttachment(file: File): Promise<ComposerAttachment> {
+  let textExcerpt: string | undefined;
+  if (isComposerReadableText(file) && file.size <= 200_000) {
+    try {
+      const text = await file.text();
+      textExcerpt = text.replace(/\s+$/g, '').slice(0, 4000);
+    } catch {
+      /* ignore */
+    }
+  }
+  return {
+    id: `catt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    name: file.name,
+    sizeLabel: formatComposerFileSize(file.size),
+    textExcerpt,
+  };
+}
+
+function buildComposerAttachmentBlock(files: ComposerAttachment[]): string {
+  if (files.length === 0) return '';
+  const lines = files.map((f) => {
+    const base = `- ${f.name}（${f.sizeLabel}）`;
+    if (!f.textExcerpt) return base;
+    return `${base}\n\`\`\`\n${f.textExcerpt}\n\`\`\``;
+  });
+  return `${CHAT_ATTACHMENT_MARKER}\n${lines.join('\n')}`;
 }
 
 interface ExecutionStep {
@@ -540,6 +607,7 @@ export const BuildSkillModal: React.FC<BuildSkillModalProps> = ({
 
   // Uploaded Files State
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [composerAttachments, setComposerAttachments] = useState<ComposerAttachment[]>([]);
 
   // Form interactive edit states
   const [isFormDirty, setIsFormDirty] = useState(false);
@@ -598,6 +666,11 @@ export const BuildSkillModal: React.FC<BuildSkillModalProps> = ({
       const scroller = section?.querySelector('.overflow-y-auto') as HTMLElement | null;
       if (scroller) scroller.scrollTop = 0;
     });
+  };
+
+  /** AI 写入：只记完成态，不切卡/不滚动，避免打断用户当前操作 */
+  const markFormSectionWritten = (sectionId: number) => {
+    setCompletedSteps((steps) => [...new Set([...steps, sectionId])]);
   };
 
   const goToFormSection = (sectionId: number) => {
@@ -1226,13 +1299,17 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
   }, [composerReplyPe]);
 
   const applyComposerReplyChip = useCallback((chip: SkillReplyPeChip) => {
-    const outbound = appendComposerChipBlock('', chip);
+    setChatInput((prev) => appendComposerChipBlock(prev, chip));
     setComposerConsumedChipIds((prev) => (prev.includes(chip.id) ? prev : [...prev, chip.id]));
     setComposerResetMode(false);
     setConfirmEditTarget(null);
-    setChatInput('');
-    // 快捷芯片一键发送，直接弹出思考与确认卡（无需再点发送）
-    handleSendChatMessageRef.current(outbound);
+    requestAnimationFrame(() => {
+      const el = chatComposerTextareaRef.current;
+      if (!el) return;
+      el.focus();
+      const end = el.value.length;
+      el.setSelectionRange(end, end);
+    });
   }, []);
 
   const goalGhostTip = GOAL_LANDING_TIPS[goalGhostTipIndex % GOAL_LANDING_TIPS.length];
@@ -1320,45 +1397,34 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [rightCollapsed, centerTab, activeStep]);
 
-  /** 表单页内滚到顶/底后再继续滑，切换上一页 / 下一页（抗触控板惯性） */
+  /**
+   * 四卡轮播手势分工（避免「页内滚」和「切卡」抢同一纵向轴）：
+   * - 纵向滚轮 / 上下滑：只滚当前卡内容，绝不切卡
+   * - 横向滚轮 / 左右滑：切上一/下一卡
+   * - Tab 点选、左右按钮、←→ 键：显式切卡
+   */
   React.useEffect(() => {
     if (rightCollapsed || centerTab === 'editor') return;
     const root = formScrollRef.current;
     if (!root) return;
 
-    const SWITCH_THRESHOLD = 180;
-    const COOLDOWN_MS = 950;
-    const GESTURE_GAP_MS = 220;
-    const TOUCH_SWIPE_PX = 120;
+    const SWITCH_THRESHOLD = 72;
+    const COOLDOWN_MS = 420;
+    const GESTURE_GAP_MS = 280;
+    const TOUCH_SWIPE_PX = 56;
+    /** |dx| 需明显大于 |dy|，才认定是横向切卡意图 */
+    const AXIS_RATIO = 1.35;
 
     let cooldownUntil = 0;
-    let wheelAcc = 0;
-    let lastDir: -1 | 0 | 1 = 0;
+    let wheelAccX = 0;
     let lastWheelAt = 0;
-    /** 刚贴边时先吞掉两拍，避免“滚到边”顺带切页 */
-    let edgePrimeCount = 0;
+    let touchStartX: number | null = null;
     let touchStartY: number | null = null;
-    let touchStartScrollTop: number | null = null;
 
-    const activeScroller = (): HTMLElement | null => {
-      const section = document.getElementById(`form-section-${activeStepRef.current}`);
-      return (section?.querySelector('.overflow-y-auto') as HTMLElement | null) ?? null;
-    };
-
-    const edgeState = (scroller: HTMLElement) => {
-      const { scrollTop, scrollHeight, clientHeight } = scroller;
-      const noOverflow = scrollHeight <= clientHeight + 2;
-      return {
-        atTop: noOverflow || scrollTop <= 2,
-        atBottom: noOverflow || scrollTop + clientHeight >= scrollHeight - 2,
-        noOverflow,
-      };
-    };
-
-    const normalizeDeltaY = (e: WheelEvent) => {
-      if (e.deltaMode === 1) return e.deltaY * 16;
-      if (e.deltaMode === 2) return e.deltaY * Math.max(320, root.clientHeight);
-      return e.deltaY;
+    const normalizeDelta = (value: number, mode: number) => {
+      if (mode === 1) return value * 16;
+      if (mode === 2) return value * Math.max(320, root.clientWidth);
+      return value;
     };
 
     const switchByDelta = (delta: -1 | 1) => {
@@ -1368,9 +1434,7 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
       const next = Math.min(4, Math.max(1, current + delta));
       if (next === current) return false;
       cooldownUntil = now + COOLDOWN_MS;
-      wheelAcc = 0;
-      lastDir = 0;
-      edgePrimeCount = 0;
+      wheelAccX = 0;
       formStepDirRef.current = delta;
       openFormSection(next);
       return true;
@@ -1382,111 +1446,63 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
       const tag = targetEl?.tagName?.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || targetEl?.isContentEditable) return;
 
-      const now = Date.now();
-      const dy = normalizeDeltaY(e);
-      if (Math.abs(dy) < 1.5) return;
+      const dx = normalizeDelta(e.deltaX, e.deltaMode);
+      const dy = normalizeDelta(e.deltaY, e.deltaMode);
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
 
-      // 冷却期内吞掉触控板惯性，避免连切两页
-      if (now < cooldownUntil) {
-        wheelAcc = 0;
-        lastDir = 0;
-        edgePrimeCount = 0;
+      // 纵向占优：交给页内滚动，完全不拦截
+      if (absY >= absX * AXIS_RATIO || absX < 2) {
+        wheelAccX = 0;
         return;
       }
 
-      // 手势间隔过长视为新一次意图
-      if (now - lastWheelAt > GESTURE_GAP_MS) {
-        wheelAcc = 0;
-        lastDir = 0;
-        edgePrimeCount = 0;
+      // 横向占优：累计后切卡
+      const now = Date.now();
+      if (now < cooldownUntil) {
+        e.preventDefault();
+        return;
       }
+      if (now - lastWheelAt > GESTURE_GAP_MS) wheelAccX = 0;
       lastWheelAt = now;
 
-      const dir: -1 | 0 | 1 = dy > 0 ? 1 : dy < 0 ? -1 : 0;
-      if (dir === 0) return;
-      if (lastDir !== 0 && dir !== lastDir) {
-        wheelAcc = 0;
-        edgePrimeCount = 0;
-      }
-      lastDir = dir;
-
-      const scroller = activeScroller();
-      // 顶部导航区域：阈值再抬高一档，避免误切
-      if (!scroller || !scroller.contains(e.target as Node)) {
-        if (Math.abs(dy) < 10) return;
-        wheelAcc += dy;
-        const navThreshold = SWITCH_THRESHOLD + 60;
-        if (wheelAcc > navThreshold) {
-          if (switchByDelta(1)) e.preventDefault();
-        } else if (wheelAcc < -navThreshold) {
-          if (switchByDelta(-1)) e.preventDefault();
-        }
-        return;
-      }
-
-      const { atTop, atBottom } = edgeState(scroller);
-      const canGoNext = dir === 1 && atBottom;
-      const canGoPrev = dir === -1 && atTop;
-      if (!canGoNext && !canGoPrev) {
-        wheelAcc = 0;
-        edgePrimeCount = 0;
-        return;
-      }
-
-      // 贴边后先吞两拍，再累计切页意图
-      if (edgePrimeCount < 2) {
-        edgePrimeCount += 1;
-        wheelAcc = 0;
-        return;
-      }
-
-      // 贴边后需连续同向滑动才累计；单次微抖忽略
-      if (Math.abs(dy) < 8) return;
-
-      wheelAcc += dy;
-      if (wheelAcc > SWITCH_THRESHOLD) {
+      wheelAccX += dx;
+      if (wheelAccX > SWITCH_THRESHOLD) {
         if (switchByDelta(1)) e.preventDefault();
-      } else if (wheelAcc < -SWITCH_THRESHOLD) {
+      } else if (wheelAccX < -SWITCH_THRESHOLD) {
         if (switchByDelta(-1)) e.preventDefault();
       } else {
-        // 贴边继续滑时阻止橡皮筋/穿透，手感更稳
         e.preventDefault();
       }
     };
 
     const onTouchStart = (e: TouchEvent) => {
       if (!root.contains(e.target as Node)) return;
+      touchStartX = e.touches[0]?.clientX ?? null;
       touchStartY = e.touches[0]?.clientY ?? null;
-      const scroller = activeScroller();
-      touchStartScrollTop = scroller?.scrollTop ?? null;
     };
 
     const onTouchEnd = (e: TouchEvent) => {
+      const startX = touchStartX;
       const startY = touchStartY;
-      const startScroll = touchStartScrollTop;
+      touchStartX = null;
       touchStartY = null;
-      touchStartScrollTop = null;
-      if (startY == null) return;
+      if (startX == null || startY == null) return;
       if (Date.now() < cooldownUntil) return;
 
+      const endX = e.changedTouches[0]?.clientX;
       const endY = e.changedTouches[0]?.clientY;
-      if (endY == null) return;
-      const dy = startY - endY;
-      if (Math.abs(dy) < TOUCH_SWIPE_PX) return;
+      if (endX == null || endY == null) return;
 
-      const scroller = activeScroller();
-      const target = e.target as Node;
-      if (scroller && scroller.contains(target)) {
-        // 页内有明显滚动位移时，不当作切页手势
-        if (startScroll != null && Math.abs(scroller.scrollTop - startScroll) > 12) return;
-        const { atTop, atBottom } = edgeState(scroller);
-        if (dy > 0 && atBottom) switchByDelta(1);
-        else if (dy < 0 && atTop) switchByDelta(-1);
-      } else if (dy > 0) {
-        switchByDelta(1);
-      } else {
-        switchByDelta(-1);
-      }
+      const dx = endX - startX;
+      const dy = endY - startY;
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
+      // 只有明确左右滑才切卡；上下滑留给页内滚动
+      if (absX < TOUCH_SWIPE_PX || absX < absY * AXIS_RATIO) return;
+
+      if (dx < 0) switchByDelta(1);
+      else switchByDelta(-1);
     };
 
     root.addEventListener('wheel', onWheel, { passive: false });
@@ -1761,6 +1777,8 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
 
     clearBubbleTimers();
 
+    const willPushConfirm = cleaned.some((p) => p.sender === 'skill_confirm');
+
     cleaned.forEach((part, index) => {
       const timer = setTimeout(() => {
         if (index === 0) {
@@ -1772,15 +1790,51 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
           thinkingTimerRef.current = null;
         }
         const stamp = new Date().toTimeString().substring(0, 5);
-        setChatMessages((prev) => [
-          ...prev,
-          {
-            sender: part.sender,
-            name: part.sender === 'system_status' ? '系统' : part.sender === 'skill_confirm' ? SKILL_CREATE_CHAT.confirmTitle : SKILL_CREATE_CHAT.assistantName,
-            content: part.content,
-            timestamp: stamp,
-          },
-        ]);
+        const shouldSupersedeOlder =
+          part.sender === 'skill_confirm' || (willPushConfirm && index === 0);
+        if (shouldSupersedeOlder) {
+          setConfirmEditTarget(null);
+        }
+        setChatMessages((prev) => {
+          let next = prev;
+          // 新确认卡出现前，先锁定旧的未确认卡
+          if (shouldSupersedeOlder) {
+            next = prev.map((m) => {
+              if (m.sender !== 'skill_confirm') return m;
+              try {
+                const payload = JSON.parse(m.content) as {
+                  confirmed?: boolean;
+                  superseded?: boolean;
+                };
+                if (payload.confirmed || payload.superseded) return m;
+                return {
+                  ...m,
+                  content: JSON.stringify({
+                    ...payload,
+                    superseded: true,
+                    collapsed: true,
+                  }),
+                };
+              } catch {
+                return m;
+              }
+            });
+          }
+          return [
+            ...next,
+            {
+              sender: part.sender,
+              name:
+                part.sender === 'system_status'
+                  ? '系统'
+                  : part.sender === 'skill_confirm'
+                    ? SKILL_CREATE_CHAT.confirmTitle
+                    : SKILL_CREATE_CHAT.assistantName,
+              content: part.content,
+              timestamp: stamp,
+            },
+          ];
+        });
       }, index * stagger);
       bubbleTimersRef.current.push(timer);
     });
@@ -2302,8 +2356,6 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
       setUploadedFiles([newZipFile]);
       setIsFormDirty(true);
       
-      showToast(`📦 技能压缩包 "${fileName}" 上传成功，已进入安全与云编译校验流程...`);
-      
       // Delay validation slightly to let state settle and provide better UX
       setTimeout(() => {
         setIsVerifying(true);
@@ -2342,9 +2394,32 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
     }, 1200);
   };
 
-  // File Upload Handlers
+  // File Upload Handlers（右侧表单「技能包文件」）
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  const addComposerAttachments = async (fileList: FileList | File[]) => {
+    const incoming = Array.from(fileList);
+    if (incoming.length === 0) return;
+
+    const room = COMPOSER_MAX_FILES - composerAttachments.length;
+    if (room <= 0) return;
+
+    const accepted: ComposerAttachment[] = [];
+    for (const file of incoming.slice(0, room)) {
+      if (!isComposerAcceptedFile(file)) continue;
+      if (file.size > COMPOSER_MAX_BYTES) continue;
+      accepted.push(await buildComposerAttachment(file));
+    }
+
+    if (accepted.length > 0) {
+      setComposerAttachments((prev) => [...prev, ...accepted].slice(0, COMPOSER_MAX_FILES));
+    }
+  };
+
+  const removeComposerAttachment = (id: string) => {
+    setComposerAttachments((prev) => prev.filter((f) => f.id !== id));
+  };
 
   const handleFileUpload = (fileName: string, fileSize: number) => {
     setUploadProgress(10);
@@ -2360,12 +2435,19 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
           : `${(fileSize / 1024).toFixed(0)} KB`;
           
         const extension = fileName.split('.').pop()?.toLowerCase() || '';
-        const allowedExtensions = ['md', 'ts', 'py', 'js', 'json', 'sh'];
+        const allowedExtensions = [
+          'md', 'ts', 'tsx', 'py', 'js', 'jsx', 'json', 'sh',
+          'pdf', 'txt', 'doc', 'docx', 'csv', 'xlsx', 'xls',
+          'yaml', 'yml', 'xml', 'html', 'css', 'log', 'zip',
+          'png', 'jpg', 'jpeg', 'webp',
+        ];
         const isAllowed = allowedExtensions.includes(extension);
 
         let fileType: 'doc' | 'sheet' | 'script' = 'doc';
-        if (['ts', 'py', 'js', 'json', 'sh'].includes(extension)) {
+        if (['ts', 'tsx', 'py', 'js', 'jsx', 'json', 'sh', 'yaml', 'yml'].includes(extension)) {
           fileType = 'script';
+        } else if (['csv', 'xlsx', 'xls'].includes(extension)) {
+          fileType = 'sheet';
         }
 
         const newFile: UploadedFile = {
@@ -2375,16 +2457,13 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
           type: fileType,
           inSkill: true,
           status: isAllowed ? 'success' : 'failed',
-          errorMessage: isAllowed ? undefined : '不支持的文件格式 (仅支持 .md 格式或脚本格式：.py, .js, .json, .ts, .sh)'
+          errorMessage: isAllowed
+            ? undefined
+            : '不支持的文件格式（文档 / 表格 / 脚本 / 图片 / 压缩包均可）'
         };
 
         setUploadedFiles(prev => [...prev, newFile]);
         setIsFormDirty(true);
-        if (isAllowed) {
-          showToast(`文件 ${fileName} 上传成功！`);
-        } else {
-          showToast(`⚠️ 文件 ${fileName} 上传失败：格式不支持。`, 'error');
-        }
       } else {
         setUploadProgress(progress);
       }
@@ -2749,6 +2828,36 @@ ${usageExamples || '暂无调用示例'}
     }
   };
 
+  const writeActionChainNames = (names: string[]) => {
+    setActionChains((prev) => {
+      const chain = prev[0];
+      if (!chain) return prev;
+      const steps = [...chain.steps];
+      while (steps.length < names.length) {
+        steps.push({
+          id: Date.now() + steps.length,
+          name: '',
+          description: '',
+          example: '',
+          associatedScripts: [],
+          associatedKBs: [],
+          associatedDocs: [],
+        });
+      }
+      return prev.map((item, idx) =>
+        idx === 0
+          ? {
+              ...item,
+              steps: steps.map((step, stepIdx) =>
+                stepIdx < names.length ? { ...step, name: names[stepIdx] } : step,
+              ),
+            }
+          : item,
+      );
+    });
+    setIsFormDirty(true);
+  };
+
   const typewriterWriteActionChain = async (value: string) => {
     const names = parseActionChainStepNames(value);
     if (names.length === 0) return;
@@ -2757,9 +2866,14 @@ ${usageExamples || '暂无调用示例'}
       return;
     }
 
-    if (confirmTypewriterRef.current.followUi) {
-      switchToConfirmFieldSection('actionChain');
+    // 后台写入：一次落盘，避免逐字重渲染打断用户操作
+    if (!confirmTypewriterRef.current.followUi) {
+      writeActionChainNames(names);
+      markFormSectionWritten(2);
+      return;
     }
+
+    switchToConfirmFieldSection('actionChain');
     setConfirmFieldTyping('actionChain', true);
 
     setActionChains((prev) => {
@@ -2862,9 +2976,17 @@ ${usageExamples || '暂无调用示例'}
       return;
     }
 
-    if (confirmTypewriterRef.current.followUi) {
-      switchToConfirmFieldSection(fieldKey);
+    // 后台写入：一次落盘，不切卡/不逐字，避免影响用户正在编辑/浏览
+    if (!confirmTypewriterRef.current.followUi) {
+      applyConfirmValueToForm(fieldKey, capConfirmFieldValue(fieldKey, next), {
+        scroll: false,
+        openSection: false,
+      });
+      markFormSectionWritten(sectionForConfirmField(fieldKey));
+      return;
     }
+
+    switchToConfirmFieldSection(fieldKey);
     setConfirmFieldTyping(fieldKey, true);
     applyConfirmValueToForm(fieldKey, '', {
       scroll: false,
@@ -2941,9 +3063,12 @@ ${usageExamples || '暂无调用示例'}
         const sections = [...new Set(writtenKeys.map(sectionForConfirmField))];
         setCompletedSteps((prev) => [...new Set([...prev, ...sections])]);
 
-        requestAnimationFrame(() => {
-          flashConfirmWrittenFields(writtenKeys);
-        });
+        // 仅在跟随 UI 写入时闪一下；后台写入不抢注意力
+        if (confirmTypewriterRef.current.followUi) {
+          requestAnimationFrame(() => {
+            flashConfirmWrittenFields(writtenKeys);
+          });
+        }
       }
     } finally {
       setIsUpdatingForm(false);
@@ -3129,16 +3254,25 @@ ${usageExamples || '暂无调用示例'}
 
   // Conversational interface logic
   const handleSendChatMessage = (forcedText?: string) => {
-    const textToSend =
-      forcedText !== undefined
-        ? forcedText
-        : chatInput;
+    const attachmentBlock =
+      forcedText === undefined ? buildComposerAttachmentBlock(composerAttachments) : '';
+    const baseText = forcedText !== undefined ? forcedText : chatInput;
+    const textToSend = [baseText.trim(), attachmentBlock].filter(Boolean).join('\n\n');
     if (!textToSend.trim()) {
       if (confirmEditTarget && forcedText === undefined) {
         showToast('请输入修改内容');
+      } else if (forcedText === undefined) {
+        showToast('请输入内容或上传附件');
       }
       return;
     }
+
+    const clearComposerOnSend = () => {
+      if (forcedText !== undefined) return;
+      setChatInput('');
+      setComposerAttachments([]);
+      setComposerConsumedChipIds([]);
+    };
 
     const isResetRequirementsSend =
       composerResetMode && forcedText === undefined && !confirmEditTarget;
@@ -3174,16 +3308,13 @@ ${usageExamples || '暂无调用示例'}
         .join('\n');
       const outbound = `请按我的要求改写以下确认要点，并更新草案：\n${summary}\n\n修改要求：${instruction}`;
       setConfirmEditTarget(null);
-      setChatInput('');
+      clearComposerOnSend();
       return handleSendChatMessage(outbound);
     }
 
     if (isAiThinking) {
       setMessageQueue(prev => [...prev, textToSend]);
-      if (forcedText === undefined) {
-        setChatInput('');
-        setComposerConsumedChipIds([]);
-      }
+      clearComposerOnSend();
       showToast('当前 AI 正在思考中，您的消息已加入发送队列，将在思考完成后自动处理');
       return;
     }
@@ -3204,9 +3335,7 @@ ${usageExamples || '暂无调用示例'}
 
     if (userText === '重新开始' || userText === '重新设计' || userText === '重置' || userText === '重置引导') {
       handleResetGuide();
-      if (forcedText === undefined) {
-        setChatInput('');
-      }
+      clearComposerOnSend();
       return;
     }
 
@@ -3227,6 +3356,7 @@ ${usageExamples || '暂无调用示例'}
     setChatMessages(prev => [...prev, userMsg]);
     if (forcedText === undefined) {
       setChatInput('');
+      setComposerAttachments([]);
       setComposerConsumedChipIds([]);
       setComposerResetMode(false);
     }
@@ -3339,13 +3469,12 @@ ${usageExamples || '暂无调用示例'}
         setCoreInputIn('用户诉求与必要业务标识（如单号、手机号后四位）');
         setCoreInputOut('结构化结论或进度说明 + 下一步引导');
         setDraftConfirmed(false);
-        openFormSection(1);
+        markFormSectionWritten(1);
         setChatStep(2);
         return extractedCn;
       };
 
       if ((chatStep === 0 || chatStep === 1) && isMagicOnly && !looksLikePeChip) {
-        openFormSection(1);
         setChatStep(1);
         aiBubbles = [
           '好的。请直接描述业务能力，例如“查询京东延保服务单进度并告知处理节点”。',
@@ -3387,7 +3516,7 @@ ${usageExamples || '暂无调用示例'}
             : userText.slice(0, 400),
         );
         setKnowledgeDesc('执行前先核验必要标识；查询结果需转成用户可理解的节点说明。');
-        openFormSection(2);
+        markFormSectionWritten(2);
         setChatStep(3);
         aiBubbles = [
           `第二轮已写入“技能主体”：${generatedSteps[0].name} → ${generatedSteps[1].name}。`,
@@ -3403,7 +3532,7 @@ ${usageExamples || '暂无调用示例'}
         setContentRedLines('不编造进度、不泄露内部工单与接口细节。');
         setAnswerTone('先结论后依据，语气克制清晰。');
         setOutputConstraints('结论须简明，含状态与下一步；严禁泄露后台地址。');
-        openFormSection(3);
+        markFormSectionWritten(3);
         setChatStep(4);
         aiBubbles = [
           `第三轮已写入“规范约束”：${extractedNotAllowed}`,
@@ -3417,7 +3546,7 @@ ${usageExamples || '暂无调用示例'}
             : `用户："${userText}"\n数字员工：启动当前技能并给出结构化结论。`;
         setUsageExamples(extractedExamples);
         setCustomNotes('高峰或接口延迟时，3 秒内告知用户稍候。');
-        openFormSection(4);
+        markFormSectionWritten(4);
         setChatStep(5);
         aiBubbles = [
           '第四轮已写入“补充说明”。四张卡片已齐。',
@@ -3461,7 +3590,7 @@ ${usageExamples || '暂无调用示例'}
           const nextForbidden = '非本技能范围、缺少关键标识、情绪严重失控或客诉升级时不该使用';
           setTriggerCond(extractedTrigger);
           setForbiddenCond(nextForbidden);
-          openFormSection(1);
+          markFormSectionWritten(1);
           secondaryConfirmItems = [
             toConfirmItem('triggerCond', '触发条件', extractedTrigger),
             toConfirmItem('forbiddenCond', '不该使用的情况', nextForbidden),
@@ -3480,7 +3609,7 @@ ${usageExamples || '暂无调用示例'}
               : '校验后给出明确方案与可执行下一步';
           setCoreInputIn(nextIn);
           setCoreInputOut(nextOut);
-          openFormSection(1);
+          markFormSectionWritten(1);
           secondaryConfirmItems = [
             toConfirmItem('coreInputIn', '用户输入信息', nextIn),
             toConfirmItem('coreInputOut', '产出物', nextOut),
@@ -3510,7 +3639,7 @@ ${usageExamples || '暂无调用示例'}
           ];
           setSteps(generatedSteps);
           setActionChains([{ id: 1, name: '标准闭环动作链', steps: generatedSteps }]);
-          openFormSection(2);
+          markFormSectionWritten(2);
           secondaryConfirmItems = [
             toConfirmItem(
               'actionChain',
@@ -3544,7 +3673,7 @@ ${usageExamples || '暂无调用示例'}
           setContentRedLines(nextRedLines);
           setFallback(nextFallback);
           setOutputConstraints('结论须简明，含状态与下一步；严禁泄露后台地址。');
-          openFormSection(3);
+          markFormSectionWritten(3);
           secondaryConfirmItems = [
             toConfirmItem('notAllowed', '禁止行为', extractedNotAllowed),
             toConfirmItem('contentRedLines', '内容红线', nextRedLines),
@@ -3560,7 +3689,7 @@ ${usageExamples || '暂无调用示例'}
           const nextNotes = '高峰或接口延迟时，3 秒内告知用户稍候。';
           setUsageExamples(nextExamples);
           setCustomNotes(nextNotes);
-          openFormSection(4);
+          markFormSectionWritten(4);
           secondaryConfirmItems = [
             toConfirmItem('usageExamples', '使用示例', nextExamples),
             toConfirmItem('customNotes', '补充资料', nextNotes),
@@ -3659,6 +3788,7 @@ ${usageExamples || '暂无调用示例'}
     setGoalResourceOpen(false);
     setGoalResourceQuery('');
     setChatInput('');
+    setComposerAttachments([]);
     setComposerConsumedChipIds([]);
     setComposerResetMode(false);
     showToast('已回到技能目标输入');
@@ -4713,9 +4843,11 @@ return (
               ref={chatFileInputRef}
               type="file"
               className="hidden"
+              multiple
+              accept={COMPOSER_FILE_ACCEPT}
               onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleFileUpload(file.name, file.size);
+                const files = e.target.files;
+                if (files?.length) void addComposerAttachments(files);
                 e.currentTarget.value = '';
               }}
             />
@@ -4805,6 +4937,32 @@ return (
                       />
                     </div>
 
+                    {composerAttachments.length > 0 ? (
+                      <div className="px-1 pb-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                        {composerAttachments.map((file) => (
+                          <span
+                            key={file.id}
+                            className={GOAL_INDEX_CHIP}
+                            title={`${file.name} · ${file.sizeLabel}`}
+                          >
+                            <FileText size={12} className="text-neutral-500 shrink-0" />
+                            <span className="truncate min-w-0">{file.name}</span>
+                            <span className="text-[10px] tabular-nums text-neutral-400 shrink-0">
+                              {file.sizeLabel}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeComposerAttachment(file.id)}
+                              className="ml-0.5 text-neutral-400 hover:text-neutral-800 cursor-pointer shrink-0"
+                              aria-label={`移除 ${file.name}`}
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+
                     {(selectedKBs.length > 0 || selectedScripts.length > 0) && (
                       <div className="px-1 pb-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
                         {selectedKBs.map((kb) => (
@@ -4855,8 +5013,11 @@ return (
                         <button
                           type="button"
                           onClick={() => chatFileInputRef.current?.click()}
-                          className="w-8 h-8 rounded-[7px] border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 flex items-center justify-center cursor-pointer shrink-0 shadow-[0_1px_0_rgba(0,0,0,0.05)]"
-                          title="上传参考"
+                          className={cn(
+                            'w-8 h-8 rounded-[7px] border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 flex items-center justify-center cursor-pointer shrink-0 shadow-[0_1px_0_rgba(0,0,0,0.05)]',
+                            composerAttachments.length > 0 && 'border-neutral-300',
+                          )}
+                          title="上传文件到输入框"
                         >
                           <Plus size={16} strokeWidth={2} />
                         </button>
@@ -5053,7 +5214,7 @@ return (
                         ) : (
                           <button
                             type="button"
-                            disabled={!chatInput.trim()}
+                            disabled={!chatInput.trim() && composerAttachments.length === 0}
                             onClick={() => {
                               setGoalResourceOpen(false);
                               handleSendChatMessage();
@@ -5402,6 +5563,7 @@ return (
                   let payload: {
                     items?: SkillConfirmItem[];
                     confirmed?: boolean;
+                    superseded?: boolean;
                     title?: string;
                     collapsed?: boolean;
                   } = {};
@@ -5410,23 +5572,38 @@ return (
                   } catch {
                     payload = {};
                   }
+                  const hasNewerConfirm = chatMessages
+                    .slice(i + 1)
+                    .some((m) => m.sender === 'skill_confirm');
+                  const locked =
+                    !payload.confirmed && (Boolean(payload.superseded) || hasNewerConfirm);
                   return (
-                    <div key={msgKey} className="w-full animate-in fade-in duration-200">
+                    <div
+                      key={msgKey}
+                      className={cn(
+                        'w-full animate-in fade-in duration-200',
+                        locked && 'opacity-90',
+                      )}
+                    >
                       <SkillRoundConfirmCard
                         title={payload.title || '请确认本轮变更要点'}
                         items={payload.items ?? []}
                         confirmed={Boolean(payload.confirmed)}
+                        locked={locked}
                         collapsed={
                           payload.collapsed != null
                             ? Boolean(payload.collapsed)
-                            : Boolean(payload.confirmed)
+                            : Boolean(payload.confirmed) || locked
                         }
                         editingItemIds={
-                          confirmEditTarget?.msgIndex === i
+                          !locked && confirmEditTarget?.msgIndex === i
                             ? confirmEditTarget.items.map((item) => item.itemId)
                             : []
                         }
-                        onEditItem={(item, itemIndex) => {
+                        onEditItem={
+                          locked
+                            ? undefined
+                            : (item, itemIndex) => {
                           setComposerConsumedChipIds([]);
                           setComposerResetMode(false);
                           const hint = item.fieldLabel || `要点 ${itemIndex + 1}`;
@@ -5464,13 +5641,21 @@ return (
                               block: 'nearest',
                             });
                           });
-                        }}
-                        onBatchModeChange={(active) => {
+                        }
+                        }
+                        onBatchModeChange={
+                          locked
+                            ? undefined
+                            : (active) => {
                           if (!active && confirmEditTarget?.msgIndex === i) {
                             setConfirmEditTarget(null);
                           }
-                        }}
-                        onItemsChange={(items) => {
+                        }
+                        }
+                        onItemsChange={
+                          locked
+                            ? undefined
+                            : (items) => {
                           setChatMessages((prev) =>
                             prev.map((m, idx) =>
                               idx === i && m.sender === 'skill_confirm'
@@ -5485,7 +5670,8 @@ return (
                                 : m,
                             ),
                           );
-                        }}
+                        }
+                        }
                         onCollapsedChange={(nextCollapsed) => {
                           setChatMessages((prev) =>
                             prev.map((m, idx) =>
@@ -5501,7 +5687,10 @@ return (
                             ),
                           );
                         }}
-                        onConfirm={(items) => {
+                        onConfirm={
+                          locked
+                            ? () => {}
+                            : (items) => {
                           void handleConfirmSkillItems(items);
                           setChatMessages((prev) =>
                             prev.map((m, idx) =>
@@ -5518,14 +5707,19 @@ return (
                                 : m,
                             ),
                           );
-                        }}
-                        onDelete={() => {
+                        }
+                        }
+                        onDelete={
+                          locked
+                            ? undefined
+                            : () => {
                           setChatMessages((prev) => prev.filter((_, idx) => idx !== i));
                           if (confirmEditTarget?.msgIndex === i) {
                             setConfirmEditTarget(null);
                             setChatInput('');
                           }
-                        }}
+                        }
+                        }
                       />
                     </div>
                   );
@@ -5726,7 +5920,21 @@ return (
                               </div>
                             </div>
                           ) : (
-                            <div className={USER_CHAT_BUBBLE}>{msg.content}</div>
+                            <div className="flex flex-col items-end gap-1.5 w-full">
+                              {(() => {
+                                const { text, attachments } = splitChatContentWithAttachments(
+                                  msg.content,
+                                );
+                                return (
+                                  <>
+                                    <ChatAttachmentCards attachments={attachments} align="end" />
+                                    {text ? (
+                                      <div className={USER_CHAT_BUBBLE}>{text}</div>
+                                    ) : null}
+                                  </>
+                                );
+                              })()}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -5785,7 +5993,7 @@ return (
                   type="button"
                   onClick={() => applyComposerReplyChip(chip)}
                   className={CHIP}
-                  title="点选后立刻发送，由 AI 补全并弹出确认卡"
+                  title="点选后填入输入框，可再编辑后发送"
                 >
                   {chip.label}
                 </button>
@@ -5848,6 +6056,31 @@ return (
                     ))}
                   </div>
                 ) : null}
+                {composerAttachments.length > 0 ? (
+                  <div className="flex items-center gap-2 pb-2 mb-1 overflow-x-auto no-scrollbar">
+                    {composerAttachments.map((file) => (
+                      <span
+                        key={file.id}
+                        className={GOAL_INDEX_CHIP}
+                        title={`${file.name} · ${file.sizeLabel}`}
+                      >
+                        <FileText size={12} className="text-neutral-500 shrink-0" />
+                        <span className="truncate min-w-0">{file.name}</span>
+                        <span className="text-[10px] tabular-nums text-neutral-400 shrink-0">
+                          {file.sizeLabel}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeComposerAttachment(file.id)}
+                          className="ml-0.5 text-neutral-400 hover:text-neutral-800 cursor-pointer shrink-0"
+                          aria-label={`移除 ${file.name}`}
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
                 <textarea
                   ref={chatComposerTextareaRef}
                   rows={1}
@@ -5859,6 +6092,7 @@ return (
                       e.preventDefault();
                       setComposerResetMode(false);
                       setChatInput('');
+                      setComposerAttachments([]);
                       setComposerConsumedChipIds([]);
                       return;
                     }
@@ -5892,7 +6126,10 @@ return (
                     <button
                       type="button"
                       onClick={() => chatFileInputRef.current?.click()}
-                      className="w-8 h-8 rounded border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 flex items-center justify-center cursor-pointer shrink-0"
+                      className={cn(
+                        'w-8 h-8 rounded border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 flex items-center justify-center cursor-pointer shrink-0',
+                        composerAttachments.length > 0 && 'border-neutral-300',
+                      )}
                       title="上传文件"
                     >
                       <Plus size={16} />
@@ -5913,7 +6150,9 @@ return (
                   ) : (
                     <button
                       type="button"
-                      disabled={!chatInput.trim() || hasPendingClarify}
+                      disabled={
+                        (!chatInput.trim() && composerAttachments.length === 0) || hasPendingClarify
+                      }
                       onClick={() => handleSendChatMessage()}
                       className={cn(
                         SKILL_AOP_SEND_BTN,
@@ -6009,6 +6248,21 @@ return (
                   </div>
                   </div>
                   <div className="flex items-center gap-2 px-1">
+                    <button
+                      type="button"
+                      onClick={() => stepFormSection(-1)}
+                      disabled={activeStep <= 1}
+                      className={cn(
+                        'w-6 h-6 rounded-md inline-flex items-center justify-center shrink-0 border transition cursor-pointer',
+                        activeStep <= 1
+                          ? 'border-transparent text-neutral-300 cursor-not-allowed'
+                          : 'border-[#E9EAEB] text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900',
+                      )}
+                      title="上一张卡"
+                      aria-label="上一张卡"
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
                     <div className="flex-1 h-1 rounded-full bg-neutral-100 overflow-hidden">
                       <motion.div
                         className="h-full rounded-full bg-[linear-gradient(90deg,#000000_0%,#1565BF_100%)]"
@@ -6018,7 +6272,25 @@ return (
                       />
                     </div>
                     <span className="text-[10px] tabular-nums text-neutral-400 shrink-0">{activeStep}/4</span>
+                    <button
+                      type="button"
+                      onClick={() => stepFormSection(1)}
+                      disabled={activeStep >= 4}
+                      className={cn(
+                        'w-6 h-6 rounded-md inline-flex items-center justify-center shrink-0 border transition cursor-pointer',
+                        activeStep >= 4
+                          ? 'border-transparent text-neutral-300 cursor-not-allowed'
+                          : 'border-[#E9EAEB] text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900',
+                      )}
+                      title="下一张卡"
+                      aria-label="下一张卡"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
                   </div>
+                  <p className="px-1 text-[10px] leading-none text-neutral-400">
+                    上下滚动浏览本卡 · 左右滑动或点 Tab 切卡
+                  </p>
                 </div>
 
                 <div className="relative flex-1 min-h-0 overflow-hidden">
@@ -6399,14 +6671,14 @@ return (
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="text-[11px] text-neutral-500">
-                          支持拖拽上传，或点击按钮选择文件
+                          支持文档 / 表格 / 脚本 / 图片 / 压缩包，拖拽或点击上传
                         </div>
                         <button
                           type="button"
                           onClick={() => {
                             const input = document.createElement('input');
                             input.type = 'file';
-                            input.accept = '.pdf,.doc,.docx,.xls,.xlsx,.txt,.md,.py,.js,.json,.ts,.sh,.csv';
+                            input.accept = COMPOSER_FILE_ACCEPT;
                             input.onchange = (e: any) => {
                               if (e.target.files && e.target.files.length > 0) {
                                 const file = e.target.files[0];

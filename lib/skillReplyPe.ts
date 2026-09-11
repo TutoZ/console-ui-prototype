@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * 多轮对话底部“AI 帮写”快捷建议 — 按上下文动态生成若干回答方向；
- * 点选后立刻发送完整草稿，由 AI 补全并弹出确认卡。
+ * 点选后填入输入框（可叠加），用户确认后再发送。
  */
 
 export type SkillReplyPeChip = {

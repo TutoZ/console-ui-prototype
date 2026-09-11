@@ -369,11 +369,7 @@ export const EmployeeManagePage: React.FC = () => {
         id: newAg.agentId,
         avatar: newAg.avatar,
       });
-      showToast(
-        payload.createMethod === 'ai'
-          ? '已进入预设流程编排画布（可结合 AI 完善节点）'
-          : '已进入预设流程编排画布',
-      );
+      showToast('已进入预设流程编排画布');
       return;
     }
 
@@ -901,7 +897,7 @@ export const EmployeeManagePage: React.FC = () => {
         isOnline={isOnline}
         showStatusDot={isTrainingPage}
         hasTrainNotice={hasTrainNotice}
-        jobFamilyLabel={JOB_FAMILY_FULL_LABELS[category]}
+        jobFamilyLabel={isTrainingPage ? undefined : JOB_FAMILY_FULL_LABELS[category]}
         primaryActionLabel={primaryLabel}
         onPrimaryAction={onPrimary}
         onDispatchTask={showDutyToggle ? undefined : openDispatch}

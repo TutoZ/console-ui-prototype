@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 右侧表单扫描态 — 居中渐变扫描线上下往复
+ * 左侧表单扫描态 — 居中渐变扫描线上下往复
  */
 
 import React from 'react';

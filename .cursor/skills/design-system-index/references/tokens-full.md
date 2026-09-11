@@ -285,7 +285,7 @@
 | radius-3xl | ×2.2 | 16 | `rounded-3xl` | Editor 大卡 |
 | radius-4xl | ×2.6 | 19 | `rounded-4xl` | shadcn Badge |
 | radius-full | 9999 | — | `rounded-full` | badge/Avatar/进度条 |
-| 任意（禁止新页） | — | — | `rounded-[10px]` 等 | 历史遗留，勿用于新页 |
+| 任意（禁止新页） | — | — | `rounded-[10px]` 等 | Editor/Creagic 遗留 |
 
 **设计稿 10px 圆角** → `rounded-xl`（Dialog）或 `rounded-lg`（面板），禁止 `rounded-[10px]`。
 
@@ -378,9 +378,9 @@
 
 | tone | 场景 | 底 Hex | 字 Hex | 尺寸 class |
 |------|------|--------|--------|------------|
-| `confirmed` | 确认卡标题「已确认」 | `#E8F8F1` Success 底 | `#00B26F` Success | `h-[18px] px-1.5 rounded text-[11px]` |
-| `confirmedSoft` | 草案卡内联「已确认」 | `#E8F8F1` | `#009B5E` Success 深 | `text-[10px] px-1.5 py-0.5 rounded-md` |
-| `pending` | 配对「待确认」 | `#FFF3E8` Warning 底 | `#F08433` Warning | 同 confirmedSoft |
+| `confirmed` | 确认卡标题「已确认」 | `#D1FAE5` emerald-100 | `#065F46` emerald-800 | `h-[18px] px-1.5 rounded text-[11px]` |
+| `confirmedSoft` | 草案卡内联「已确认」 | `#ECFDF5` emerald-50 | `#047857` emerald-700 | `text-[10px] px-1.5 py-0.5 rounded-md` |
+| `pending` | 配对「待确认」 | `#FFFBEB` amber-50 | `#B45309` amber-700 | 同 confirmedSoft |
 
 ```tsx
 import { confirmStatusBadgeClass } from '@/lib/ui';
@@ -400,7 +400,7 @@ import { confirmStatusBadgeClass } from '@/lib/ui';
 |------|----------|
 | 裸 Hex | `bg-[#F2F7FF]` 等 → 查 §3.8 映射 |
 | slate/blue 主色 | 新页禁止；映射 ink/neutral/sky |
-| zinc-* | 历史遗留，JoyServing 新页用 neutral |
+| zinc-* | Editor/Creagic 遗留，JoyServing 新页用 neutral |
 | CardIcon 渐变 | blue/violet/indigo 等**仅** App 图标，非页面主色 |
 
 ---

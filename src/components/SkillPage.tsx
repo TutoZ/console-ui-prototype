@@ -7,13 +7,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Icon, addCollection } from '@iconify/react';
 import solarIcons from '@iconify-json/solar/icons.json';
 import { useApp } from '../context/AppContext';
-import { Plus, Search, Sparkles, UploadCloud } from '@/lib/icons';
+import { History, Pencil, Plus, Search, Sparkles, Trash2, UploadCloud } from '@/lib/icons';
 import { ListPagination, LIST_PAGE_SIZE, paginateItems } from './common/ListPagination';
 import {
   SkillStudioWorkspace,
   type SkillStudioPublishPayload,
 } from './skills/SkillStudioWorkspace';
-import { BTN_DANGER, BTN_INK, BTN_SOFT, CARD, CARD_HOVER, SEARCH_FIELD, badgeClass } from '@/lib/ui';
+import { BTN_DANGER, BTN_INK, BTN_SOFT, CARD, SEARCH_FIELD, badgeClass } from '@/lib/ui';
 import { OnlinePageHeader } from './common/OnlinePageLayout';
 import { cn } from '@/lib/utils';
 import { SKILL_PAGE_COPY } from '@/lib/platformTerminology';
@@ -28,12 +28,58 @@ addCollection(solarIcons as Parameters<typeof addCollection>[0]);
 
 type SkillListTab = 'mine' | 'market';
 
+type SkillVersionItem = {
+  id: string;
+  label: string;
+  note: string;
+  time: string;
+  current?: boolean;
+};
+
+/** 已发布自建技能：底栏为「编辑 / 版本历史 / 删除」三等分操作 */
+function isManagedMineSkill(skill: Skill): boolean {
+  return skill.type === 'mine' && skill.status !== 'draft';
+}
+
+/** 原型假数据：按当前版本与更新时间生成可浏览的历史列表 */
+function buildSkillVersionHistory(skill: Skill): SkillVersionItem[] {
+  const raw = skill.version?.trim() || 'v1.0.0';
+  const currentLabel = /^v/i.test(raw) ? raw : `v${raw}`;
+
+  return [
+    {
+      id: `${skill.id}-cur`,
+      label: currentLabel,
+      note: '当前线上运行版本',
+      time: skill.updatedAt,
+      current: true,
+    },
+    {
+      id: `${skill.id}-prev`,
+      label: currentLabel === 'v1.1.0' ? 'v1.0.1' : 'v1.1.0',
+      note: '调整意图识别与办理链路',
+      time: skill.updatedAt.replace(/\d{2}:\d{2}$/, '10:20') || skill.updatedAt,
+    },
+    {
+      id: `${skill.id}-old`,
+      label: 'v1.0.0',
+      note: '首次发布',
+      time: skill.updatedAt.replace(/-\d{2} /, '-01 ').replace(/\d{2}:\d{2}$/, '09:00') || skill.updatedAt,
+    },
+  ];
+}
+
 /** 对齐“我的数字员工”卡片底栏按钮（描边 / 主操作蓝） */
 const SKILL_CARD_BTN =
   'h-7 min-w-0 px-2 rounded-[6px] border shadow-[0_1px_0_rgba(0,0,0,0.05)] text-[11px] font-medium cursor-pointer transition flex items-center justify-center disabled:opacity-70 disabled:pointer-events-none';
 const SKILL_CARD_BTN_OUTLINE = cn(
   SKILL_CARD_BTN,
   'flex-1 border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50',
+);
+/** 已发布技能三操作：图标+文案，中性描边 */
+const SKILL_CARD_BTN_MANAGED = cn(
+  SKILL_CARD_BTN,
+  'flex-1 gap-1 border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50',
 );
 const SKILL_CARD_BTN_PRIMARY = cn(
   SKILL_CARD_BTN,
@@ -93,6 +139,7 @@ function SkillCardAction({
   onSubscribe,
   onUnsubscribe,
   onDelete,
+  onVersionHistory,
 }: {
   skillTab: SkillListTab;
   skill: Skill;
@@ -100,6 +147,7 @@ function SkillCardAction({
   onSubscribe: () => void;
   onUnsubscribe: () => void;
   onDelete: () => void;
+  onVersionHistory: () => void;
 }) {
   const subscribe = useInlineAction(onSubscribe, { profile: 'save' });
 
@@ -145,6 +193,48 @@ function SkillCardAction({
     );
   }
 
+  /** 已发布自建：编辑 / 版本历史 / 删除 */
+  if (isManagedMineSkill(skill)) {
+    return (
+      <div className="flex items-center gap-1.5 w-full min-w-0">
+        <button
+          type="button"
+          className={SKILL_CARD_BTN_MANAGED}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+        >
+          <Pencil size={12} className="shrink-0" aria-hidden />
+          <span className="truncate">{SKILL_PAGE_COPY.editSkill}</span>
+        </button>
+        <button
+          type="button"
+          className={SKILL_CARD_BTN_MANAGED}
+          onClick={(e) => {
+            e.stopPropagation();
+            onVersionHistory();
+          }}
+        >
+          <History size={12} className="shrink-0" aria-hidden />
+          <span className="truncate">{SKILL_PAGE_COPY.versionHistory}</span>
+        </button>
+        <button
+          type="button"
+          className={SKILL_CARD_BTN_MANAGED}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+        >
+          <Trash2 size={12} className="shrink-0" aria-hidden />
+          <span className="truncate">{SKILL_PAGE_COPY.deleteMine}</span>
+        </button>
+      </div>
+    );
+  }
+
+  /** 草稿：删除 + 继续编辑 */
   return (
     <div className="flex items-center gap-1.5 w-full min-w-0">
       {skill.type === 'mine' ? (
@@ -229,6 +319,7 @@ export const SkillPage: React.FC = () => {
     skill: Skill;
     kind: 'delete' | 'unsubscribe';
   } | null>(null);
+  const [versionHistorySkill, setVersionHistorySkill] = useState<Skill | null>(null);
   const createMenuCloseTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const openCreateMenu = () => {
@@ -421,7 +512,7 @@ export const SkillPage: React.FC = () => {
             {createMenuOpen ? (
               <div
                 role="menu"
-                className="absolute right-0 top-full z-50 pt-1 w-[280px] animate-in fade-in zoom-in-95 duration-150"
+                className="absolute right-0 top-full z-20 pt-1 w-[280px] animate-in fade-in zoom-in-95 duration-150"
               >
                 <div className="rounded-[13px] border border-neutral-200 bg-white shadow-[0_8px_24px_rgba(17,17,17,0.1)] overflow-hidden py-1">
                   <button
@@ -494,7 +585,12 @@ export const SkillPage: React.FC = () => {
       </nav>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5">
+      <div
+        className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5"
+        onScroll={() => {
+          if (createMenuOpen) setCreateMenuOpen(false);
+        }}
+      >
       <ContentBusy busy={listBusy} size="panel" minHeight={240}>
         {pagedFiltered.length === 0 ? (
           <div className="py-16 text-center text-[13px] text-neutral-500">
@@ -507,7 +603,11 @@ export const SkillPage: React.FC = () => {
             {pagedFiltered.map((s) => (
               <article
                 key={s.id}
-                className={cn(CARD, CARD_HOVER, 'group relative flex h-full flex-col p-3.5')}
+                className={cn(
+                  CARD,
+                  'hover:shadow-[0_4px_12px_rgba(31,35,41,0.08)]',
+                  'group relative flex h-full flex-col p-3.5',
+                )}
               >
                 <div className="flex items-start gap-2 min-w-0">
                   <SkillListIcon skill={s} />
@@ -555,37 +655,51 @@ export const SkillPage: React.FC = () => {
                   />
                 ) : null}
 
-                <div className="mt-auto pt-2.5 border-t border-neutral-100/80 relative min-h-7">
-                  <p
-                    className="text-[11px] text-neutral-400 truncate leading-7 pr-1"
-                    title={`${s.author} · ${s.updatedAt}`}
-                  >
-                    {s.author} · {s.updatedAt}
-                  </p>
-                  <div
-                    className={cn(
-                      'absolute inset-x-0 bottom-0 flex items-center bg-white transition-opacity duration-150',
-                      skillTab === 'market' && s.type === 'subscribed'
-                        ? 'opacity-100 pointer-events-auto'
-                        : cn(
-                            'opacity-0 pointer-events-none',
-                            'group-hover:opacity-100 group-hover:pointer-events-auto',
-                            'group-focus-within:opacity-100 group-focus-within:pointer-events-auto',
-                            'has-[button:disabled]:opacity-100 has-[button:disabled]:pointer-events-auto',
-                          ),
-                    )}
-                  >
-                    <SkillCardAction
-                      skillTab={skillTab}
-                      skill={s}
-                      onEdit={() => setStudioTarget(s)}
-                      onSubscribe={() => {
-                        subscribeSkill(s.id);
-                      }}
-                      onUnsubscribe={() => handleUnsubscribe(s)}
-                      onDelete={() => handleDelete(s)}
-                    />
-                  </div>
+                <div className="mt-auto pt-2.5 border-t border-neutral-100/80">
+                  {(() => {
+                    const actionsAlwaysOn =
+                      skillTab === 'market' && s.type === 'subscribed';
+                    return (
+                      <>
+                        {!actionsAlwaysOn ? (
+                          <p
+                            className={cn(
+                              'text-[11px] text-neutral-400 truncate leading-7',
+                              'group-hover:hidden group-focus-within:hidden',
+                              'group-has-[button:disabled]:hidden',
+                            )}
+                            title={`${s.author} · ${s.updatedAt}`}
+                          >
+                            {s.author} · {s.updatedAt}
+                          </p>
+                        ) : null}
+                        <div
+                          className={cn(
+                            'flex items-center min-h-7',
+                            actionsAlwaysOn
+                              ? 'opacity-100'
+                              : cn(
+                                  'hidden',
+                                  'group-hover:flex group-focus-within:flex',
+                                  'group-has-[button:disabled]:flex',
+                                ),
+                          )}
+                        >
+                          <SkillCardAction
+                            skillTab={skillTab}
+                            skill={s}
+                            onEdit={() => setStudioTarget(s)}
+                            onSubscribe={() => {
+                              subscribeSkill(s.id);
+                            }}
+                            onUnsubscribe={() => handleUnsubscribe(s)}
+                            onDelete={() => handleDelete(s)}
+                            onVersionHistory={() => setVersionHistorySkill(s)}
+                          />
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </article>
             ))}
@@ -645,6 +759,67 @@ export const SkillPage: React.FC = () => {
             aiCreated={isAiCreatedSkill(boundConfirm.skill)}
           />
         ) : null}
+      </Modal>
+
+      <Modal
+        open={Boolean(versionHistorySkill)}
+        onClose={() => setVersionHistorySkill(null)}
+        title={SKILL_PAGE_COPY.versionHistoryTitle}
+        description={versionHistorySkill?.name}
+        maxWidth="max-w-md"
+        footer={
+          <button
+            type="button"
+            className={BTN_SOFT}
+            onClick={() => setVersionHistorySkill(null)}
+          >
+            {SKILL_PAGE_COPY.deleteCancel}
+          </button>
+        }
+      >
+        {versionHistorySkill ? (
+          <ul className="flex flex-col gap-2">
+            {buildSkillVersionHistory(versionHistorySkill).map((item) => (
+              <li
+                key={item.id}
+                className="flex items-start justify-between gap-3 rounded-[10px] border border-neutral-200 px-3 py-2.5"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-[13px] font-semibold text-neutral-900 truncate">
+                      {item.label}
+                    </span>
+                    {item.current ? (
+                      <span className="shrink-0 text-[10px] font-medium text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded">
+                        {SKILL_PAGE_COPY.versionHistoryCurrent}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-0.5 text-[12px] text-neutral-500 leading-snug">
+                    {item.note}
+                  </p>
+                  <p className="mt-1 text-[11px] text-neutral-400">{item.time}</p>
+                </div>
+                {!item.current ? (
+                  <button
+                    type="button"
+                    className={cn(BTN_SOFT, 'shrink-0 h-7 px-2.5 text-[11px]')}
+                    onClick={() => {
+                      showToast(
+                        `${item.label} · ${SKILL_PAGE_COPY.versionHistoryRestored}`,
+                      );
+                      setVersionHistorySkill(null);
+                    }}
+                  >
+                    {SKILL_PAGE_COPY.versionHistoryRestore}
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-[13px] text-neutral-500">{SKILL_PAGE_COPY.versionHistoryEmpty}</p>
+        )}
       </Modal>
     </div>
   );
