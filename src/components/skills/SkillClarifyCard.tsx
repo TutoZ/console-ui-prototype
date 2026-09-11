@@ -8,7 +8,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Pencil, Plus } from '@/lib/icons';
 import { cn } from '@/lib/utils';
-import { BTN_SOFT, SKILL_AOP_PRIMARY_BTN } from '@/lib/ui';
+import { BTN_SOFT_SM, SKILL_AOP_PRIMARY_BTN_SM } from '@/lib/ui';
 import { SKILL_CREATE_CHAT } from '@/lib/platformTerminology';
 
 export type SkillClarifyOption = {
@@ -223,7 +223,7 @@ export const SkillClarifyCard: React.FC<SkillClarifyCardProps> = ({
           ))}
 
           {locked ? null : (
-            <div className="flex items-center gap-2.5 pt-1">
+            <div className="flex flex-wrap items-center gap-2 pt-1">
               <button
                 type="button"
                 disabled={!canSubmit}
@@ -237,19 +237,13 @@ export const SkillClarifyCard: React.FC<SkillClarifyCardProps> = ({
                   })
                 }
                 className={cn(
-                  'h-9 px-5 rounded-lg text-[14px] font-medium transition cursor-pointer',
-                  canSubmit
-                    ? cn(SKILL_AOP_PRIMARY_BTN, 'h-9 px-5 text-[14px]')
-                    : 'bg-[#F5F5F5] text-[#B0B2B8] cursor-not-allowed',
+                  SKILL_AOP_PRIMARY_BTN_SM,
+                  !canSubmit && 'opacity-40 cursor-not-allowed hover:opacity-40',
                 )}
               >
                 提交
               </button>
-              <button
-                type="button"
-                onClick={onSkip}
-                className={cn(BTN_SOFT, 'h-9 px-5 text-[14px]')}
-              >
+              <button type="button" onClick={onSkip} className={BTN_SOFT_SM}>
                 跳过
               </button>
             </div>

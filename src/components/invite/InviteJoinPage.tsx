@@ -174,6 +174,47 @@ function InvitePageShell({
   );
 }
 
+function getInviteUnavailableReason(campaign: InviteCampaign): {
+  title: string;
+  desc: string;
+} {
+  if (campaign.usedCount >= campaign.userCount) {
+    return {
+      title: '申请名额已满',
+      desc: '当前邀请名额已用尽，无法继续申请。请联系管理员重新生成邀请链接。',
+    };
+  }
+  if (campaign.status === 'offline') {
+    return {
+      title: '邀请链接已下线',
+      desc: '该邀请已被管理员下线，无法继续申请。请联系管理员重新生成邀请链接。',
+    };
+  }
+  const deadline = Date.parse(campaign.deadline.replace(' ', 'T'));
+  if (!Number.isNaN(deadline) && Date.now() > deadline) {
+    return {
+      title: '邀请链接已过期',
+      desc: `有效期至 ${campaign.deadline}，现已失效。请联系管理员重新生成邀请链接。`,
+    };
+  }
+  return {
+    title: '邀请暂不可用',
+    desc: '当前无法通过此链接申请加入，请联系管理员确认邀请状态。',
+  };
+}
+
+function InviteUnavailableView({ campaign }: { campaign: InviteCampaign }) {
+  const reason = getInviteUnavailableReason(campaign);
+  return (
+    <div className={styles.formMain}>
+      <div className={styles.header}>
+        <div className={styles.title}>{reason.title}</div>
+        <div className={styles.descBlock}>{reason.desc}</div>
+      </div>
+    </div>
+  );
+}
+
 function InviteLoginForm({
   campaign,
   onSuccess,
@@ -712,6 +753,15 @@ export const InviteJoinPage: React.FC<{ token: string }> = ({ token }) => {
             <div className={styles.desc}>未找到对应邀请配置，请向管理员索取最新链接。</div>
           </div>
         </div>
+      </InvitePageShell>
+    );
+  }
+
+  // 名额已满 / 已下线 / 已过期：不再展示登录与申请表单
+  if (!available && step !== 'success') {
+    return (
+      <InvitePageShell campaign={campaign} phase={step === 'apply' ? 'apply' : 'login'}>
+        <InviteUnavailableView campaign={campaign} />
       </InvitePageShell>
     );
   }
