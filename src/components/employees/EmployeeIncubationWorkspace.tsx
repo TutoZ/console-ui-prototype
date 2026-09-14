@@ -10,7 +10,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import {
   ArrowUp,
-  Check,
+  CheckCircle2,
   Loader2,
   Plus,
   Sparkles,
@@ -630,6 +630,7 @@ function IncubationTrainingPane({
               headerLeft={
                 <SegmentedTabBar
                   ariaLabel="预览面板"
+                  className="[&_button]:px-2 [&_button]:text-[12px]"
                   value={rightTab}
                   onChange={(id) => setRightTab(id as 'chat' | 'versions')}
                   items={[
@@ -641,16 +642,19 @@ function IncubationTrainingPane({
             />
           ) : (
             <>
-              <div className="px-4 py-2.5 bg-white border-b border-neutral-200 flex items-center justify-between shrink-0 gap-2 min-h-[54px]">
-                <SegmentedTabBar
-                  ariaLabel="预览面板"
-                  value={rightTab}
-                  onChange={(id) => setRightTab(id as 'chat' | 'versions')}
-                  items={[
-                    { id: 'chat', label: LIFECYCLE_TERMS.onboardTest },
-                    { id: 'versions', label: LIFECYCLE_TERMS.examVersion },
-                  ]}
-                />
+              <div className="px-3 py-2.5 bg-white border-b border-neutral-200 flex items-center justify-between shrink-0 gap-1.5 min-h-[54px] min-w-0 overflow-hidden">
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <SegmentedTabBar
+                    ariaLabel="预览面板"
+                    className="[&_button]:px-2 [&_button]:text-[12px]"
+                    value={rightTab}
+                    onChange={(id) => setRightTab(id as 'chat' | 'versions')}
+                    items={[
+                      { id: 'chat', label: LIFECYCLE_TERMS.onboardTest },
+                      { id: 'versions', label: LIFECYCLE_TERMS.examVersion },
+                    ]}
+                  />
+                </div>
               </div>
               {isPlaceholder ? (
                 <div className="flex-1 min-h-0 flex items-center justify-center px-6 text-center">
@@ -1042,7 +1046,7 @@ export function EmployeeIncubationWorkspace({
         activeTabId="build"
         onTabChange={() => {}}
         onBack={onClose}
-        backLabel="返回 Agent Builder"
+        backLabel="返回智能创作"
         actions={
           <button
             type="button"
@@ -1054,7 +1058,7 @@ export function EmployeeIncubationWorkspace({
               NAV_ACTIVE_GRADIENT_BG,
             )}
           >
-            <Check size={14} strokeWidth={2.5} />
+            <CheckCircle2 size={13} />
             {LIFECYCLE_TERMS.completeTraining}
           </button>
         }

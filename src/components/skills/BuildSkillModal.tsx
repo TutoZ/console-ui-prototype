@@ -54,6 +54,7 @@ import {
   LayoutGrid,
   Folder,
   Pencil,
+  MessageSquare,
 } from '@/lib/icons';
 import { motion, Reorder, AnimatePresence } from 'motion/react';
 import type { Skill } from '@/src/types';
@@ -156,15 +157,12 @@ function renderAiBubbleContent(content: string) {
   );
 }
 
-/** 与 SkillRoundConfirmCard / 澄清卡一致的对话流卡片壳 */
-const SKILL_CHAT_CARD = 'rounded-lg border border-neutral-200 bg-neutral-50 overflow-hidden animate-in fade-in duration-200';
-const SKILL_CHAT_CARD_HEAD = 'flex items-center justify-between gap-2 px-3 py-3 min-w-0';
-const SKILL_CHAT_CARD_BODY = 'px-3 pb-3 space-y-3';
-const SKILL_CHAT_CARD_PANEL = 'rounded border border-neutral-200/80 bg-white p-4 space-y-3';
-const SKILL_CHAT_STAT_CELL =
-  'rounded-lg border border-neutral-200 bg-neutral-50/80 px-2.5 py-2 text-center';
-const SKILL_CHAT_SUGGESTION_ROW =
-  'rounded-md border border-neutral-200 bg-neutral-50/50 px-3 py-2.5 space-y-2';
+/** 对话流过程卡：单层白底壳，禁止内再套卡片 */
+const SKILL_CHAT_CARD =
+  'rounded-xl border border-[#E9EAEB] bg-white overflow-hidden animate-in fade-in duration-200 shadow-[0_1px_2px_rgba(17,17,17,0.04)]';
+const SKILL_CHAT_CARD_HEAD = 'flex items-center justify-between gap-2 px-4 py-3 min-w-0';
+const SKILL_CHAT_CARD_BODY = 'px-4 pb-4 space-y-3';
+const SKILL_CHAT_STAT_CELL = 'px-1 py-1 text-center';
 
 /** 与多轮对话 composer 内索引条（编辑要点）一致 */
 const GOAL_INDEX_CHIP =
@@ -895,8 +893,9 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
   };
 
   // Center Column Tab: 'form' (业务视图) | 'editor' (专家视图 · 文件夹)
-  const [centerTab, setCenterTab] = useState<'form' | 'editor'>('form');
-  const centerTabRef = useRef<'form' | 'editor'>('form');
+  // 进入对话后默认先展示专家视图
+  const [centerTab, setCenterTab] = useState<'form' | 'editor'>('editor');
+  const centerTabRef = useRef<'form' | 'editor'>('editor');
   centerTabRef.current = centerTab;
 
   // 技能测试：保存草稿左侧按钮触发的右上角浮层
@@ -1183,6 +1182,10 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
       value: string;
     }>;
   } | null>(null);
+  /** 专家视图滑动选中 → 带到对话输入区的文本片 */
+  const [composerTextSnippets, setComposerTextSnippets] = useState<
+    Array<{ id: string; text: string; mode: 'quote' | 'rewrite' }>
+  >([]);
   /** 用户消息：在气泡内联编辑 */
   const [editingUserMsgIndex, setEditingUserMsgIndex] = useState<number | null>(null);
   const [editingUserMsgDraft, setEditingUserMsgDraft] = useState('');
@@ -1657,6 +1660,10 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
           label: '先总结本轮想改什么',
           detail: `${snippet}。核心是在已有技能上做定向调整，而不是从零重写。`,
           status: 'pending' as const,
+          children: [
+            { id: 'intent-read', label: '已读取本轮用户补充', kind: 'read' as const },
+            { id: 'intent-run', label: '已对照当前 `SKILL.md` 草稿', kind: 'run' as const },
+          ],
         },
         {
           id: 'gap',
@@ -1664,6 +1671,10 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
           detail:
             '优先看定义与规范里的触发边界是否要收紧；主体与补充信息若无新约束，本轮可先不动。',
           status: 'pending' as const,
+          children: [
+            { id: 'gap-run', label: '已扫描 `定义/主体/规范/补充` 可改字段', kind: 'run' as const },
+            { id: 'gap-note', label: '已锁定本轮改写范围', kind: 'note' as const },
+          ],
         },
         {
           id: 'reply',
@@ -1671,6 +1682,10 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
           detail:
             '先给用户一句确认理解，再进入任务规划，把改写步骤拆成可执行、可回看的清单。',
           status: 'pending' as const,
+          children: [
+            { id: 'reply-run', label: '已生成确认要点清单', kind: 'run' as const },
+            { id: 'reply-note', label: '准备进入任务规划', kind: 'note' as const },
+          ],
         },
       ],
       planSteps: [
@@ -1707,6 +1722,10 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
           label: '先总结用户想做成的能力',
           detail: `${snippet}。把场景、触发与产出先在脑中对齐。`,
           status: 'pending' as const,
+          children: [
+            { id: 'goal-read', label: '已读取用户目标表述', kind: 'read' as const },
+            { id: 'goal-run', label: '已对齐 `技能创建规范` 边界', kind: 'run' as const },
+          ],
         },
         {
           id: 'gap',
@@ -1714,6 +1733,10 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
           detail:
             '触发边界、必填标识、禁答范围或示例往往还不够清楚，需要先问清。',
           status: 'pending' as const,
+          children: [
+            { id: 'gap-run', label: '已扫描 `定义/主体/规范/补充` 缺口', kind: 'run' as const },
+            { id: 'gap-read', label: '已对照同类技能澄清范式', kind: 'read' as const },
+          ],
         },
         {
           id: 'ask',
@@ -1721,6 +1744,10 @@ created_at: "${new Date().toISOString().split('T')[0]}"`;
           detail:
             '先用少量澄清问题补关键缺口，再进入任务规划生成可点选卡片，避免一上来写死规格。',
           status: 'pending' as const,
+          children: [
+            { id: 'ask-run', label: '已整理待澄清关键问题', kind: 'run' as const },
+            { id: 'ask-note', label: '准备进入任务规划生成可点选卡片', kind: 'note' as const },
+          ],
         },
       ],
       planSteps: [
@@ -3258,7 +3285,9 @@ ${usageExamples || '暂无调用示例'}
       forcedText === undefined ? buildComposerAttachmentBlock(composerAttachments) : '';
     const baseText = forcedText !== undefined ? forcedText : chatInput;
     const textToSend = [baseText.trim(), attachmentBlock].filter(Boolean).join('\n\n');
-    if (!textToSend.trim()) {
+    const hasExpertSnippets =
+      forcedText === undefined && composerTextSnippets.length > 0;
+    if (!textToSend.trim() && !hasExpertSnippets) {
       if (confirmEditTarget && forcedText === undefined) {
         showToast('请输入修改内容');
       } else if (forcedText === undefined) {
@@ -3272,6 +3301,7 @@ ${usageExamples || '暂无调用示例'}
       setChatInput('');
       setComposerAttachments([]);
       setComposerConsumedChipIds([]);
+      setComposerTextSnippets([]);
     };
 
     const isResetRequirementsSend =
@@ -3308,6 +3338,22 @@ ${usageExamples || '暂无调用示例'}
         .join('\n');
       const outbound = `请按我的要求改写以下确认要点，并更新草案：\n${summary}\n\n修改要求：${instruction}`;
       setConfirmEditTarget(null);
+      clearComposerOnSend();
+      return handleSendChatMessage(outbound);
+    }
+
+    /** 专家视图选中文本片：作为引用卡片发送 */
+    if (composerTextSnippets.length > 0 && forcedText === undefined) {
+      const quotes = composerTextSnippets
+        .map((snip, index) => `${index + 1}. “${snip.text}”`)
+        .join('\n');
+      const instruction = chatInput.trim();
+      const isRewrite = composerTextSnippets.some((snip) => snip.mode === 'rewrite');
+      const outbound = isRewrite
+        ? `请改写专家视图中选中的以下内容，保持 Markdown 结构：\n${quotes}\n\n改写要求：${instruction || '请优化表达并保持原意'}`
+        : instruction
+          ? `【专家视图选中文本】\n${quotes}\n\n补充说明：${instruction}`
+          : `【专家视图选中文本】\n${quotes}`;
       clearComposerOnSend();
       return handleSendChatMessage(outbound);
     }
@@ -3791,6 +3837,7 @@ ${usageExamples || '暂无调用示例'}
     setComposerAttachments([]);
     setComposerConsumedChipIds([]);
     setComposerResetMode(false);
+    setComposerTextSnippets([]);
     showToast('已回到技能目标输入');
 
     // Set initial sync state after all sets
@@ -4392,11 +4439,11 @@ ${usageExamples || '暂无调用示例'}
   const mountedKBsForSection2 = selectedKBs;
 
   const renderSavePublishButtons = () => {
-    /** 与 SkillRoundConfirmCard 一致：次级 BTN_SOFT，主 CTA 渐变 PRIMARY */
-    const softBtn = cn(BTN_SOFT, 'h-7 px-3 text-[13px]');
+    /** 顶栏操作：标准 h-8（BTN_SOFT / AOP PRIMARY） */
+    const softBtn = BTN_SOFT;
     const primaryBtn = cn(
       SKILL_AOP_PRIMARY_BTN,
-      'h-7 px-3 rounded-md text-[13px] inline-flex items-center gap-1.5',
+      'inline-flex items-center justify-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-[7px]',
     );
 
     return (
@@ -4793,6 +4840,14 @@ return (
               <div className="flex items-center gap-1 min-w-0">
                 <button
                   type="button"
+                  onClick={() => setCenterTab('editor')}
+                  className={sidebarTabClass(centerTab === 'editor')}
+                >
+                  <Code size={16} className="shrink-0" />
+                  专家视图
+                </button>
+                <button
+                  type="button"
                   onClick={() => setCenterTab('form')}
                   className={sidebarTabClass(centerTab === 'form')}
                 >
@@ -4803,14 +4858,6 @@ return (
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                     ) : null}
                   </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCenterTab('editor')}
-                  className={sidebarTabClass(centerTab === 'editor')}
-                >
-                  <Code size={16} className="shrink-0" />
-                  专家视图
                 </button>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -4829,7 +4876,7 @@ return (
         )}
 
         {/* MAIN BODY: SPLIT TWO-COLUMN */}
-        <div className="flex-1 min-h-0 flex bg-white overflow-hidden select-none">
+        <div className="flex-1 min-h-0 flex bg-white overflow-hidden">
           
           {/* LEFT PANEL: CONVERSATIONAL CHAT WINDOW / ZIP UPLOAD WINDOW */}
           <div 
@@ -5312,7 +5359,6 @@ return (
                         </span>
                       </div>
                       <div className={SKILL_CHAT_CARD_BODY}>
-                        <div className={SKILL_CHAT_CARD_PANEL}>
                           <div className="space-y-1.5">
                             <div className="flex justify-between text-[12px] text-neutral-500">
                               <span>评估 6 条用例</span>
@@ -5332,7 +5378,6 @@ return (
                               <span>未开票拦截：1 条异常</span>
                             </p>
                           </div>
-                        </div>
                       </div>
                     </div>
                   );
@@ -5367,28 +5412,26 @@ return (
                         </button>
                       </div>
                       <div className={SKILL_CHAT_CARD_BODY}>
-                        <div className={SKILL_CHAT_CARD_PANEL}>
                           <p className="text-[12px] text-neutral-500">
                             {data.total} 条用例
                             {data.failed > 0 ? `，${data.failed} 条未通过` : '全部通过'}
                             {' · '}
                             {data.source === 'ai' ? 'AI 生成' : data.source === 'upload' ? 'Excel 导入' : '手动输入'}
                           </p>
-                          <div className="grid grid-cols-3 gap-2">
+                          <div className="grid grid-cols-3 gap-2 pt-1 border-t border-neutral-100">
                             <div className={SKILL_CHAT_STAT_CELL}>
                               <div className="text-[11px] text-neutral-400">总用例</div>
                               <div className="text-[15px] font-semibold text-neutral-800 mt-0.5 tabular-nums">{data.total}</div>
                             </div>
-                            <div className={cn(SKILL_CHAT_STAT_CELL, 'border-emerald-200 bg-emerald-50/50')}>
+                            <div className={SKILL_CHAT_STAT_CELL}>
                               <div className="text-[11px] text-emerald-600/80">通过</div>
                               <div className="text-[15px] font-semibold text-emerald-700 mt-0.5 tabular-nums">{data.passed}</div>
                             </div>
-                            <div className={cn(SKILL_CHAT_STAT_CELL, 'border-rose-200 bg-rose-50/50')}>
+                            <div className={SKILL_CHAT_STAT_CELL}>
                               <div className="text-[11px] text-rose-600/80">失败</div>
                               <div className="text-[15px] font-semibold text-rose-600 mt-0.5 tabular-nums">{data.failed}</div>
                             </div>
                           </div>
-                        </div>
                       </div>
                     </div>
                   );
@@ -5405,103 +5448,98 @@ return (
                         </div>
                       </div>
                       <div className={SKILL_CHAT_CARD_BODY}>
-                        <div className={SKILL_CHAT_CARD_PANEL}>
-                          <p className="text-[12px] text-neutral-500 leading-relaxed">{msg.content}</p>
-                          <div className="space-y-2">
-                            {aiSuggestions.map((sug, sugIndex) => {
-                              const isApplied = appliedSuggestions.includes(sug.id);
-                              const isIgnored = ignoredSuggestions.includes(sug.id);
-                              if (isIgnored) return null;
+                        <p className="text-[12px] text-neutral-500 leading-relaxed">{msg.content}</p>
+                        <div className="divide-y divide-neutral-100">
+                          {aiSuggestions.map((sug, sugIndex) => {
+                            const isApplied = appliedSuggestions.includes(sug.id);
+                            const isIgnored = ignoredSuggestions.includes(sug.id);
+                            if (isIgnored) return null;
 
-                              const removedText = sug.diffRemoved.replace(/^\-\s*/, '');
-                              const addedText = sug.diffAdded.replace(/^\+\s*/, '');
+                            const removedText = sug.diffRemoved.replace(/^\-\s*/, '');
+                            const addedText = sug.diffAdded.replace(/^\+\s*/, '');
 
-                              return (
-                                <div
-                                  key={sug.id}
-                                  className={cn(
-                                    SKILL_CHAT_SUGGESTION_ROW,
-                                    isApplied && 'border-emerald-200 bg-emerald-50/40',
+                            return (
+                              <div
+                                key={sug.id}
+                                className={cn(
+                                  'py-3 first:pt-0 last:pb-0 space-y-2.5',
+                                  isApplied && 'opacity-80',
+                                )}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className="text-[11px] font-medium text-neutral-400 shrink-0">
+                                      建议 {sugIndex + 1}
+                                    </span>
+                                    <span className="text-neutral-200">·</span>
+                                    <span className="text-[12px] font-medium text-neutral-700 truncate">
+                                      {sug.fieldLabel}
+                                    </span>
+                                  </div>
+                                  {isApplied ? (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 shrink-0">
+                                      <CheckCircle size={11} />
+                                      已写回
+                                    </span>
+                                  ) : (
+                                    <span className="text-[11px] font-medium text-rose-600 shrink-0">
+                                      失败用例
+                                    </span>
                                   )}
-                                >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-1.5 min-w-0">
-                                      <span className="text-[11px] font-medium text-neutral-400 shrink-0">
-                                        建议 {sugIndex + 1}
-                                      </span>
-                                      <span className="text-neutral-200">·</span>
-                                      <span className="text-[12px] font-medium text-neutral-700 truncate">
-                                        {sug.fieldLabel}
-                                      </span>
-                                    </div>
-                                    {isApplied ? (
-                                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100 shrink-0">
-                                        <CheckCircle size={11} />
-                                        已写回
-                                      </span>
-                                    ) : (
-                                      <span className="text-[11px] font-medium text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100 shrink-0">
-                                        失败用例
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-[13px] text-neutral-700 leading-relaxed">{sug.reason}</p>
+                                </div>
+                                <p className="text-[13px] text-neutral-700 leading-relaxed">{sug.reason}</p>
 
-                                  <div className="rounded-md bg-neutral-50/40 overflow-hidden">
-                                    <div className="px-2.5 py-1.5 text-[11px] text-neutral-400">
-                                      改写预览
+                                <div className="space-y-1.5">
+                                  <div className="text-[11px] text-neutral-400">改写预览</div>
+                                  <div className="space-y-1 text-[12px] leading-relaxed">
+                                    <div className="rounded-md bg-rose-50/70 px-2.5 py-2 text-neutral-800">
+                                      <span className="whitespace-pre-wrap break-words">{removedText}</span>
                                     </div>
-                                    <div className="px-2.5 pb-2 space-y-1.5 text-[12px] leading-relaxed">
-                                      <div className="rounded-md bg-rose-50/70 px-2.5 py-2 text-neutral-800">
-                                        <span className="whitespace-pre-wrap break-words">{removedText}</span>
-                                      </div>
-                                      <div
-                                        className={cn(
-                                          'rounded-md px-2.5 py-2 text-neutral-800 border',
-                                          SKILL_AOP_TINT_BG,
-                                          SKILL_AOP_TINT_BORDER,
-                                        )}
-                                      >
-                                        <span className="whitespace-pre-wrap break-words">{addedText}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center justify-end gap-1.5 pt-0.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setChatInput(`针对【${sug.fieldLabel}】，我想微调改写为：`);
-                                      }}
-                                      className={cn(BTN_SOFT, 'h-7 px-3 text-[13px]')}
-                                    >
-                                      调整
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleIgnoreSuggestion(sug.id)}
-                                      className={cn(BTN_SOFT, 'h-7 px-3 text-[13px]')}
-                                    >
-                                      忽略
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={isApplied}
-                                      onClick={() => handleApplySuggestion(sug.id)}
+                                    <div
                                       className={cn(
-                                        SKILL_AOP_PRIMARY_BTN,
-                                        'h-7 px-3 rounded-md text-[13px] inline-flex items-center gap-1',
-                                        isApplied && 'opacity-80 cursor-default',
+                                        'rounded-md px-2.5 py-2 text-neutral-800',
+                                        SKILL_AOP_TINT_BG,
                                       )}
                                     >
-                                      <Check size={11} />
-                                      {isApplied ? '已采纳' : '采纳'}
-                                    </button>
+                                      <span className="whitespace-pre-wrap break-words">{addedText}</span>
+                                    </div>
                                   </div>
                                 </div>
-                              );
-                            })}
-                          </div>
+
+                                <div className="flex items-center justify-end gap-1.5 pt-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setChatInput(`针对【${sug.fieldLabel}】，我想微调改写为：`);
+                                    }}
+                                    className={cn(BTN_SOFT, 'h-7 px-3 text-[13px]')}
+                                  >
+                                    调整
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleIgnoreSuggestion(sug.id)}
+                                    className={cn(BTN_SOFT, 'h-7 px-3 text-[13px]')}
+                                  >
+                                    忽略
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isApplied}
+                                    onClick={() => handleApplySuggestion(sug.id)}
+                                    className={cn(
+                                      SKILL_AOP_PRIMARY_BTN,
+                                      'h-7 px-3 rounded-md text-[13px] inline-flex items-center gap-1',
+                                      isApplied && 'opacity-80 cursor-default',
+                                    )}
+                                  >
+                                    <Check size={11} />
+                                    {isApplied ? '已采纳' : '采纳'}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
@@ -6022,6 +6060,42 @@ return (
                     </span>
                   </div>
                 ) : null}
+                {composerTextSnippets.length > 0 ? (
+                  <div className="group/snippet relative mb-2 inline-flex max-w-full">
+                    <div
+                      className="absolute bottom-full left-0 z-20 mb-1.5 hidden w-max max-w-[min(340px,72vw)] group-hover/snippet:block"
+                      role="tooltip"
+                    >
+                      <div className="rounded-2xl border border-[#E9EAEB] bg-white px-3.5 py-3 shadow-[0_4px_16px_rgba(24,29,39,0.12)]">
+                        <div className="space-y-2 max-h-36 overflow-y-auto custom-scrollbar">
+                          {composerTextSnippets.map((snip) => (
+                            <p
+                              key={snip.id}
+                              className="text-[13px] leading-5 text-[#181D27] break-words"
+                            >
+                              “{snip.text}”
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 h-8 max-w-full pl-2.5 pr-1 rounded-full bg-[#F5F5F5] text-[12px] text-[#535862] border border-transparent group-hover/snippet:border-[#E9EAEB] group-hover/snippet:bg-white group-hover/snippet:shadow-[0_2px_8px_rgba(24,29,39,0.06)] transition">
+                      <MessageSquare size={14} className="shrink-0 text-[#717680]" />
+                      <span className="truncate tabular-nums">
+                        {composerTextSnippets.length} 个已选文本片
+                        {composerTextSnippets.some((s) => s.mode === 'rewrite') ? ' · 待改写' : ''}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setComposerTextSnippets([])}
+                        className="ml-0.5 w-6 h-6 rounded-full inline-flex items-center justify-center text-[#717680] hover:bg-white hover:text-[#181D27] cursor-pointer shrink-0"
+                        aria-label="清除已选文本片"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
                 {confirmEditTarget ? (
                   <div className="flex flex-wrap items-center gap-1.5 pb-2 mb-1 border-b border-neutral-100">
                     {confirmEditTarget.items.map((item) => (
@@ -6096,6 +6170,11 @@ return (
                       setComposerConsumedChipIds([]);
                       return;
                     }
+                    if (e.key === 'Escape' && composerTextSnippets.length > 0) {
+                      e.preventDefault();
+                      setComposerTextSnippets([]);
+                      return;
+                    }
                     if (e.key === 'Escape' && confirmEditTarget) {
                       e.preventDefault();
                       setConfirmEditTarget(null);
@@ -6109,6 +6188,10 @@ return (
                   placeholder={
                     hasPendingClarify
                       ? `请先在上方“${SKILL_CREATE_CHAT.clarifyTitle}”卡片中提交或跳过…`
+                      : composerTextSnippets.some((s) => s.mode === 'rewrite')
+                        ? '说明如何改写已选文本片，发送后由 AI 处理…'
+                        : composerTextSnippets.length > 0
+                          ? '可补充说明，或直接发送已选文本片…'
                       : confirmEditTarget
                         ? confirmEditTarget.items.length > 1
                           ? `说明如何改写已选 ${confirmEditTarget.items.length} 条要点，发送后由 AI 更新…`
@@ -6151,7 +6234,10 @@ return (
                     <button
                       type="button"
                       disabled={
-                        (!chatInput.trim() && composerAttachments.length === 0) || hasPendingClarify
+                        (!chatInput.trim() &&
+                          composerAttachments.length === 0 &&
+                          composerTextSnippets.length === 0) ||
+                        hasPendingClarify
                       }
                       onClick={() => handleSendChatMessage()}
                       className={cn(
@@ -6188,6 +6274,29 @@ return (
                   files={expertModeFiles}
                   onSkillMarkdownChange={handleExpertMarkdownChange}
                   onToast={showToast}
+                  onAddSelectionToChat={(text) => {
+                    const clipped = text.trim().slice(0, 700);
+                    if (!clipped) return;
+                    setComposerTextSnippets((prev) => {
+                      if (prev.some((row) => row.text === clipped)) return prev;
+                      return [
+                        ...prev,
+                        {
+                          id: `snip_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                          text: clipped,
+                          mode: 'quote' as const,
+                        },
+                      ].slice(-5);
+                    });
+                    setComposerResetMode(false);
+                    setConfirmEditTarget(null);
+                    requestAnimationFrame(() => {
+                      const el = chatComposerTextareaRef.current;
+                      if (!el) return;
+                      el.focus();
+                      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    });
+                  }}
                 />
               ) : (
               <div className="flex-1 flex flex-col min-h-0 overflow-hidden">

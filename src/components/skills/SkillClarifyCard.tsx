@@ -8,7 +8,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Pencil, Plus } from '@/lib/icons';
 import { cn } from '@/lib/utils';
-import { BTN_SOFT_SM, SKILL_AOP_PRIMARY_BTN_SM } from '@/lib/ui';
+import { BTN_SOFT, SKILL_AOP_PRIMARY_BTN } from '@/lib/ui';
 import { SKILL_CREATE_CHAT } from '@/lib/platformTerminology';
 
 export type SkillClarifyOption = {
@@ -237,13 +237,14 @@ export const SkillClarifyCard: React.FC<SkillClarifyCardProps> = ({
                   })
                 }
                 className={cn(
-                  SKILL_AOP_PRIMARY_BTN_SM,
+                  SKILL_AOP_PRIMARY_BTN,
+                  'inline-flex items-center justify-center h-8 px-3 text-xs font-semibold rounded-[7px]',
                   !canSubmit && 'opacity-40 cursor-not-allowed hover:opacity-40',
                 )}
               >
                 提交
               </button>
-              <button type="button" onClick={onSkip} className={BTN_SOFT_SM}>
+              <button type="button" onClick={onSkip} className={BTN_SOFT}>
                 跳过
               </button>
             </div>

@@ -1030,7 +1030,7 @@ export const PlatformHomePage: React.FC = () => {
               initialMode="interactive"
               initialPrompt={skillSeed}
               initialSelectedKBs={skillSeedKbNames}
-              closeLabel="返回 Agent Builder"
+              closeLabel="返回智能创作"
             />,
             document.body,
           )

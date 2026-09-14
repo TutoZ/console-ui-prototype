@@ -147,6 +147,8 @@ export function WorkflowCanvasPage({
   const [draftTime, setDraftTime] = useState('2026-08-12 11:59:25');
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  /** 与选中分离：只有明确打开配置时才出侧栏，避免一点就开 */
+  const [configNodeId, setConfigNodeId] = useState<string | null>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
 
@@ -189,6 +191,55 @@ export function WorkflowCanvasPage({
     initialX: number;
     initialY: number;
   } | null>(null);
+  /** 按下待决：未超过位移阈值松开=单击唤起；移动超过阈值=立刻拖拽 */
+  const pendingPressRef = useRef<{
+    id: string;
+    type: 'node' | 'note';
+    startX: number;
+    startY: number;
+    initialX: number;
+    initialY: number;
+  } | null>(null);
+  const [isDraggingItem, setIsDraggingItem] = useState(false);
+
+  /** 约 4px 就进入拖拽，既跟手又不会和单击抢 */
+  const NODE_DRAG_THRESHOLD_PX = 4;
+
+  const clearPendingPress = useCallback(() => {
+    pendingPressRef.current = null;
+  }, []);
+
+  const beginItemDrag = useCallback(
+    (payload: {
+      id: string;
+      type: 'node' | 'note';
+      startX: number;
+      startY: number;
+      initialX: number;
+      initialY: number;
+    }) => {
+      pendingPressRef.current = null;
+      draggingItemRef.current = payload;
+      setIsDraggingItem(true);
+      setSelectedNodeId(payload.id);
+      setMenuState((m) => ({ ...m, visible: false }));
+      setActiveNodeMenuId(null);
+      setChecklistOpen(false);
+      setLocateOpen(false);
+    },
+    [],
+  );
+
+  const openNodeConfig = useCallback((nodeId: string) => {
+    if (!nodeId.startsWith('node_')) return;
+    setSelectedNodeId(nodeId);
+    setConfigNodeId(nodeId);
+    setMenuState((m) => ({ ...m, visible: false }));
+    setActiveNodeMenuId(null);
+    setChecklistOpen(false);
+    setLocateOpen(false);
+    setTestPanelOpen(false);
+  }, []);
 
   useEffect(() => {
     setAgentInfo((prev) => ({ ...prev, name: agentName }));
@@ -254,7 +305,7 @@ export function WorkflowCanvasPage({
   const centerOnNode = (nodeId: string) => {
     const targetNode = nodes.find((n) => n.id === nodeId);
     if (!targetNode || !canvasRef.current) return;
-    setSelectedNodeId(nodeId);
+    openNodeConfig(nodeId);
     setChecklistOpen(false);
     setLocateOpen(false);
     const canvasW = canvasRef.current.offsetWidth;
@@ -270,7 +321,11 @@ export function WorkflowCanvasPage({
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.id === 'canvas-bg' || target.id === 'canvas-svg') {
+      clearPendingPress();
+      draggingItemRef.current = null;
+      setIsDraggingItem(false);
       setSelectedNodeId(null);
+      setConfigNodeId(null);
       setMenuState({ visible: false, x: 0, y: 0, sourceNodeId: null, sourceHandle: null, isToolbar: false });
       setActiveNodeMenuId(null);
       setChecklistOpen(false);
@@ -285,15 +340,20 @@ export function WorkflowCanvasPage({
   const handleItemMouseDown = (e: React.MouseEvent, id: string, type: 'node' | 'note' = 'node') => {
     if (e.button !== 0) return;
     e.stopPropagation();
-    setSelectedNodeId(id);
+    e.preventDefault();
+    clearPendingPress();
+    draggingItemRef.current = null;
+    setIsDraggingItem(false);
     setMenuState((m) => ({ ...m, visible: false }));
     setActiveNodeMenuId(null);
     setChecklistOpen(false);
     setLocateOpen(false);
+    // 按下即高亮，侧栏等松开且未拖拽时再开，保证单击够快
+    setSelectedNodeId(id);
     const item =
       type === 'node' ? nodes.find((n) => n.id === id) : notes.find((n) => n.id === id);
     if (!item) return;
-    draggingItemRef.current = {
+    pendingPressRef.current = {
       id,
       type,
       startX: e.clientX,
@@ -365,7 +425,26 @@ export function WorkflowCanvasPage({
         const dy = e.clientY - lastPanMouse.current.y;
         setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
         lastPanMouse.current = { x: e.clientX, y: e.clientY };
-      } else if (draggingItemRef.current) {
+        return;
+      }
+
+      if (pendingPressRef.current && !draggingItemRef.current) {
+        const pending = pendingPressRef.current;
+        const dist = Math.hypot(e.clientX - pending.startX, e.clientY - pending.startY);
+        if (dist >= NODE_DRAG_THRESHOLD_PX) {
+          beginItemDrag({
+            id: pending.id,
+            type: pending.type,
+            // 以按下点为锚，避免刚过阈值时节点跳一下
+            startX: pending.startX,
+            startY: pending.startY,
+            initialX: pending.initialX,
+            initialY: pending.initialY,
+          });
+        }
+      }
+
+      if (draggingItemRef.current) {
         const { id, type, startX, startY, initialX, initialY } = draggingItemRef.current;
         const dx = (e.clientX - startX) / zoom;
         const dy = (e.clientY - startY) / zoom;
@@ -378,7 +457,10 @@ export function WorkflowCanvasPage({
             prev.map((n) => (n.id === id ? { ...n, x: initialX + dx, y: initialY + dy } : n)),
           );
         }
-      } else if (drawingLine && canvasRef.current) {
+        return;
+      }
+
+      if (drawingLine && canvasRef.current) {
         const canvasRect = canvasRef.current.getBoundingClientRect();
         const currentX = (e.clientX - canvasRect.left - pan.x) / zoom;
         const currentY = (e.clientY - canvasRect.top - pan.y) / zoom;
@@ -389,7 +471,21 @@ export function WorkflowCanvasPage({
     const handleMouseUp = () => {
       panningStateRef.current = false;
       setIsPanning(false);
+      const wasDragging = Boolean(draggingItemRef.current);
+      if (pendingPressRef.current && !wasDragging) {
+        const { id, type } = pendingPressRef.current;
+        clearPendingPress();
+        // 单击：节点打开配置侧栏；注释仅选中
+        if (type === 'node') {
+          openNodeConfig(id);
+        } else {
+          setSelectedNodeId(id);
+        }
+      } else {
+        clearPendingPress();
+      }
       draggingItemRef.current = null;
+      setIsDraggingItem(false);
       if (drawingLine) setDrawingLine(null);
     };
 
@@ -398,8 +494,9 @@ export function WorkflowCanvasPage({
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      clearPendingPress();
     };
-  }, [zoom, pan, drawingLine]);
+  }, [zoom, pan, drawingLine, clearPendingPress, beginItemDrag, openNodeConfig]);
 
   const handleDeleteNode = (e: React.MouseEvent, nodeId: string) => {
     e.stopPropagation();
@@ -408,6 +505,7 @@ export function WorkflowCanvasPage({
     updateCanvasState(newNodes, newEdges, notes);
     setActiveNodeMenuId(null);
     if (selectedNodeId === nodeId) setSelectedNodeId(null);
+    if (configNodeId === nodeId) setConfigNodeId(null);
   };
 
   const handleCopyNode = (e: React.MouseEvent, node: CanvasNode) => {
@@ -433,7 +531,7 @@ export function WorkflowCanvasPage({
     const newNodes = [...nodes, cloned];
     updateCanvasState(newNodes, edges, notes);
     setActiveNodeMenuId(null);
-    setSelectedNodeId(newNodeId);
+    openNodeConfig(newNodeId);
   };
 
   const openNodeMenu = (e: React.MouseEvent, sourceNodeId: string | null = null, isToolbar = false) => {
@@ -492,7 +590,7 @@ export function WorkflowCanvasPage({
       newEdges = upsertCanvasEdge(edges, newEdge);
     }
     updateCanvasState(newNodes, newEdges, notes);
-    setSelectedNodeId(newNodeId);
+    openNodeConfig(newNodeId);
     setMenuState({ visible: false, x: 0, y: 0, sourceNodeId: null, sourceHandle: null, isToolbar: false });
   };
 
@@ -666,6 +764,7 @@ export function WorkflowCanvasPage({
             );
             updateCanvasState(newNodes, newEdges, notes);
             setSelectedNodeId(null);
+            setConfigNodeId(null);
           }
         } else if (selectedNodeId.startsWith('note_')) {
           const newNotes = notes.filter((n) => n.id !== selectedNodeId);
@@ -678,9 +777,9 @@ export function WorkflowCanvasPage({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [selectedNodeId, nodes, edges, notes, updateCanvasState]);
 
-  const selectedNode = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : null;
+  const configNode = configNodeId ? nodes.find((n) => n.id === configNodeId) : null;
   const showConfigPanel =
-    selectedNodeId?.startsWith('node_') && selectedNode && !isTestPanelOpen;
+    Boolean(configNodeId?.startsWith('node_') && configNode && !isTestPanelOpen);
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden select-none relative bg-white">
@@ -780,6 +879,7 @@ export function WorkflowCanvasPage({
           hoveredEdgeId={hoveredEdgeId}
           drawingLine={drawingLine}
           isPanning={isPanning}
+          isDraggingItem={isDraggingItem}
           canUndo={history.past.length > 0}
           canRedo={history.future.length > 0}
           isLocateOpen={isLocateOpen}
@@ -787,6 +887,7 @@ export function WorkflowCanvasPage({
           searchNodeText={searchNodeText}
           onCanvasMouseDown={handleCanvasMouseDown}
           onItemMouseDown={handleItemMouseDown}
+          onItemDoubleClick={(id) => openNodeConfig(id)}
           onDotMouseDown={handleDotMouseDown}
           onDotMouseUp={handleDotMouseUp}
           onEdgeHover={setHoveredEdgeId}
@@ -856,10 +957,10 @@ export function WorkflowCanvasPage({
         onActiveLogStepChange={setActiveLogStepId}
       />
 
-      {showConfigPanel && selectedNode && (
+      {showConfigPanel && configNode && (
         <WorkflowNodeConfigPanel
-          node={selectedNode}
-          onClose={() => setSelectedNodeId(null)}
+          node={configNode}
+          onClose={() => setConfigNodeId(null)}
           onUpdateNode={(id, data) => {
             const newNodes = nodes.map((n) => (n.id === id ? { ...n, ...data } : n));
             let newEdges = edges;

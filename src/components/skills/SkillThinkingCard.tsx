@@ -7,13 +7,14 @@
  *
  * - loading     扫光「思考中」
  * - generating  先「思考中」，再正文打字机 + 标题随段落切换
+ * - Cot         段落完成后展示工具调用（读/执行/备注），一轮思考一轮工具
  * - 完成态      「已完成思考 · Ns」· 可折叠全文
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronUp } from '@/lib/icons';
+import { BookOpen, ChevronUp, FileText, Terminal } from '@/lib/icons';
 import { cn } from '@/lib/utils';
-import type { SkillThinkStep } from '@/lib/skillStudioMock';
+import type { SkillThinkCotChild, SkillThinkCotKind, SkillThinkStep } from '@/lib/skillStudioMock';
 import { SKILL_CREATE_CHAT } from '@/lib/platformTerminology';
 
 export type SkillThinkingCardProps = {
@@ -116,11 +117,63 @@ function sliceParagraphs(paragraphs: string[], charCount: number): string[] {
   return out;
 }
 
+function cotKindMeta(kind: SkillThinkCotKind | undefined): { Icon: typeof BookOpen; verb: string } {
+  if (kind === 'run') return { Icon: Terminal, verb: '执行' };
+  if (kind === 'note') return { Icon: FileText, verb: '备注' };
+  return { Icon: BookOpen, verb: '读取' };
+}
+
+/** 段落后的工具调用行：一轮思考 → 一轮工具，默认展开 */
+function CotActionRows({ items }: { items: SkillThinkCotChild[] }) {
+  if (items.length === 0) return null;
+
+  return (
+    <div className="mt-1.5 space-y-1 animate-in fade-in duration-200">
+      {items.map((item) => {
+        const { Icon, verb } = cotKindMeta(item.kind);
+        return (
+          <div
+            key={item.id}
+            className="flex items-start gap-1.5 rounded-md border border-[#EFEFEF] bg-[#FAFAFA] px-2 py-1.5 text-[12px] leading-[18px] text-[#595959]"
+          >
+            <Icon size={13} className="mt-[2px] shrink-0 text-[#8C8C8C]" />
+            <span className="shrink-0 text-[#8C8C8C]">{verb}</span>
+            <span className="min-w-0 flex-1 break-words whitespace-pre-wrap">
+              {renderCotLabel(item.label)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** 把 `code` 片段渲染成灰底胶囊，贴近 Cot 工具日志 */
+function renderCotLabel(label: string): React.ReactNode {
+  const parts = label.split(/(`[^`]+`)/g);
+  if (parts.length === 1) return label;
+  return parts.map((part, i) => {
+    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+      return (
+        <code
+          key={i}
+          className="mx-0.5 inline rounded bg-[#F0F0F0] px-1 py-0.5 font-mono text-[11px] text-[#434343]"
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return <React.Fragment key={i}>{part}</React.Fragment>;
+  });
+}
+
 function ThinkProseBody({
+  steps,
   paragraphs,
   charCount,
   showCaret,
 }: {
+  steps: SkillThinkStep[];
   paragraphs: string[];
   charCount: number;
   showCaret: boolean;
@@ -128,26 +181,34 @@ function ThinkProseBody({
   const visible = sliceParagraphs(paragraphs, charCount);
   if (visible.length === 0 && !showCaret) return null;
 
+  // 某段全文已流出后，才展示该步 Cot 子动作
+  let consumed = 0;
+  const completedStepIndexes = new Set<number>();
+  for (let i = 0; i < paragraphs.length; i += 1) {
+    consumed += paragraphs[i].length;
+    if (charCount >= consumed) completedStepIndexes.add(i);
+  }
+
   return (
     <div className="px-3 pb-3">
       {visible.map((text, i) => {
         const isLast = i === visible.length - 1;
+        const step = steps[i];
+        const showCot =
+          completedStepIndexes.has(i) && Boolean(step?.children && step.children.length > 0);
         return (
-          <p
-            key={i}
-            className={cn(
-              'text-[12px] leading-[18px] text-[#595959] whitespace-pre-wrap break-words',
-              i > 0 && 'pt-2',
-            )}
-          >
-            {text}
-            {showCaret && isLast ? (
-              <span
-                className="ml-0.5 inline-block h-[12px] w-[2px] translate-y-[1px] bg-[#1565BF] align-middle animate-pulse"
-                aria-hidden
-              />
-            ) : null}
-          </p>
+          <div key={i} className={cn(i > 0 && 'pt-2')}>
+            <p className="text-[12px] leading-[18px] text-[#595959] whitespace-pre-wrap break-words">
+              {text}
+              {showCaret && isLast ? (
+                <span
+                  className="ml-0.5 inline-block h-[12px] w-[2px] translate-y-[1px] bg-[#1565BF] align-middle animate-pulse"
+                  aria-hidden
+                />
+              ) : null}
+            </p>
+            {showCot && step?.children ? <CotActionRows items={step.children} /> : null}
+          </div>
         );
       })}
       {showCaret && visible.length === 0 ? (
@@ -287,6 +348,7 @@ export const SkillThinkingCard: React.FC<SkillThinkingCardProps> = ({
 
         {open && showProseBody ? (
           <ThinkProseBody
+            steps={steps}
             paragraphs={paragraphs}
             charCount={bodyCharCount}
             showCaret={streaming}

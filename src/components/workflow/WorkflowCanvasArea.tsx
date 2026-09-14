@@ -117,6 +117,7 @@ type WorkflowCanvasAreaProps = {
   hoveredEdgeId: string | null;
   drawingLine: DrawingLine | null;
   isPanning: boolean;
+  isDraggingItem?: boolean;
   canUndo: boolean;
   canRedo: boolean;
   isLocateOpen: boolean;
@@ -124,6 +125,7 @@ type WorkflowCanvasAreaProps = {
   searchNodeText: string;
   onCanvasMouseDown: (e: React.MouseEvent) => void;
   onItemMouseDown: (e: React.MouseEvent, id: string, type?: 'node' | 'note') => void;
+  onItemDoubleClick?: (id: string) => void;
   onDotMouseDown: (
     e: React.MouseEvent,
     nodeId: string,
@@ -170,6 +172,7 @@ export function WorkflowCanvasArea({
   hoveredEdgeId,
   drawingLine,
   isPanning,
+  isDraggingItem = false,
   canUndo,
   canRedo,
   isLocateOpen,
@@ -177,6 +180,7 @@ export function WorkflowCanvasArea({
   searchNodeText,
   onCanvasMouseDown,
   onItemMouseDown,
+  onItemDoubleClick,
   onDotMouseDown,
   onDotMouseUp,
   onEdgeHover,
@@ -361,9 +365,18 @@ export function WorkflowCanvasArea({
                 selectedNodeId === node.id
                   ? 'border-sky-400 ring-2 ring-sky-100 shadow-md'
                   : 'border-gray-200 hover:border-gray-300',
+                isDraggingItem && selectedNodeId === node.id
+                  ? 'cursor-grabbing'
+                  : 'cursor-pointer',
               )}
               style={{ left: node.x, top: node.y, pointerEvents: 'auto' }}
               onMouseDown={(e) => onItemMouseDown(e, node.id, 'node')}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onItemDoubleClick?.(node.id);
+              }}
+              title="单击打开配置 · 拖拽移动"
               onMouseEnter={() => setHoveredNodeId(node.id)}
               onMouseLeave={() =>
                 setHoveredNodeId((id) => (id === node.id ? null : id))

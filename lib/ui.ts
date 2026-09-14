@@ -98,7 +98,7 @@ export const LABEL = 'block text-xs font-medium text-neutral-500 mb-1';
 
 /** 分段 Tab 容器（总高 38px） */
 export const SEGMENTED_BAR =
-  'inline-flex h-[38px] items-center gap-1 bg-neutral-100 rounded-lg p-1 w-fit shrink-0';
+  'inline-flex h-[38px] items-center gap-1 bg-neutral-100 rounded-lg p-1 w-fit max-w-full min-w-0';
 
 /** 分段 Tab 项 */
 export function segmentedItemClass(active: boolean): string {

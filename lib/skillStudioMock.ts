@@ -1746,13 +1746,22 @@ export const INTENT_EXAMPLES = [
 ] as const;
 
 /** 深度思考 / 思维链步骤（工作台对话中间态） */
+export type SkillThinkCotKind = 'read' | 'run' | 'note';
+
+export type SkillThinkCotChild = {
+  id: string;
+  label: string;
+  /** Cot 动作样式：读文件 / 跑命令 / 普通备注 */
+  kind?: SkillThinkCotKind;
+};
+
 export type SkillThinkStep = {
   id: string;
   label: string;
   detail: string;
   status: 'pending' | 'running' | 'done';
-  /** 嵌套子步骤（Figma 4226-10519） */
-  children?: Array<{ id: string; label: string }>;
+  /** Cot 嵌套动作（展开后展示工具调用式步骤） */
+  children?: SkillThinkCotChild[];
 };
 
 export type SkillThinkPlan = {
@@ -1783,18 +1792,30 @@ export function buildIntentThinkPlan(intent: string): SkillThinkPlan {
         label: '先总结用户想做成的能力',
         detail: `${classified.goals.slice(0, 2).join('；') || intent.slice(0, 48)}。对照创建规范，把必须守住的边界与不可省略约束先拎出来。`,
         status: 'pending',
+        children: [
+          { id: 'parse-read', label: '已读取用户目标表述', kind: 'read' },
+          { id: 'parse-run', label: '已对齐 `技能创建规范` 边界', kind: 'run' },
+        ],
       },
       {
         id: 'type',
         label: '再看写入四张表单前还缺什么',
         detail: `场景更接近「${typeLabel}」，关注点在：${focus}。据此判断技能能做什么、哪里不该越权，以及表单里还缺哪些关键信息。`,
         status: 'pending',
+        children: [
+          { id: 'type-read', label: `已匹配范式「${typeLabel}」`, kind: 'read' },
+          { id: 'type-run', label: '已扫描 `定义/主体/规范/补充` 缺口', kind: 'run' },
+        ],
       },
       {
         id: 'gap',
         label: '思路收束',
         detail: `信息还不够写死规格，优先澄清：${classified.questions.map((q) => q.prompt.replace(/？$/, '')).slice(0, 3).join('；')}。想清楚后再进入任务规划。`,
         status: 'pending',
+        children: [
+          { id: 'gap-run', label: '已整理待澄清关键问题', kind: 'run' },
+          { id: 'gap-note', label: '准备进入任务规划生成可点选卡片', kind: 'note' },
+        ],
       },
     ],
     planSteps: [

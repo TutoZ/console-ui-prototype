@@ -3806,18 +3806,29 @@ export const ComponentLibraryPage: React.FC = () => {
                   label: '先总结用户想做成的能力',
                   detail: '把场景边界、触发条件与产出格式想清楚。',
                   status: 'pending',
+                  children: [
+                    { id: 'd0-a', label: '已读取用户目标表述', kind: 'read' },
+                    { id: 'd0-b', label: '已对齐技能创建规范边界', kind: 'run' },
+                  ],
                 },
                 {
                   id: 'd1',
                   label: '再看写入四张表单前还缺什么',
                   detail: '优先看触发边界是否要收紧。',
                   status: 'pending',
+                  children: [
+                    { id: 'd1-a', label: '已扫描四张表单必填缺口', kind: 'run' },
+                  ],
                 },
                 {
                   id: 'd2',
                   label: '思路收束',
                   detail: '先澄清关键信息，再进入任务规划。',
                   status: 'pending',
+                  children: [
+                    { id: 'd2-a', label: '已整理待澄清关键问题', kind: 'run' },
+                    { id: 'd2-b', label: '准备进入任务规划生成可点选卡片', kind: 'note' },
+                  ],
                 },
               ]}
               isComplete={false}
@@ -3832,6 +3843,10 @@ export const ComponentLibraryPage: React.FC = () => {
                   detail:
                     '用户要配一项可复用的客服技能。需要把场景边界、触发条件与产出格式想清楚，再落到可确认草案。',
                   status: 'done',
+                  children: [
+                    { id: 'c1', label: '已读取用户目标表述', kind: 'read' },
+                    { id: 'c2', label: '已对齐 `SKILL.md` 规范边界', kind: 'run' },
+                  ],
                 },
                 {
                   id: 'd2',
@@ -3839,6 +3854,10 @@ export const ComponentLibraryPage: React.FC = () => {
                   detail:
                     '先澄清关键信息，再生成规格与下一步建议；想清楚后进入任务规划，而不是直接写死表单。',
                   status: 'done',
+                  children: [
+                    { id: 'c3', label: '已整理待澄清关键问题', kind: 'run' },
+                    { id: 'c4', label: '准备进入任务规划生成可点选卡片', kind: 'note' },
+                  ],
                 },
               ]}
               durationSec={3}

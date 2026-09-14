@@ -21,7 +21,6 @@ import {
   Play,
   RotateCcw,
   Sparkles,
-  Zap,
   FileText,
   ChevronDown,
   MessageSquare,
@@ -648,7 +647,7 @@ export const EmployeeManagePage: React.FC = () => {
           !isQcOnboarding && onboardingChatLocked && 'opacity-50 cursor-not-allowed',
         )}
       >
-        <Zap size={13} className="fill-current" />
+        <CheckCircle2 size={13} />
         <span>{LIFECYCLE_TERMS.completeTraining}</span>
       </button>
     );
@@ -758,6 +757,7 @@ export const EmployeeManagePage: React.FC = () => {
                   headerLeft={
                     <SegmentedTabBar
                       ariaLabel="预览面板"
+                      className="[&_button]:px-2 [&_button]:text-[12px]"
                       value={onboardRightTab}
                       onChange={(id) => setOnboardRightTab(id as 'chat' | 'versions')}
                       items={[
@@ -777,16 +777,19 @@ export const EmployeeManagePage: React.FC = () => {
                 />
               ) : (
                 <>
-                  <div className="px-4 py-2.5 bg-white border-b border-neutral-200 flex items-center justify-between shrink-0 gap-2 min-h-[54px]">
-                    <SegmentedTabBar
-                      ariaLabel="预览面板"
-                      value={onboardRightTab}
-                      onChange={(id) => setOnboardRightTab(id as 'chat' | 'versions')}
-                      items={[
-                        { id: 'chat', label: LIFECYCLE_TERMS.onboardTest },
-                        { id: 'versions', label: LIFECYCLE_TERMS.examVersion },
-                      ]}
-                    />
+                  <div className="px-3 py-2.5 bg-white border-b border-neutral-200 flex items-center justify-between shrink-0 gap-1.5 min-h-[54px] min-w-0 overflow-hidden">
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <SegmentedTabBar
+                        ariaLabel="预览面板"
+                        className="[&_button]:px-2 [&_button]:text-[12px]"
+                        value={onboardRightTab}
+                        onChange={(id) => setOnboardRightTab(id as 'chat' | 'versions')}
+                        items={[
+                          { id: 'chat', label: LIFECYCLE_TERMS.onboardTest },
+                          { id: 'versions', label: LIFECYCLE_TERMS.examVersion },
+                        ]}
+                      />
+                    </div>
                   </div>
                   <AgentVersionPanel
                     agent={onboardingAgent}

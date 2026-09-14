@@ -212,14 +212,16 @@ export function OnboardingCapabilityTestPanel({
       )}
     >
       {!hideChrome ? (
-        <div className="px-4 py-2.5 bg-white border-b border-neutral-200 flex items-center justify-between shrink-0 gap-2 min-h-[54px]">
-          {headerLeft ?? (
-            <p className="text-[13px] font-semibold text-neutral-900 tracking-tight truncate">
-              {title}
-            </p>
-          )}
+        <div className="px-3 py-2.5 bg-white border-b border-neutral-200 flex items-center justify-between shrink-0 gap-1.5 min-h-[54px] min-w-0 overflow-hidden">
+          <div className="min-w-0 flex-1 overflow-hidden">
+            {headerLeft ?? (
+              <p className="text-[13px] font-semibold text-neutral-900 tracking-tight truncate">
+                {title}
+              </p>
+            )}
+          </div>
           {showToolbar ? (
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-0.5 shrink-0">
               <Button
                 variant="ghost"
                 size="sm"
@@ -229,21 +231,21 @@ export function OnboardingCapabilityTestPanel({
                     () => showToast('复制失败'),
                   );
                 }}
-                className="text-neutral-500 hover:text-neutral-800 h-7 px-2 text-xs gap-1 cursor-pointer shrink-0"
-                title={sessionId}
+                className="text-neutral-500 hover:text-neutral-800 h-7 px-1.5 text-xs gap-1 cursor-pointer shrink-0"
+                title={`复制会话 ID：${sessionId}`}
               >
-                <Copy size={12} />
-                会话ID复制
+                <Copy size={12} className="shrink-0" />
+                <span className="whitespace-nowrap">复制</span>
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={resetChat}
-                className="text-neutral-500 hover:text-neutral-800 h-7 px-2 text-xs gap-1 cursor-pointer shrink-0"
+                className="text-neutral-500 hover:text-neutral-800 h-7 px-1.5 text-xs gap-1 cursor-pointer shrink-0"
                 title="重置对话"
               >
-                <Trash2 size={12} />
-                重置对话
+                <Trash2 size={12} className="shrink-0" />
+                <span className="whitespace-nowrap">重置</span>
               </Button>
             </div>
           ) : null}
