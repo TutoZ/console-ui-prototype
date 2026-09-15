@@ -141,7 +141,7 @@ export type SubNavItem = {
 export const HOME_SUB_NAV: SubNavItem[] = [
   {
     id: 'nav_platform_home',
-    title: '智能创作',
+    title: '数字员工创作',
     tab: 'platformHome',
     icon: 'solar:stars-minimalistic-linear',
     description: '一句话创建数字员工、技能与知识',
@@ -289,7 +289,7 @@ export function navDomainFromTab(tab: string): NavDomain | null {
 export function navDomainToAppTab(domain: NavDomain): string | null {
   switch (domain) {
     case 'home':
-      return 'employees';
+      return 'platformHome';
     case 'online':
       return 'training';
     case 'qc':
@@ -330,8 +330,8 @@ export const DOMAIN_NAV: PrimaryNavItem[] = [
     id: 'home',
     title: '数字员工',
     icon: 'solar:ghost-linear',
-    tab: 'employees',
-    description: '我的数字员工 / 市场 / 技能',
+    tab: 'platformHome',
+    description: '数字员工创作 / 我的数字员工 / 市场 / 技能',
   },
   {
     id: 'online',

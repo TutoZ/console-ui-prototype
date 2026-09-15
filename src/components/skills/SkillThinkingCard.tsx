@@ -2,17 +2,17 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 深度思考卡（Cot / jd-think）— 与任务规划（SkillTaskPlanCard）分离
+ * 深度思考卡（Cot / jd-think）
  * https://jdesign.jd.com/x/vue/component/cot
  *
  * - loading     扫光「思考中」
  * - generating  先「思考中」，再正文打字机 + 标题随段落切换
- * - Cot         段落完成后展示工具调用（读/执行/备注），一轮思考一轮工具
+ * - Cot         思考中工具逐条扫光；全部完成后收成可展开摘要
  * - 完成态      「已完成思考 · Ns」· 可折叠全文
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, ChevronUp, FileText, Terminal } from '@/lib/icons';
+import { BookOpen, ChevronDown, ChevronUp, FileText, Terminal } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import type { SkillThinkCotChild, SkillThinkCotKind, SkillThinkStep } from '@/lib/skillStudioMock';
 import { SKILL_CREATE_CHAT } from '@/lib/platformTerminology';
@@ -117,35 +117,31 @@ function sliceParagraphs(paragraphs: string[], charCount: number): string[] {
   return out;
 }
 
-function cotKindMeta(kind: SkillThinkCotKind | undefined): { Icon: typeof BookOpen; verb: string } {
-  if (kind === 'run') return { Icon: Terminal, verb: '执行' };
-  if (kind === 'note') return { Icon: FileText, verb: '备注' };
-  return { Icon: BookOpen, verb: '读取' };
+function cotKindMeta(kind: SkillThinkCotKind | undefined): {
+  Icon: typeof BookOpen;
+  summaryPhrase: string;
+} {
+  if (kind === 'run') return { Icon: Terminal, summaryPhrase: '运行了命令' };
+  if (kind === 'note') return { Icon: FileText, summaryPhrase: '记录了备注' };
+  return { Icon: BookOpen, summaryPhrase: '读取了文件' };
 }
 
-/** 段落后的工具调用行：一轮思考 → 一轮工具，默认展开 */
-function CotActionRows({ items }: { items: SkillThinkCotChild[] }) {
-  if (items.length === 0) return null;
+/** 按出现顺序拼接动作类型，贴近 Cursor 工具摘要 */
+function cotSummaryLabel(items: SkillThinkCotChild[]): string {
+  const seen = new Set<SkillThinkCotKind>();
+  const phrases: string[] = [];
+  for (const item of items) {
+    const kind = item.kind ?? 'read';
+    if (seen.has(kind)) continue;
+    seen.add(kind);
+    phrases.push(cotKindMeta(kind).summaryPhrase);
+  }
+  return phrases.join('');
+}
 
-  return (
-    <div className="mt-1.5 space-y-1 animate-in fade-in duration-200">
-      {items.map((item) => {
-        const { Icon, verb } = cotKindMeta(item.kind);
-        return (
-          <div
-            key={item.id}
-            className="flex items-start gap-1.5 rounded-md border border-[#EFEFEF] bg-[#FAFAFA] px-2 py-1.5 text-[12px] leading-[18px] text-[#595959]"
-          >
-            <Icon size={13} className="mt-[2px] shrink-0 text-[#8C8C8C]" />
-            <span className="shrink-0 text-[#8C8C8C]">{verb}</span>
-            <span className="min-w-0 flex-1 break-words whitespace-pre-wrap">
-              {renderCotLabel(item.label)}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
+function CotKindIcon({ kind }: { kind?: SkillThinkCotKind }) {
+  const { Icon } = cotKindMeta(kind);
+  return <Icon size={13} className="shrink-0 text-[#8C8C8C]" />;
 }
 
 /** 把 `code` 片段渲染成灰底胶囊，贴近 Cot 工具日志 */
@@ -167,21 +163,102 @@ function renderCotLabel(label: string): React.ReactNode {
   });
 }
 
+const STREAM_TICK_MS = 36;
+const STREAM_TOOL_TICKS = 18;
+
+/**
+ * 一轮思考后：生成中逐条扫光；完成后收成一条摘要，点击展开明细
+ */
+function CotActionRows({
+  items,
+  collapsed,
+  revealedCount,
+  shimmerIndex,
+}: {
+  items: SkillThinkCotChild[];
+  collapsed: boolean;
+  revealedCount: number;
+  shimmerIndex: number;
+}) {
+  const [open, setOpen] = useState(false);
+  if (items.length === 0) return null;
+
+  const primary = items[0];
+  const summary = cotSummaryLabel(items);
+  const rowClass =
+    'flex items-center gap-1.5 py-0.5 text-[12px] leading-[18px] text-[#595959]';
+
+  if (!collapsed) {
+    const visible = items.slice(0, Math.max(0, revealedCount));
+    if (visible.length === 0) return null;
+    return (
+      <div className="mt-1.5 space-y-0.5 animate-in fade-in duration-200">
+        {visible.map((item, idx) => {
+          const shimmer = idx === shimmerIndex;
+          return (
+            <div key={item.id} className={rowClass} title={item.label}>
+              <CotKindIcon kind={item.kind} />
+              <span
+                className={cn(
+                  'min-w-0 truncate',
+                  shimmer && 'skill-thinking-generating-title',
+                )}
+              >
+                {renderCotLabel(item.label)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-1.5 animate-in fade-in duration-200">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex max-w-full items-center gap-1.5 rounded-md py-0.5 text-left text-[12px] leading-[18px] text-[#595959] hover:bg-[#F7F7F7] cursor-pointer"
+        aria-expanded={open}
+      >
+        <CotKindIcon kind={primary.kind} />
+        <span className="min-w-0 truncate">{summary}</span>
+        <ChevronDown size={12} className="shrink-0 text-[#BFBFBF]" />
+      </button>
+      {open ? (
+        <div className="mt-0.5 space-y-0.5 animate-in fade-in duration-150">
+          {items.map((item) => (
+            <div key={item.id} className={rowClass} title={item.label}>
+              <CotKindIcon kind={item.kind} />
+              <span className="min-w-0 truncate">{renderCotLabel(item.label)}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ThinkProseBody({
   steps,
   paragraphs,
   charCount,
   showCaret,
+  collapsed,
+  toolRevealed,
+  shimmerTool,
 }: {
   steps: SkillThinkStep[];
   paragraphs: string[];
   charCount: number;
   showCaret: boolean;
+  collapsed: boolean;
+  toolRevealed: number[];
+  shimmerTool: { step: number; index: number } | null;
 }) {
   const visible = sliceParagraphs(paragraphs, charCount);
   if (visible.length === 0 && !showCaret) return null;
 
-  // 某段全文已流出后，才展示该步 Cot 子动作
   let consumed = 0;
   const completedStepIndexes = new Set<number>();
   for (let i = 0; i < paragraphs.length; i += 1) {
@@ -194,8 +271,9 @@ function ThinkProseBody({
       {visible.map((text, i) => {
         const isLast = i === visible.length - 1;
         const step = steps[i];
-        const showCot =
-          completedStepIndexes.has(i) && Boolean(step?.children && step.children.length > 0);
+        const children = step?.children ?? [];
+        const revealed = collapsed ? children.length : (toolRevealed[i] ?? 0);
+        const showCot = completedStepIndexes.has(i) && children.length > 0 && revealed > 0;
         return (
           <div key={i} className={cn(i > 0 && 'pt-2')}>
             <p className="text-[12px] leading-[18px] text-[#595959] whitespace-pre-wrap break-words">
@@ -207,7 +285,16 @@ function ThinkProseBody({
                 />
               ) : null}
             </p>
-            {showCot && step?.children ? <CotActionRows items={step.children} /> : null}
+            {showCot ? (
+              <CotActionRows
+                items={children}
+                collapsed={collapsed}
+                revealedCount={revealed}
+                shimmerIndex={
+                  shimmerTool && shimmerTool.step === i ? shimmerTool.index : -1
+                }
+              />
+            ) : null}
           </div>
         );
       })}
@@ -236,6 +323,8 @@ export const SkillThinkingCard: React.FC<SkillThinkingCardProps> = ({
   const initialOpen = defaultExpanded ?? !isComplete;
   const [open, setOpen] = useState(initialOpen);
   const [streamedChars, setStreamedChars] = useState(0);
+  const [toolRevealed, setToolRevealed] = useState<number[]>(() => steps.map(() => 0));
+  const [shimmerTool, setShimmerTool] = useState<{ step: number; index: number } | null>(null);
   const streamTimerRef = useRef<number | null>(null);
   const streamedCharsRef = useRef(0);
   const wasCompleteRef = useRef(isComplete);
@@ -243,6 +332,7 @@ export const SkillThinkingCard: React.FC<SkillThinkingCardProps> = ({
   const paragraphs = useMemo(() => stepsToParagraphs(steps), [steps]);
   const fullLen = useMemo(() => paragraphs.reduce((n, p) => n + p.length, 0), [paragraphs]);
   const statusHints = useMemo(() => steps.map(stepStatusHint), [steps]);
+  const toolsCollapsed = isComplete || !generating;
 
   useEffect(() => {
     if (!isComplete && (loading || generating)) {
@@ -250,7 +340,6 @@ export const SkillThinkingCard: React.FC<SkillThinkingCardProps> = ({
       wasCompleteRef.current = false;
       return;
     }
-    // 仅在「进行中 → 完成」时自动收起；展台传 defaultExpanded 的完成态不受影响
     if (isComplete && !wasCompleteRef.current) {
       wasCompleteRef.current = true;
       const timer = window.setTimeout(() => setOpen(false), 520);
@@ -272,29 +361,68 @@ export const SkillThinkingCard: React.FC<SkillThinkingCardProps> = ({
     if (loading) {
       setStreamedChars(0);
       streamedCharsRef.current = 0;
+      setToolRevealed(steps.map(() => 0));
+      setShimmerTool(null);
       return;
     }
 
     if (isComplete || !generating) {
       setStreamedChars(fullLen);
       streamedCharsRef.current = fullLen;
+      setToolRevealed(steps.map((s) => s.children?.length ?? 0));
+      setShimmerTool(null);
       return;
     }
 
-    // 流式打字机：正文逐字露出，标题随段落切换；与 estimateThinkStreamMs 编排对齐
-    const tickMs = 36;
-    const charsPerTick = 1;
+    setStreamedChars(0);
+    streamedCharsRef.current = 0;
+    setToolRevealed(steps.map(() => 0));
+    setShimmerTool(null);
+
+    let stepIdx = 0;
+    let textPos = 0;
+    let toolIdx = 0;
+    let toolTick = 0;
+
     streamTimerRef.current = window.setInterval(() => {
-      const next = Math.min(fullLen, streamedCharsRef.current + charsPerTick);
-      streamedCharsRef.current = next;
-      setStreamedChars(next);
-      if (next >= fullLen) {
-        if (streamTimerRef.current != null) {
-          window.clearInterval(streamTimerRef.current);
-          streamTimerRef.current = null;
+      while (stepIdx < steps.length) {
+        const para = paragraphs[stepIdx] ?? '';
+        const tools = steps[stepIdx]?.children ?? [];
+        if (textPos < para.length) {
+          textPos += 1;
+          streamedCharsRef.current += 1;
+          setStreamedChars(streamedCharsRef.current);
+          setShimmerTool(null);
+          return;
         }
+        if (toolIdx < tools.length) {
+          if (toolTick === 0) {
+            const revealAt = toolIdx;
+            setToolRevealed((prev) => {
+              const next = prev.length === steps.length ? [...prev] : steps.map(() => 0);
+              next[stepIdx] = revealAt + 1;
+              return next;
+            });
+            setShimmerTool({ step: stepIdx, index: revealAt });
+          }
+          toolTick += 1;
+          if (toolTick >= STREAM_TOOL_TICKS) {
+            toolIdx += 1;
+            toolTick = 0;
+          }
+          return;
+        }
+        stepIdx += 1;
+        textPos = 0;
+        toolIdx = 0;
+        toolTick = 0;
       }
-    }, tickMs);
+      setShimmerTool(null);
+      if (streamTimerRef.current != null) {
+        window.clearInterval(streamTimerRef.current);
+        streamTimerRef.current = null;
+      }
+    }, STREAM_TICK_MS);
 
     return () => {
       if (streamTimerRef.current != null) {
@@ -302,7 +430,7 @@ export const SkillThinkingCard: React.FC<SkillThinkingCardProps> = ({
         streamTimerRef.current = null;
       }
     };
-  }, [loading, generating, isComplete, fullLen]);
+  }, [loading, generating, isComplete, fullLen, steps, paragraphs]);
 
   const activeIdx = useMemo(
     () => activeParagraphIndex(paragraphs, streamedChars),
@@ -310,10 +438,9 @@ export const SkillThinkingCard: React.FC<SkillThinkingCardProps> = ({
   );
 
   const headerTitle = useMemo(() => {
-    // 先扫光「思考中」，再随段落切到步骤摘要
     if (loading) return SKILL_CREATE_CHAT.thinkInProgress;
     if (generating && !isComplete) {
-      const introChars = 22; // ≈0.8s，先稳住「思考中」再切换
+      const introChars = 22;
       if (streamedChars < introChars) return SKILL_CREATE_CHAT.thinkInProgress;
       return statusHints[activeIdx] || statusHints[0] || SKILL_CREATE_CHAT.thinkInProgress;
     }
@@ -322,7 +449,6 @@ export const SkillThinkingCard: React.FC<SkillThinkingCardProps> = ({
   }, [loading, generating, isComplete, title, statusHints, activeIdx, streamedChars]);
 
   const showShimmerTitle = loading || (generating && !isComplete);
-  /** 加载态仅标题；生成中起打字机展示正文 */
   const showProseBody = !loading && fullLen > 0;
   const streaming = generating && !isComplete && streamedChars < fullLen;
   const bodyCharCount = isComplete || !generating ? fullLen : streamedChars;
@@ -351,7 +477,10 @@ export const SkillThinkingCard: React.FC<SkillThinkingCardProps> = ({
             steps={steps}
             paragraphs={paragraphs}
             charCount={bodyCharCount}
-            showCaret={streaming}
+            showCaret={streaming && !shimmerTool}
+            collapsed={toolsCollapsed}
+            toolRevealed={toolRevealed}
+            shimmerTool={shimmerTool}
           />
         ) : null}
       </div>
@@ -359,10 +488,15 @@ export const SkillThinkingCard: React.FC<SkillThinkingCardProps> = ({
   );
 };
 
-/** 估算深度思考流式时长（ms），供播放编排对齐 — 约 28 字/秒 */
+/** 估算深度思考流式时长（ms），含工具扫光，供播放编排对齐 */
 export function estimateThinkStreamMs(steps: SkillThinkStep[]): number {
-  const len = stepsToParagraphs(steps).reduce((n, p) => n + p.length, 0);
-  const tickMs = 36;
-  const charsPerTick = 1;
-  return Math.min(14000, Math.max(2800, Math.ceil(len / charsPerTick) * tickMs + 480));
+  const textLen = stepsToParagraphs(steps).reduce((n, p) => n + p.length, 0);
+  const toolCount = steps.reduce((n, s) => n + (s.children?.length ?? 0), 0);
+  return Math.min(
+    18000,
+    Math.max(
+      3200,
+      textLen * STREAM_TICK_MS + toolCount * STREAM_TOOL_TICKS * STREAM_TICK_MS + 480,
+    ),
+  );
 }

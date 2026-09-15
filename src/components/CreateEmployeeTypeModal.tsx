@@ -4,11 +4,11 @@
  *
  * 自建数字员工 — 两步弹窗（common/Modal + 设计系统按钮/选中态）
  * 1) 选择员工分类
- * 2) 选择员工类型 + 创建方式
+ * 2) 选择创建方式：AI 帮写 / 手动创建 / 工作流编排
  */
 
 import React, { useEffect, useState } from 'react';
-import { BrainCircuit, Check, Pencil, Wand2, Workflow } from '@/lib/icons';
+import { Check, Pencil, Wand2, Workflow } from '@/lib/icons';
 import { JOB_FAMILY_FULL_LABELS } from '@/lib/jobFamily';
 import { BTN_INK, BTN_OUTLINE, BTN_SOFT } from '@/lib/ui';
 import { cn } from '@/lib/utils';
@@ -16,7 +16,7 @@ import { Modal } from './common/Modal';
 import type { JobFamily } from '@/src/types';
 
 export type EmployeeBuildMode = 'autonomous' | 'preset';
-export type EmployeeCreateMethod = 'ai' | 'manual';
+export type EmployeeCreateMethod = 'ai' | 'manual' | 'workflow';
 
 export type CreateEmployeePayload = {
   mode: EmployeeBuildMode;
@@ -44,28 +44,6 @@ const CATEGORY_OPTIONS: { id: JobFamily; label: string }[] = [
   { id: 'other', label: '业务助理' },
 ];
 
-const BUILD_OPTIONS: {
-  id: EmployeeBuildMode;
-  title: string;
-  desc: string;
-  recommended?: boolean;
-  Icon: typeof BrainCircuit;
-}[] = [
-  {
-    id: 'autonomous',
-    title: '自主规划',
-    desc: '对话梳理业务边界，自动生成岗位与技能配置。',
-    recommended: true,
-    Icon: BrainCircuit,
-  },
-  {
-    id: 'preset',
-    title: '预设流程',
-    desc: '按固定节点与规则编排，可在画布中精细调整。',
-    Icon: Workflow,
-  },
-];
-
 const METHOD_OPTIONS: {
   id: EmployeeCreateMethod;
   title: string;
@@ -84,7 +62,17 @@ const METHOD_OPTIONS: {
     desc: '直接进入培训配置页自行搭建。',
     Icon: Pencil,
   },
+  {
+    id: 'workflow',
+    title: '工作流编排',
+    desc: '在画布上拖拽节点，编排接待与处理流程。',
+    Icon: Workflow,
+  },
 ];
+
+function buildModeFor(method: EmployeeCreateMethod): EmployeeBuildMode {
+  return method === 'workflow' ? 'preset' : 'autonomous';
+}
 
 const OPTION_IDLE =
   'relative text-left rounded-lg border border-neutral-200 bg-white p-3 transition cursor-pointer hover:border-neutral-300 hover:bg-neutral-50';
@@ -97,12 +85,10 @@ function defaultNameFor(family: JobFamily): string {
   return `${label}助手`;
 }
 
-function defaultDescFor(family: JobFamily, mode: EmployeeBuildMode): string {
+function defaultDescFor(family: JobFamily): string {
   const label =
     CATEGORY_OPTIONS.find((c) => c.id === family)?.label ?? JOB_FAMILY_FULL_LABELS[family];
-  return mode === 'autonomous'
-    ? `自主规划的${label}数字员工，可通过对话持续完善岗位边界与技能。`
-    : `基于预设流程编排的${label}数字员工，可在画布中调整节点与规则。`;
+  return `自主规划的${label}数字员工，可通过对话持续完善岗位边界与技能。`;
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -120,14 +106,12 @@ export const CreateEmployeeTypeModal: React.FC<CreateEmployeeTypeModalProps> = (
   const [jobFamily, setJobFamily] = useState<JobFamily>(
     lockJobFamily ?? 'customer_service',
   );
-  const [mode, setMode] = useState<EmployeeBuildMode>('autonomous');
   const [createMethod, setCreateMethod] = useState<EmployeeCreateMethod>('ai');
 
   useEffect(() => {
     if (!open) return;
     setStep(skipCategory ? 2 : 1);
     setJobFamily(lockJobFamily ?? 'customer_service');
-    setMode('autonomous');
     setCreateMethod('ai');
   }, [open, lockJobFamily, skipCategory]);
 
@@ -137,11 +121,11 @@ export const CreateEmployeeTypeModal: React.FC<CreateEmployeeTypeModalProps> = (
 
   const handleConfirmCreate = () => {
     onConfirm({
-      mode,
+      mode: buildModeFor(createMethod),
       createMethod,
       jobFamily,
       name: defaultNameFor(jobFamily),
-      description: defaultDescFor(jobFamily, mode),
+      description: defaultDescFor(jobFamily),
     });
   };
 
@@ -150,7 +134,7 @@ export const CreateEmployeeTypeModal: React.FC<CreateEmployeeTypeModalProps> = (
       open={open}
       onClose={onClose}
       title={step === 1 ? '创建数字员工' : `创建${categoryLabel}`}
-      description={step === 1 ? '选择员工分类' : '选择类型与创建方式'}
+      showClose={false}
       maxWidth="max-w-lg"
       footer={
         <>
@@ -208,60 +192,8 @@ export const CreateEmployeeTypeModal: React.FC<CreateEmployeeTypeModalProps> = (
       ) : (
         <div className="space-y-4 max-h-[min(56vh,420px)] overflow-y-auto custom-scrollbar">
           <section>
-            <SectionLabel>员工类型</SectionLabel>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {BUILD_OPTIONS.map((opt) => {
-                const active = mode === opt.id;
-                const Icon = opt.Icon;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setMode(opt.id)}
-                    aria-pressed={active}
-                    className={active ? OPTION_ACTIVE : OPTION_IDLE}
-                  >
-                    {active ? (
-                      <span className="absolute top-2.5 right-2.5 flex h-4 w-4 items-center justify-center rounded-full bg-neutral-900 text-white">
-                        <Check size={10} strokeWidth={3} />
-                      </span>
-                    ) : null}
-                    <div className="flex items-start gap-2.5 pr-5">
-                      <span
-                        className={cn(
-                          'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
-                          active
-                            ? 'bg-neutral-200 text-neutral-700'
-                            : 'bg-neutral-100 text-neutral-500',
-                        )}
-                      >
-                        <Icon size={16} strokeWidth={2} className="shrink-0" />
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[13px] font-semibold text-neutral-900">
-                            {opt.title}
-                          </span>
-                          {opt.recommended ? (
-                            <span className="inline-flex h-[18px] items-center rounded px-1.5 text-[10px] font-semibold bg-neutral-100 text-neutral-600 border border-neutral-200">
-                              推荐
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="mt-1 text-[12px] text-neutral-500 leading-relaxed">
-                          {opt.desc}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <section>
             <SectionLabel>创建方式</SectionLabel>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2">
               {METHOD_OPTIONS.map((opt) => {
                 const active = createMethod === opt.id;
                 const Icon = opt.Icon;

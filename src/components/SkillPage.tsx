@@ -767,15 +767,6 @@ export const SkillPage: React.FC = () => {
         title={SKILL_PAGE_COPY.versionHistoryTitle}
         description={versionHistorySkill?.name}
         maxWidth="max-w-md"
-        footer={
-          <button
-            type="button"
-            className={BTN_SOFT}
-            onClick={() => setVersionHistorySkill(null)}
-          >
-            {SKILL_PAGE_COPY.deleteCancel}
-          </button>
-        }
       >
         {versionHistorySkill ? (
           <ul className="flex flex-col gap-2">

@@ -449,3 +449,25 @@ export const SKILL_CREATE_CHAT = {
   confirmWriteHint: '确认后将写入右侧表单',
 } as const;
 
+/**
+ * 数字员工创建对话 — 过程卡 / 补充卡 / 确认卡文案
+ * 与 SKILL_CREATE_CHAT 同交互骨架，仅内容域不同
+ */
+export const EMPLOYEE_CREATE_CHAT = {
+  assistantName: '数字员工设计助理',
+  thinkInProgress: '思考中',
+  thinkDone: '已完成思考',
+  durationSuffix: (sec: number) => (sec > 0 ? ` · ${sec}s` : ''),
+  clarifyTitle: '补充信息',
+  clarifySubmitted: '已提交',
+  clarifySkipped: '已跳过',
+  clarifyLead: '请先补充以下关键信息，也可跳过：',
+  clarifyReceived: '已根据补充信息拆解数字员工草案。',
+  clarifySkippedAck: '已按你的目标拆解数字员工草案。',
+  confirmTitle: '确认信息',
+  confirmDone: '已确认',
+  confirmPrompt: '请确认下方要点后点击“确认执行”',
+  confirmWriteHint: '确认后将写入右侧培训配置',
+  confirmCardTitle: '请确认数字员工草案要点',
+} as const;
+

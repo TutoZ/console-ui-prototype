@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * 一级导航：窄轨样式（对齐质检应用内原 rail）
- * 上部为业务域；底部为资源中心 + 通用配置 + 通知 + 账号
+ * 上部为业务域；底部为人工工作台 + 资源中心 + 通用配置 + 账号
  */
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -20,6 +20,7 @@ import {
   type NavDomain,
   type PrimaryNavItem,
 } from '@/lib/navDomain';
+import { NAV_TERMS } from '@/lib/platformTerminology';
 import {
   NAV_RAIL_ICON_SIZE,
   NAV_RAIL_ICON_SIZE_COMPACT,
@@ -43,7 +44,7 @@ import {
   subscribeInviteStore,
   updateInviteApplicationStatus,
 } from '@/lib/subUserInviteStore';
-import { ClipboardCheck, HelpCircle, LogOut, ShieldCheck, User } from '@/lib/icons';
+import { Bell, ClipboardCheck, HelpCircle, LogOut, ShieldCheck, User } from '@/lib/icons';
 import { PictureWebp } from './common/PictureWebp';
 import { PersonalCenterModal } from './PersonalCenterModal';
 import { NotificationCenterFlyout, NOTIFICATION_FLYOUT_SELECTOR } from './nav/NotificationCenterFlyout';
@@ -176,7 +177,15 @@ export const PrimaryNavRail: React.FC<{
     setQcRailTab,
     setShowTaskCenter,
     showToast,
+    sessions,
+    activeTab,
   } = useApp();
+
+  const queuedChatsCount = useMemo(
+    () => sessions.filter((s) => s.status === 'queued').length,
+    [sessions],
+  );
+  const isWorkspaceActive = activeTab === 'workspace';
 
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showPersonalCenter, setShowPersonalCenter] = useState(false);
@@ -240,7 +249,7 @@ export const PrimaryNavRail: React.FC<{
     }
     if (unlockedDomainIds.has(navDomain)) return;
     setNavDomain('home');
-    setActiveTab('employees');
+    setActiveTab('platformHome');
   }, [navDomain, unlockedDomainIds, setNavDomain, setActiveTab]);
 
   const updateProfileMenuPosition = useCallback(() => {
@@ -282,7 +291,16 @@ export const PrimaryNavRail: React.FC<{
     [notifications],
   );
 
+  const PROFILE_MENU_WIDTH = 208;
+
   const updateNotificationFlyoutPosition = useCallback(() => {
+    if (profileMenuStyle) {
+      setNotificationFlyoutStyle({
+        left: profileMenuStyle.left + PROFILE_MENU_WIDTH + 8,
+        bottom: profileMenuStyle.bottom,
+      });
+      return;
+    }
     const anchor = notificationRef.current;
     if (!anchor) return;
     const rect = anchor.getBoundingClientRect();
@@ -290,7 +308,7 @@ export const PrimaryNavRail: React.FC<{
       left: rect.right + 8,
       bottom: Math.max(12, window.innerHeight - rect.bottom),
     });
-  }, []);
+  }, [profileMenuStyle]);
 
   const clearProfileCloseTimer = useCallback(() => {
     if (profileCloseTimerRef.current) {
@@ -301,7 +319,6 @@ export const PrimaryNavRail: React.FC<{
 
   const openProfileMenu = useCallback(() => {
     clearProfileCloseTimer();
-    setShowNotificationFlyout(false);
     setShowProfileMenu(true);
   }, [clearProfileCloseTimer]);
 
@@ -309,6 +326,7 @@ export const PrimaryNavRail: React.FC<{
     clearProfileCloseTimer();
     profileCloseTimerRef.current = setTimeout(() => {
       setShowProfileMenu(false);
+      setShowNotificationFlyout(false);
       profileCloseTimerRef.current = null;
     }, 140);
   }, [clearProfileCloseTimer]);
@@ -326,9 +344,10 @@ export const PrimaryNavRail: React.FC<{
 
   const openNotificationFlyout = useCallback(() => {
     clearNotificationCloseTimer();
-    setShowProfileMenu(false);
+    clearProfileCloseTimer();
+    setShowProfileMenu(true);
     setShowNotificationFlyout(true);
-  }, [clearNotificationCloseTimer]);
+  }, [clearNotificationCloseTimer, clearProfileCloseTimer]);
 
   const scheduleCloseNotificationFlyout = useCallback(() => {
     clearNotificationCloseTimer();
@@ -365,6 +384,7 @@ export const PrimaryNavRail: React.FC<{
       markNotificationRead(item.id);
       if (item.kind === 'invite') {
         setShowNotificationFlyout(false);
+        setShowProfileMenu(false);
         setFocusApplicationId(item.application?.id ?? null);
         setApprovalOpen(true);
         return;
@@ -433,7 +453,7 @@ export const PrimaryNavRail: React.FC<{
       window.removeEventListener('resize', updateNotificationFlyoutPosition);
       window.removeEventListener('scroll', updateNotificationFlyoutPosition, true);
     };
-  }, [showNotificationFlyout, updateNotificationFlyoutPosition]);
+  }, [showNotificationFlyout, profileMenuStyle, updateNotificationFlyoutPosition]);
 
   useLayoutEffect(() => {
     if (!showMoreMenu) {
@@ -557,8 +577,40 @@ export const PrimaryNavRail: React.FC<{
         ) : null}
       </div>
 
-      {/* 底部工具区：资源中心 + 通用配置 + 通知 + 账号 */}
+      {/* 底部工具区：人工工作台 + 资源中心 + 通用配置 + 账号 */}
       <div className="w-full px-2 pt-1.5 mt-0.5 border-t border-neutral-200/80 flex flex-col items-center gap-1 shrink-0">
+        <button
+          type="button"
+          id="primary_nav_workspace"
+          title={NAV_TERMS.workspace}
+          onClick={() => setActiveTab('workspace')}
+          className={cn(railNavClass(isWorkspaceActive, true), 'relative')}
+        >
+          <span className="relative inline-flex">
+            <RailNavIcon
+              icon="solar:headphones-round-linear"
+              active={isWorkspaceActive}
+              size={NAV_RAIL_ICON_SIZE_COMPACT}
+            />
+            {queuedChatsCount > 0 ? (
+              <span
+                className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-amber-500 text-[9px] font-bold text-white inline-flex items-center justify-center tabular-nums ring-2 ring-neutral-50"
+                aria-label={`${queuedChatsCount} 条排队会话`}
+              >
+                {queuedChatsCount > 9 ? '9+' : queuedChatsCount}
+              </span>
+            ) : null}
+          </span>
+          <span
+            className={cn(
+              'text-[11px] leading-tight tracking-tight whitespace-nowrap',
+              isWorkspaceActive ? cn('font-semibold', activeRailLabelClass) : 'font-medium',
+            )}
+          >
+            工作台
+          </span>
+        </button>
+
         {BOTTOM_NAV_ITEMS.map((item) => {
           const active = navDomain === item.id;
           return (
@@ -589,43 +641,6 @@ export const PrimaryNavRail: React.FC<{
         })}
 
         <button
-          ref={notificationRef}
-          type="button"
-          title="通知中心"
-          aria-expanded={showNotificationFlyout}
-          aria-haspopup="dialog"
-          onMouseEnter={openNotificationFlyout}
-          onMouseLeave={scheduleCloseNotificationFlyout}
-          onFocus={openNotificationFlyout}
-          onClick={openNotificationFlyout}
-          className={cn(railNavClass(showNotificationFlyout, true), 'relative')}
-        >
-          <span className="relative inline-flex">
-            <RailNavIcon
-              icon="solar:bell-linear"
-              active={showNotificationFlyout}
-              size={NAV_RAIL_ICON_SIZE_COMPACT}
-            />
-            {unreadNotificationCount > 0 ? (
-              <span
-                className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-red-500 text-[9px] font-bold text-white inline-flex items-center justify-center tabular-nums ring-2 ring-neutral-50"
-                aria-label={`${unreadNotificationCount} 条未读通知`}
-              >
-                {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
-              </span>
-            ) : null}
-          </span>
-          <span
-            className={cn(
-              'text-[11px] leading-tight tracking-tight whitespace-nowrap',
-              showNotificationFlyout ? cn('font-semibold', activeRailLabelClass) : 'font-medium',
-            )}
-          >
-            通知
-          </span>
-        </button>
-
-        <button
           ref={profileRef}
           type="button"
           title={PROFILE_USER.name}
@@ -642,6 +657,12 @@ export const PrimaryNavRail: React.FC<{
               {PROFILE_USER.initial}
             </AvatarFallback>
           </Avatar>
+          {unreadNotificationCount > 0 ? (
+            <span
+              className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500 ring-2 ring-neutral-50"
+              aria-label={`${unreadNotificationCount} 条未读通知`}
+            />
+          ) : null}
         </button>
       </div>
 
@@ -728,6 +749,25 @@ export const PrimaryNavRail: React.FC<{
                 <User size={14} className="text-neutral-500 shrink-0" />
                 <span>个人中心</span>
               </button>
+              <div
+                className="relative"
+                onMouseEnter={openNotificationFlyout}
+                onMouseLeave={scheduleCloseNotificationFlyout}
+              >
+                <button
+                  ref={notificationRef}
+                  type="button"
+                  className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-neutral-100/50 flex items-center gap-2.5 font-medium text-neutral-800 transition cursor-pointer"
+                >
+                  <Bell size={14} className="text-neutral-500 shrink-0" />
+                  <span className="flex-1">通知中心</span>
+                  {unreadNotificationCount > 0 ? (
+                    <span className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[10px] font-bold text-white inline-flex items-center justify-center tabular-nums">
+                      {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+                    </span>
+                  ) : null}
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => {
@@ -770,11 +810,14 @@ export const PrimaryNavRail: React.FC<{
         )}
 
       <NotificationCenterFlyout
-        open={showNotificationFlyout}
+        open={showNotificationFlyout && showProfileMenu}
         items={notifications}
         style={notificationFlyoutStyle}
         onEnter={openNotificationFlyout}
-        onLeave={scheduleCloseNotificationFlyout}
+        onLeave={() => {
+          scheduleCloseNotificationFlyout();
+          scheduleCloseProfileMenu();
+        }}
         onSelect={handleSelectNotification}
         onClearAll={handleClearReadNotifications}
       />

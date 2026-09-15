@@ -3,24 +3,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Search, Plus, Trash2, Upload, FileUp, Sparkles, HelpCircle, Check, Circle, Pencil } from '@/lib/icons';
 import { Modal } from './common/Modal';
 import { CardIcon } from './common/CardIcon';
 import { ListPagination, LIST_PAGE_SIZE, paginateItems } from './common/ListPagination';
-import { BTN_INK, BTN_SOFT, FIELD, LABEL, SEARCH_FIELD } from '@/lib/ui';
+import { BTN_INK, BTN_SOFT, FIELD, FIELD_CTRL, LABEL, SEARCH_FIELD, SELECT_TRIGGER } from '@/lib/ui';
 import {
   OnlinePageHeader,
-  OnlineSectionHeader,
   OnlineEmptyRow,
   onlineTableClass,
 } from './common/OnlinePageLayout';
 import { cn } from '@/lib/utils';
-import { pickMockLatencyMs } from '@/lib/mockLatency';
 import { ContentBusy } from './common/ContentBusy';
-import { CompanionAssistOpenButton, CompanionAssistPanel } from './common/CompanionAssistPanel';
+import { CompanionAssistPanel } from './common/CompanionAssistPanel';
 import { useMockLatency } from '@/lib/useMockLatency';
+import { KnowledgeBaseWorkspace } from './knowledge/KnowledgeBaseWorkspace';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const COMPANION_OPEN_KEY = 'js_companion_assist_open';
 
@@ -35,7 +41,16 @@ function readCompanionOpen(): boolean {
 }
 
 export const KnowledgeBasePage: React.FC = () => {
-  const { knowledgeBases, createKnowledgeBase, updateKnowledgeBase, deleteKnowledgeBase, focusKnowledgeBaseId, setFocusKnowledgeBaseId, showToast } = useApp();
+  const {
+    knowledgeBases,
+    hiredAgents,
+    createKnowledgeBase,
+    updateKnowledgeBase,
+    deleteKnowledgeBase,
+    focusKnowledgeBaseId,
+    setFocusKnowledgeBaseId,
+    showToast,
+  } = useApp();
   const [search, setSearch] = useState('');
   const listBusy = useMockLatency('kb-cards', 'pageList');
   const [newName, setNewName] = useState('');
@@ -48,6 +63,7 @@ export const KnowledgeBasePage: React.FC = () => {
   const [renameName, setRenameName] = useState('');
   const [page, setPage] = useState(1);
   const [companionOpen, setCompanionOpen] = useState(readCompanionOpen);
+  const [activeKBId, setActiveKBId] = useState<string | null>(null);
 
   const handleCompanionOpenChange = (next: boolean) => {
     setCompanionOpen(next);
@@ -58,19 +74,29 @@ export const KnowledgeBasePage: React.FC = () => {
     }
   };
 
-  // Drag and drop states for file uploading inside selected KB
-  const [activeKBId, setActiveKBId] = useState<string | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const [uploadedMsgs, setUploadedMsgs] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     if (focusKnowledgeBaseId) {
       setActiveKBId(focusKnowledgeBaseId);
-      setUploadedMsgs(null);
       setFocusKnowledgeBaseId(null);
     }
   }, [focusKnowledgeBaseId, setFocusKnowledgeBaseId]);
+
+  const activeKb = useMemo(
+    () => (activeKBId ? knowledgeBases.find((k) => k.id === activeKBId) ?? null : null),
+    [activeKBId, knowledgeBases],
+  );
+
+  const activeKbAgentNames = useMemo(() => {
+    if (!activeKb) return '暂无绑定员工';
+    const names = hiredAgents
+      .filter((a) => a.knowledgeBases.includes(activeKb.id))
+      .map((a) => a.name);
+    return names.length > 0 ? names.join('、') : '暂无绑定员工';
+  }, [activeKb, hiredAgents]);
+
+  useEffect(() => {
+    if (activeKBId && !activeKb) setActiveKBId(null);
+  }, [activeKBId, activeKb]);
 
   const filtered = knowledgeBases.filter(k =>
     k.name.toLowerCase().includes(search.toLowerCase())
@@ -125,50 +151,69 @@ export const KnowledgeBasePage: React.FC = () => {
     closeRenameModal();
   };
 
-  // Drag-and-drop logic
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFiles(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFiles(e.target.files[0]);
-    }
-  };
-
-  const handleFiles = (file: File) => {
-    if (!activeKBId) return;
-    setUploadedMsgs(`正在解析文件：\n- 文件名: ${file.name}\n- 大小: ${(file.size/1024).toFixed(1)} KB`);
-
-    setTimeout(() => {
-      // Simulate success, adding document to the active KB
-      knowledgeBases.forEach(kb => {
-        if (kb.id === activeKBId) {
-          kb.docCount += 1;
-          kb.wordCount += Math.floor(2500 + Math.random() * 5000);
-          kb.updatedAt = new Date().toISOString().replace('T', ' ').substring(0, 16);
-        }
-      });
-      setUploadedMsgs(`解析完成，文件已加入知识库。`);
-      setTimeout(() => setUploadedMsgs(null), 3000);
-    }, pickMockLatencyMs('upload'));
-  };
+  if (activeKb) {
+    return (
+      <div className="flex flex-1 min-h-0 min-w-0 h-full overflow-hidden bg-white">
+        <KnowledgeBaseWorkspace
+          kb={activeKb}
+          agentName={activeKbAgentNames}
+          onBack={() => setActiveKBId(null)}
+          onUpdateKb={updateKnowledgeBase}
+          showToast={(message) => showToast(message)}
+          variant="page"
+          companionOpen={companionOpen}
+          onOpenCompanion={() => handleCompanionOpenChange(true)}
+        />
+        <CompanionAssistPanel
+          open={companionOpen}
+          onOpenChange={handleCompanionOpenChange}
+          highlightValue={knowledgeBases.length}
+          tools={[
+            {
+              id: 'create',
+              label: '智能建库',
+              icon: <Plus size={16} strokeWidth={1.75} />,
+              onClick: () => {
+                setIsCreating(true);
+                setActiveKBId(null);
+              },
+            },
+            {
+              id: 'upload',
+              label: '文档入库',
+              icon: <Upload size={16} strokeWidth={1.75} />,
+              onClick: () => {
+                showToast('请在文档列表中点击「上传文档」');
+              },
+            },
+            {
+              id: 'search',
+              label: '知识检索',
+              icon: <Search size={16} strokeWidth={1.75} />,
+            },
+            {
+              id: 'gap',
+              label: '缺口分析',
+              icon: <Sparkles size={16} strokeWidth={1.75} />,
+            },
+            {
+              id: 'qa',
+              label: '问答试跑',
+              icon: <HelpCircle size={16} strokeWidth={1.75} />,
+            },
+            {
+              id: 'batch',
+              label: '批量整理',
+              icon: <FileUp size={16} strokeWidth={1.75} />,
+            },
+          ]}
+          onSend={(text) => {
+            showToast(`搭子已收到：${text.slice(0, 40)}${text.length > 40 ? '…' : ''}`);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 min-h-0 min-w-0 h-full overflow-hidden bg-white">
@@ -190,9 +235,6 @@ export const KnowledgeBasePage: React.FC = () => {
           <Plus size={14} />
           <span>新建知识库</span>
         </button>
-        {!companionOpen ? (
-          <CompanionAssistOpenButton onClick={() => handleCompanionOpenChange(true)} />
-        ) : null}
       </OnlinePageHeader>
       </div>
 
@@ -205,40 +247,49 @@ export const KnowledgeBasePage: React.FC = () => {
                 <th className={onlineTableClass.thFirst}>知识库</th>
                 <th className={onlineTableClass.th}>文档数</th>
                 <th className={onlineTableClass.th}>字符数</th>
-                <th className={onlineTableClass.th}>更新时间</th>
                 <th className={onlineTableClass.thLast}>操作</th>
               </tr>
             </thead>
             <tbody className={onlineTableClass.body}>
               {pagedFiltered.length === 0 ? (
-                <OnlineEmptyRow colSpan={5}>暂无知识库，请先创建</OnlineEmptyRow>
+                <OnlineEmptyRow colSpan={4}>暂无知识库，请先创建</OnlineEmptyRow>
               ) : (
                 pagedFiltered.map((kb) => (
                   <tr
                     key={kb.id}
-                    className={cn(
-                      onlineTableClass.row,
-                      activeKBId === kb.id && 'bg-neutral-50/60',
-                    )}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setActiveKBId(kb.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setActiveKBId(kb.id);
+                      }
+                    }}
+                    className={cn(onlineTableClass.row, 'cursor-pointer')}
                   >
                     <td className={onlineTableClass.tdFirst}>
                       <div className="flex items-center gap-2.5 min-w-0">
                         <CardIcon seed={kb.id} size="sm" variant="neutral">
                           {kb.firstChar}
                         </CardIcon>
-                        <span className="font-semibold text-neutral-900 truncate">{kb.name}</span>
+                        <span className="font-semibold text-neutral-900 truncate hover:text-sky-700 transition-colors">
+                          {kb.name}
+                        </span>
                       </div>
                     </td>
                     <td className={onlineTableClass.td}>{kb.docCount} 个</td>
                     <td className={cn(onlineTableClass.td, 'font-mono tabular-nums')}>
                       {kb.wordCount.toLocaleString()}
                     </td>
-                    <td className={cn(onlineTableClass.td, 'text-neutral-500')}>{kb.updatedAt}</td>
                     <td className={onlineTableClass.tdLast}>
                       <div className="inline-flex items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => openRenameModal(kb.id, kb.name)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openRenameModal(kb.id, kb.name);
+                          }}
                           className="p-1 text-neutral-400 hover:text-neutral-800 rounded-lg hover:bg-neutral-100 transition cursor-pointer"
                           title="重命名"
                         >
@@ -246,7 +297,8 @@ export const KnowledgeBasePage: React.FC = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (
                               confirm(
                                 '删除知识库将导致所有绑定它的数字员工丧失对应的检索能力，确定吗？',
@@ -270,60 +322,6 @@ export const KnowledgeBasePage: React.FC = () => {
           </table>
         </div>
       </ContentBusy>
-
-      {activeKBId && (
-        <section className="mt-8 pt-6 border-t border-neutral-200">
-          <OnlineSectionHeader
-            title={`上传文件到：${knowledgeBases.find((k) => k.id === activeKBId)?.name ?? ''}`}
-            icon={<Sparkles size={14} className="text-neutral-500" />}
-            actions={
-              <button
-                type="button"
-                onClick={() => setActiveKBId(null)}
-                className="text-[11px] text-neutral-500 hover:text-neutral-800 font-medium cursor-pointer"
-              >
-                关闭
-              </button>
-            }
-          />
-
-          <div
-            onDragEnter={handleDrag}
-            onDragOver={handleDrag}
-            onDragLeave={handleDrag}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={cn(
-              'cursor-pointer border border-dashed rounded-lg p-8 text-center flex flex-col items-center justify-center transition-all',
-              dragActive
-                ? 'border-neutral-400 bg-neutral-50'
-                : 'border-neutral-200 bg-white hover:bg-neutral-50/80',
-            )}
-          >
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileSelect}
-              className="hidden"
-              accept=".txt,.pdf,.docx,.doc,.md"
-            />
-
-            <FileUp size={36} className={`mb-3 ${dragActive ? 'text-neutral-900 animate-bounce' : 'text-neutral-400'}`} />
-
-            <span className="text-xs font-bold text-neutral-700">
-              {dragActive ? "松手开始上传！" : "拖动文件到此区域，或点击此处选择本地文件"}
-            </span>
-            <span className="text-[10px] text-neutral-400 mt-1">支持最大 50MB 纯文本/PDF</span>
-          </div>
-
-          {/* Feedback logs */}
-          {uploadedMsgs && (
-            <div className="mt-4 p-3 bg-neutral-900 font-mono text-[11px] text-emerald-400 rounded-lg whitespace-pre-line leading-relaxed">
-              {uploadedMsgs}
-            </div>
-          )}
-        </section>
-      )}
       </div>
 
       {filtered.length > LIST_PAGE_SIZE ? (
@@ -357,9 +355,9 @@ export const KnowledgeBasePage: React.FC = () => {
                 value={newName}
                 maxLength={30}
                 onChange={(e) => setNewName(e.target.value)}
-                className={FIELD}
+                className={cn(FIELD, FIELD_CTRL, 'pr-12')}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 tabular-nums pointer-events-none">
                 {newName.length}/30
               </span>
             </div>
@@ -373,9 +371,9 @@ export const KnowledgeBasePage: React.FC = () => {
                 value={newDesc}
                 maxLength={200}
                 onChange={(e) => setNewDesc(e.target.value)}
-                className={cn(FIELD, 'min-h-[72px] resize-none pr-12')}
+                className={cn(FIELD, 'min-h-[80px] resize-y pr-12 py-2')}
               />
-              <span className="absolute right-3 bottom-2 text-[10px] text-neutral-500">
+              <span className="absolute right-3 bottom-2 text-[10px] text-neutral-500 tabular-nums pointer-events-none">
                 {newDesc.length}/200
               </span>
             </div>
@@ -395,22 +393,22 @@ export const KnowledgeBasePage: React.FC = () => {
                     type="button"
                     onClick={() => toggleCategoryTag(tag.id)}
                     className={cn(
-                      'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition cursor-pointer',
+                      'w-full flex items-center gap-2.5 h-8 px-2.5 rounded-[7px] border text-left transition cursor-pointer',
                       selected
-                        ? 'border-primary/30 bg-primary/5'
-                        : 'border-neutral-200 bg-white hover:bg-neutral-100/40',
+                        ? 'border-neutral-300 bg-neutral-50'
+                        : 'border-neutral-200/50 bg-white hover:bg-neutral-50',
                     )}
                   >
                     {selected ? (
-                      <Check size={14} className="text-primary shrink-0" />
+                      <Check size={14} className="text-neutral-800 shrink-0" />
                     ) : (
-                      <Circle size={14} className="text-neutral-500 shrink-0" />
+                      <Circle size={14} className="text-neutral-400 shrink-0" />
                     )}
-                    <span className="text-xs font-semibold text-neutral-800">
+                    <span className="text-xs font-medium text-neutral-800">
                       {tag.label}
                       {tag.hint ? `（${tag.hint}）` : ''}
                     </span>
-                    <HelpCircle size={12} className="text-neutral-500 shrink-0" title={tag.desc} />
+                    <HelpCircle size={12} className="text-neutral-400 shrink-0 ml-auto" title={tag.desc} />
                   </button>
                 );
               })}
@@ -419,15 +417,28 @@ export const KnowledgeBasePage: React.FC = () => {
 
           <div>
             <label className={LABEL}>分块方法</label>
-            <select
+            <Select
               value={chunkMethod}
-              onChange={(e) => setChunkMethod(e.target.value)}
-              className={cn(FIELD, 'cursor-pointer')}
+              onValueChange={(v) => v && setChunkMethod(v)}
             >
-              <option value="general">通用解析</option>
-              <option value="qa">问答对切分</option>
-              <option value="table">表格结构化</option>
-            </select>
+              <SelectTrigger
+                className={cn(SELECT_TRIGGER, 'w-full justify-between')}
+                aria-label="分块方法"
+              >
+                <SelectValue>
+                  {chunkMethod === 'qa'
+                    ? '问答对切分'
+                    : chunkMethod === 'table'
+                      ? '表格结构化'
+                      : '通用解析'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="general">通用解析</SelectItem>
+                <SelectItem value="qa">问答对切分</SelectItem>
+                <SelectItem value="table">表格结构化</SelectItem>
+              </SelectContent>
+            </Select>
             <p className="text-[10px] text-neutral-500 mt-1">选择适合您文档类型的分块方法</p>
           </div>
 
@@ -435,15 +446,28 @@ export const KnowledgeBasePage: React.FC = () => {
             <label className={LABEL}>
               嵌入模型 <span className="text-rose-500">*</span>
             </label>
-            <select
+            <Select
               value={embeddingModel}
-              onChange={(e) => setEmbeddingModel(e.target.value)}
-              className={cn(FIELD, 'cursor-pointer')}
+              onValueChange={(v) => v && setEmbeddingModel(v)}
             >
-              <option value="Qwen3-Embedding-8B">Qwen3-Embedding-8B</option>
-              <option value="text-embedding-3-small">text-embedding-3-small</option>
-              <option value="bge-m3">BGE-M3</option>
-            </select>
+              <SelectTrigger
+                className={cn(SELECT_TRIGGER, 'w-full justify-between')}
+                aria-label="嵌入模型"
+              >
+                <SelectValue>
+                  {embeddingModel === 'text-embedding-3-small'
+                    ? 'text-embedding-3-small'
+                    : embeddingModel === 'bge-m3'
+                      ? 'BGE-M3'
+                      : 'Qwen3-Embedding-8B'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Qwen3-Embedding-8B">Qwen3-Embedding-8B</SelectItem>
+                <SelectItem value="text-embedding-3-small">text-embedding-3-small</SelectItem>
+                <SelectItem value="bge-m3">BGE-M3</SelectItem>
+              </SelectContent>
+            </Select>
             <p className="text-[10px] text-neutral-500 mt-1">选择用于生成向量嵌入的模型</p>
           </div>
         </div>
@@ -475,10 +499,10 @@ export const KnowledgeBasePage: React.FC = () => {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && renameName.trim()) handleRename();
               }}
-              className={FIELD}
+              className={cn(FIELD, FIELD_CTRL, 'pr-12')}
               autoFocus
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 tabular-nums pointer-events-none">
               {renameName.length}/30
             </span>
           </div>
@@ -504,7 +528,6 @@ export const KnowledgeBasePage: React.FC = () => {
             onClick: () => {
               if (filtered[0]) {
                 setActiveKBId(filtered[0].id);
-                setUploadedMsgs(null);
               } else {
                 showToast('请先新建知识库', 'warning');
               }

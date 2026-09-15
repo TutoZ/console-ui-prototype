@@ -373,7 +373,7 @@ export const PrimaryNavTreeV3: React.FC = () => {
     }
     if (unlockedDomainIds.has(navDomain)) return;
     setNavDomain('home');
-    setActiveTab('employees');
+    setActiveTab('platformHome');
   }, [navDomain, unlockedDomainIds, setNavDomain, setActiveTab]);
 
   const treeGroups: TreeGroup[] = useMemo(() => {

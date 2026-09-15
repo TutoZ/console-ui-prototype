@@ -52,11 +52,11 @@ export const BTN_SOFT_SM = `${BTN_BASE} h-6 px-2.5 text-[11px] bg-neutral-100 te
 export const BTN_OUTLINE_SM = `${BTN_BASE} h-6 px-2.5 text-[11px] bg-white text-neutral-800 border border-neutral-200 hover:bg-neutral-50 shadow-[0_1px_0_rgba(0,0,0,0.05)]`;
 export const BTN_DANGER_SM = `${BTN_BASE} h-6 px-2.5 text-[11px] bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 hover:text-rose-600`;
 
-/** 输入框 / 下拉 / 文本域（多行勿加 FIELD_CTRL） */
+/** 输入框 / 下拉 / 文本域。单行默认 32px（与按钮同高）；textarea 用 min-h-[*] 撑开，勿再叠 h-* */
 export const FIELD =
-  'w-full bg-white border border-neutral-200/50 rounded-[7px] text-xs text-neutral-800 placeholder:text-neutral-800/50 px-2.5 outline-none transition duration-200 focus:border-neutral-300 disabled:opacity-50 disabled:cursor-not-allowed';
+  'w-full h-8 box-border bg-white border border-neutral-200/50 rounded-[7px] text-xs text-neutral-800 placeholder:text-neutral-800/50 px-2.5 py-0 outline-none transition duration-200 focus:border-neutral-300 disabled:opacity-50 disabled:cursor-not-allowed';
 
-/** 单行控件高度（与 FIELD 组合：cn(FIELD, FIELD_CTRL)） */
+/** @deprecated 高度已并入 FIELD；保留以免旧写法 cn(FIELD, FIELD_CTRL) 失效 */
 export const FIELD_CTRL = 'h-8';
 
 /** 页头 / 列表顶栏搜索框宽度（与 FIELD、FIELD_CTRL 组合：cn(FIELD, FIELD_CTRL, SEARCH_WIDTH, 'pl-9')） */

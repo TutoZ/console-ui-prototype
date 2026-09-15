@@ -338,10 +338,10 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Navigation key
   const [activeTab, setActiveTabState] = useState<string>(() => {
-    return localStorage.getItem('js_active_tab') || 'employees';
+    return localStorage.getItem('js_active_tab') || 'platformHome';
   });
   const [navDomain, setNavDomainState] = useState<NavDomain>(() => {
-    const tab = localStorage.getItem('js_active_tab') || 'employees';
+    const tab = localStorage.getItem('js_active_tab') || 'platformHome';
     return navDomainFromTab(tab) ?? 'home';
   });
   const [qcRailTab, setQcRailTabState] = useState<QcRailTab>(() => {

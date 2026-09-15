@@ -1773,7 +1773,7 @@ export type SkillThinkPlan = {
   totalMs: number;
 };
 
-/** 根据用户意图生成可逐步播放的思维链 + 任务规划 */
+/** 根据用户意图生成可逐步播放的思维链 */
 export function buildIntentThinkPlan(intent: string): SkillThinkPlan {
   const classified = classifySkillIntent(intent);
   const typeLabel = classified.archetypes
@@ -1799,7 +1799,7 @@ export function buildIntentThinkPlan(intent: string): SkillThinkPlan {
       },
       {
         id: 'type',
-        label: '再看写入四张表单前还缺什么',
+        label: '再看写入技能规格前还缺什么',
         detail: `场景更接近「${typeLabel}」，关注点在：${focus}。据此判断技能能做什么、哪里不该越权，以及表单里还缺哪些关键信息。`,
         status: 'pending',
         children: [
@@ -1810,32 +1810,12 @@ export function buildIntentThinkPlan(intent: string): SkillThinkPlan {
       {
         id: 'gap',
         label: '思路收束',
-        detail: `信息还不够写死规格，优先澄清：${classified.questions.map((q) => q.prompt.replace(/？$/, '')).slice(0, 3).join('；')}。想清楚后再进入任务规划。`,
+        detail: `信息还不够写死规格，优先澄清：${classified.questions.map((q) => q.prompt.replace(/？$/, '')).slice(0, 3).join('；')}。想清楚后再生成可点选卡片。`,
         status: 'pending',
         children: [
           { id: 'gap-run', label: '已整理待澄清关键问题', kind: 'run' },
-          { id: 'gap-note', label: '准备进入任务规划生成可点选卡片', kind: 'note' },
+          { id: 'gap-note', label: '准备生成可点选澄清卡片', kind: 'note' },
         ],
-      },
-    ],
-    planSteps: [
-      {
-        id: 'p1',
-        label: '生成澄清问题',
-        detail: '准备可点选的补充信息卡',
-        status: 'pending',
-      },
-      {
-        id: 'p2',
-        label: '对齐四张表单草稿',
-        detail: '定义 / 主体 / 规范 / 补充等待写入',
-        status: 'pending',
-      },
-      {
-        id: 'p3',
-        label: '交付可确认方案',
-        detail: '理解摘要与确认卡，点确认后再写入左侧',
-        status: 'pending',
       },
     ],
   };

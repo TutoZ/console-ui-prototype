@@ -2,8 +2,8 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * AI 数字员工智能孵化 — 左对话规划并直接写入草案，右侧复用员工培训页
- *（入职培训配置 + 能力测试 / 培训存档）
+ * AI 数字员工智能孵化 — 左对话澄清→确认后写入草案，右侧复用员工培训页
+ *（入职培训配置 + 能力测试 / 培训存档；交互对齐技能创建 BuildSkillModal）
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -11,23 +11,34 @@ import { createPortal } from 'react-dom';
 import {
   ArrowUp,
   CheckCircle2,
-  Loader2,
+  Clock,
+  Copy,
+  Pencil,
   Plus,
   Sparkles,
+  Square,
 } from '@/lib/icons';
 import {
   CHIP,
-  CHIP_ACTIVE,
   NAV_ACTIVE_GRADIENT_BG,
+  SKILL_AOP_SEND_BTN,
   SKILL_AOP_TINT_BG,
   SKILL_AOP_TINT_BORDER,
 } from '@/lib/ui';
 import { cn } from '@/lib/utils';
 import { AGENT_AVATAR_PRESETS } from '@/lib/agentAvatarDisplay';
 import { defaultOpeningLineForAgent, defaultFallbackScriptForAgent } from '@/lib/agentDefaultCopy';
-import { LIFECYCLE_TERMS } from '@/lib/platformTerminology';
+import { EMPLOYEE_CREATE_CHAT, LIFECYCLE_TERMS } from '@/lib/platformTerminology';
+import { PROFILE_USER } from '@/lib/profileUser';
 import { splitChatContentWithAttachments } from '@/lib/chatAttachments';
 import type { SkillThinkStep } from '@/lib/skillStudioMock';
+import {
+  buildEmployeeClarifyQuestions,
+  buildEmployeeConfirmItems,
+  EMPLOYEE_REPLY_CHIPS,
+  formatClarifyAnswers,
+} from '@/lib/employeeCreateChat';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ChatAttachmentCards } from '../common/ChatAttachmentCards';
 import {
   createSavedSnapshot,
@@ -44,7 +55,12 @@ import { OnboardingConfigPanel } from '../onboarding/OnboardingConfigPanel';
 import { OnboardingCapabilityTestPanel } from '../onboarding/OnboardingCapabilityTestPanel';
 import { AgentVersionPanel } from '../onboarding/AgentVersionPanel';
 import { ONBOARDING_WORKSPACE_TABS } from '@/lib/onboardingWorkspaceTabs';
-import { SkillThinkingCard } from '../skills/SkillThinkingCard';
+import { SkillThinkingCard, estimateThinkStreamMs } from '../skills/SkillThinkingCard';
+import { SkillClarifyCard, type SkillClarifyPayload } from '../skills/SkillClarifyCard';
+import {
+  SkillRoundConfirmCard,
+  type SkillConfirmItem,
+} from '../skills/SkillRoundConfirmCard';
 
 export type IncubationDraft = {
   name: string;
@@ -56,9 +72,25 @@ export type IncubationDraft = {
   knowledgeBases: Array<{ id: string; name: string; desc: string; sourceId?: string }>;
 };
 
-type ChatMsg = { id: string; kind: 'user' | 'ai'; text: string; time: string };
-
-type HelpChip = { id: string; label: string; send: string };
+type ChatMsg =
+  | { id: string; kind: 'user' | 'ai' | 'system_status'; text: string; time: string }
+  | {
+      id: string;
+      kind: 'think';
+      steps: SkillThinkStep[];
+      durationSec: number;
+      time: string;
+    }
+  | { id: string; kind: 'clarify'; payload: SkillClarifyPayload; time: string }
+  | {
+      id: string;
+      kind: 'confirm';
+      items: SkillConfirmItem[];
+      confirmed?: boolean;
+      locked?: boolean;
+      title?: string;
+      time: string;
+    };
 
 const USER_BUBBLE = cn(
   'px-3 py-3 text-[14px] leading-[22px] whitespace-pre-line text-[#181D27] rounded-[20px_4px_20px_20px]',
@@ -67,120 +99,28 @@ const USER_BUBBLE = cn(
   'border',
 );
 
-/** AI 气泡 — 对齐 dongDesign-AI / B 端 AI 组件规范 regular-14 */
+/** AI 气泡 — 对齐技能创建 / dongDesign-AI regular-14 */
 const AI_BUBBLE =
-  'max-w-[92%] w-full px-3.5 py-3 rounded-2xl text-[14px] leading-[22px] bg-neutral-100 text-[#595959]';
+  'max-w-[88%] px-3.5 py-2.5 rounded-2xl text-[14px] leading-[22px] whitespace-pre-line bg-neutral-100 text-[#595959]';
 
-/** 一/二/三级标题 + 正文（dongDesign-AI 文本规范） */
-const AI_H1 = 'text-[18px] leading-[28px] font-semibold text-[#262626]';
-const AI_H2 = 'text-[16px] leading-[24px] font-semibold text-[#262626]';
-const AI_H3 = 'text-[14px] leading-[22px] font-semibold text-[#1c1d1f]';
-const AI_BODY = 'text-[14px] leading-[22px] text-[#595959]';
-const AI_MUTED = 'text-[14px] leading-[22px] text-[#8c8c8c]';
+/** 系统引导气泡 — jd-color-text-200 */
+const SYSTEM_STATUS_BUBBLE =
+  'max-w-[88%] px-3.5 py-2.5 rounded-2xl text-[14px] leading-[22px] whitespace-pre-line bg-neutral-100 text-[#8c8c8c]';
 
-/** 写入后的排版样例（便于对照标题层级） */
-const AI_TYPOGRAPHY_DEMO = [
-  '# 已写入右侧配置区',
-  '',
-  '草案要点已同步到右侧员工资料。下面是气泡内标题与正文字阶样例，便于对照 dongDesign-AI 规范。',
-  '',
-  '## 二级标题 · 你可以继续做什么',
-  '',
-  '在对话里继续改性格、职责或红线；也可以点上方“AI 帮写”快捷条，让我按场景扩写一版。',
-  '',
-  '### 三级标题 · 对话微调',
-  '直接说明想改哪一条，例如“把性格写得更共情”，我会立刻同步到右侧。',
-  '',
-  '### 三级标题 · 完成创建',
-  '点右上角“完成培训”结束帮写创建；之后可从员工卡进入“员工培训”。',
-  '',
-  '> 次要说明：一级 18/28 · 二级 16/24 · 三级与正文 14/22；正文色 #595959，标题 #262626 / #1c1d1f。',
-].join('\n');
-
-function renderInlineEmphasis(text: string, keyPrefix: string): React.ReactNode {
-  const parts = text.split(/([「『“][^」』”]*[」』”])/);
-  if (parts.length <= 1) return text;
+/** 将「」等书名号片段按规范强调（Semibold #1c1d1f） */
+function renderAiBubbleContent(content: string) {
+  const parts = content.split(/([「『“][^」』”]*[」』”])/);
+  if (parts.length <= 1) return content;
   return parts.map((part, i) =>
     /^[「『“].*[」』”]$/.test(part) ? (
-      <span key={`${keyPrefix}-${i}`} className="font-semibold text-[#1c1d1f]">
+      <span key={i} className="font-semibold text-[#1c1d1f]">
         {part}
       </span>
     ) : (
-      <React.Fragment key={`${keyPrefix}-${i}`}>{part}</React.Fragment>
+      <React.Fragment key={i}>{part}</React.Fragment>
     ),
   );
 }
-
-/** 轻量 Markdown：# / ## / ### / > 引用 / 空行分段 */
-function renderAiRichContent(content: string) {
-  const lines = content.replace(/\r\n/g, '\n').split('\n');
-  const blocks: React.ReactNode[] = [];
-  let i = 0;
-  while (i < lines.length) {
-    const raw = lines[i];
-    const line = raw.trimEnd();
-    if (!line.trim()) {
-      i += 1;
-      continue;
-    }
-    if (line.startsWith('### ')) {
-      blocks.push(
-        <h3 key={`h3-${i}`} className={AI_H3}>
-          {renderInlineEmphasis(line.slice(4), `h3-${i}`)}
-        </h3>,
-      );
-      i += 1;
-      continue;
-    }
-    if (line.startsWith('## ')) {
-      blocks.push(
-        <h2 key={`h2-${i}`} className={AI_H2}>
-          {renderInlineEmphasis(line.slice(3), `h2-${i}`)}
-        </h2>,
-      );
-      i += 1;
-      continue;
-    }
-    if (line.startsWith('# ')) {
-      blocks.push(
-        <h1 key={`h1-${i}`} className={AI_H1}>
-          {renderInlineEmphasis(line.slice(2), `h1-${i}`)}
-        </h1>,
-      );
-      i += 1;
-      continue;
-    }
-    if (line.startsWith('> ')) {
-      blocks.push(
-        <p key={`q-${i}`} className={AI_MUTED}>
-          {renderInlineEmphasis(line.slice(2), `q-${i}`)}
-        </p>,
-      );
-      i += 1;
-      continue;
-    }
-    const para: string[] = [line];
-    i += 1;
-    while (i < lines.length && lines[i].trim() && !/^#{1,3}\s/.test(lines[i]) && !/^>\s/.test(lines[i])) {
-      para.push(lines[i]);
-      i += 1;
-    }
-    blocks.push(
-      <p key={`p-${i}`} className={AI_BODY}>
-        {renderInlineEmphasis(para.join('\n'), `p-${i}`)}
-      </p>,
-    );
-  }
-  return <div className="flex flex-col gap-2 whitespace-pre-line">{blocks}</div>;
-}
-
-const HELP_CHIPS: HelpChip[] = [
-  { id: 'persona', label: '补充性格人设', send: '请把员工性格写得更具体，突出共情与专业边界' },
-  { id: 'duty', label: '细化工作职责', send: '请把工作职责拆成更可执行的步骤' },
-  { id: 'prohibit', label: '收紧禁止行为', send: '请补充禁止行为与红线，强调不得擅自承诺赔付' },
-  { id: 'skill', label: '再加一项技能', send: '请再规划一项与主场景强相关的技能' },
-  { id: 'kb', label: '补充知识库', send: '请再规划一个业务红线或 SOP 知识库' },
-];
 
 function nowTime() {
   return new Date().toTimeString().slice(0, 5);
@@ -379,14 +319,114 @@ function buildWritingHelpReply(
   return guides[field];
 }
 
-function buildThinkSteps(prompt: string): SkillThinkStep[] {
+/** 首轮澄清前 — 先问清再写规格 */
+function buildClarifyThinkSteps(prompt: string): SkillThinkStep[] {
+  const snippet = prompt.trim().replace(/\s+/g, ' ').slice(0, 64) || '岗位职责描述';
   return [
-    { id: 's1', label: '解析岗位意图', detail: prompt.slice(0, 48) || '识别服务场景', status: 'pending' },
-    { id: 's2', label: '规划主 Agent Prompt', detail: '名称 / 性格 / 职责 / 红线', status: 'pending' },
-    { id: 's3', label: '拆解技能边界', detail: '技能表单草稿', status: 'pending' },
-    { id: 's4', label: '规划知识库挂载', detail: '知识库表单草稿', status: 'pending' },
-    { id: 's5', label: '写入右侧配置', detail: '同步员工资料与资源挂载', status: 'pending' },
+    {
+      id: 'goal',
+      label: '先总结要服务的场景',
+      detail: `${snippet}。把岗位职责、服务边界与产出先在脑中对齐。`,
+      status: 'pending',
+      children: [
+        { id: 'goal-read', label: '已读取岗位目标表述', kind: 'read' },
+        { id: 'goal-run', label: '已对齐 `数字员工创建` 边界', kind: 'run' },
+      ],
+    },
+    {
+      id: 'spec',
+      label: '再看写入员工规格前还缺什么',
+      detail: '服务场景、沟通风格与边界策略往往还不够清楚，需要先问清。',
+      status: 'pending',
+      children: [
+        { id: 'spec-run', label: '已扫描 `场景/风格/边界` 缺口', kind: 'run' },
+        { id: 'spec-read', label: '已对照同类数字员工澄清范式', kind: 'read' },
+      ],
+    },
+    {
+      id: 'ask',
+      label: '思路收束',
+      detail: '先用少量澄清问题补关键缺口，再生成可点选卡片，避免一上来写死规格。',
+      status: 'pending',
+      children: [
+        { id: 'ask-run', label: '已整理待澄清关键问题', kind: 'run' },
+        { id: 'ask-note', label: '准备生成可点选澄清卡片', kind: 'note' },
+      ],
+    },
   ];
+}
+
+/** 澄清后 / 后续改写 — 生成确认要点 */
+function buildWriteThinkSteps(prompt: string): SkillThinkStep[] {
+  const snippet = prompt.trim().replace(/\s+/g, ' ').slice(0, 64) || '岗位职责描述';
+  return [
+    {
+      id: 'goal',
+      label: '先总结本轮要落成的员工规格',
+      detail: `${snippet}。把名称、性格、职责与红线对齐。`,
+      status: 'pending',
+      children: [
+        { id: 'goal-read', label: '已读取岗位目标与补充信息', kind: 'read' },
+        { id: 'goal-run', label: '已对齐 `数字员工创建` 边界', kind: 'run' },
+      ],
+    },
+    {
+      id: 'spec',
+      label: '再看写入员工规格前还缺什么',
+      detail: '名称 / 性格 / 职责 / 红线，以及技能与知识库挂载往往还需要补齐。',
+      status: 'pending',
+      children: [
+        { id: 'spec-run', label: '已扫描 `Prompt/技能/知识库` 缺口', kind: 'run' },
+        { id: 'spec-read', label: '已对照同类数字员工范式', kind: 'read' },
+      ],
+    },
+    {
+      id: 'write',
+      label: '思路收束',
+      detail: '先给出可确认的草案要点，确认后再写入右侧员工培训配置。',
+      status: 'pending',
+      children: [
+        { id: 'write-run', label: '已生成员工资料草案要点', kind: 'run' },
+        { id: 'write-note', label: '准备输出确认要点', kind: 'note' },
+      ],
+    },
+  ];
+}
+
+function applyConfirmItemsToDraft(
+  base: IncubationDraft,
+  items: SkillConfirmItem[],
+): IncubationDraft {
+  const next: IncubationDraft = {
+    ...base,
+    skills: [...base.skills],
+    knowledgeBases: [...base.knowledgeBases],
+  };
+  for (const item of items) {
+    if (!item.checked) continue;
+    const val = (item.value ?? '').trim();
+    if (!val) continue;
+    switch (item.id) {
+      case 'name':
+        next.name = val.slice(0, 12);
+        break;
+      case 'description':
+        next.description = val.slice(0, 500);
+        break;
+      case 'personality':
+        next.personality = val.slice(0, 120);
+        break;
+      case 'duties':
+        next.duties = val.slice(0, 1000);
+        break;
+      case 'prohibited':
+        next.prohibited = val.slice(0, 1000);
+        break;
+      default:
+        break;
+    }
+  }
+  return next;
 }
 
 function mergeSeedSkills(
@@ -578,9 +618,9 @@ function IncubationTrainingPane({
 
   return (
     <ResizableSplitPane
-      storageKey="js_incubation_training_split_v2"
-      defaultRatio={0.6}
-      minLeftPx={280}
+      storageKey="js_incubation_training_split_v3"
+      defaultRatio={0.5}
+      minLeftPx={260}
       minRightPx={260}
       className="bg-paper h-full"
       left={
@@ -687,9 +727,9 @@ function IncubationTrainingPane({
 type Props = {
   open: boolean;
   seedPrompt?: string;
-  /** 智能创作入口已索引的平台技能 id */
+  /** 数字员工创作入口已索引的平台技能 id */
   seedSkillIds?: string[];
-  /** 智能创作入口已索引的知识库 id */
+  /** 数字员工创作入口已索引的知识库 id */
   seedKbIds?: string[];
   onClose: () => void;
 };
@@ -721,11 +761,23 @@ export function EmployeeIncubationWorkspace({
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
   const [thinkSteps, setThinkSteps] = useState<SkillThinkStep[]>([]);
-  const [chipSelections, setChipSelections] = useState<HelpChip[]>([]);
+  const [thinkBootLoading, setThinkBootLoading] = useState(false);
+  const [thinkGenerating, setThinkGenerating] = useState(false);
+  const [consumedChipIds, setConsumedChipIds] = useState<string[]>([]);
+  const [editingUserMsgId, setEditingUserMsgId] = useState<string | null>(null);
+  const [editingUserMsgDraft, setEditingUserMsgDraft] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const seededRef = useRef(false);
   const materializedRef = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const userBubbleEditRef = useRef<HTMLTextAreaElement>(null);
+  const thinkStartedAtRef = useRef<number | null>(null);
+  const thinkAbortRef = useRef(false);
+  const thinkTimersRef = useRef<number[]>([]);
+  const pendingGoalRef = useRef<string | null>(null);
+  const pendingDraftRef = useRef<IncubationDraft | null>(null);
+  const draftRef = useRef<IncubationDraft>(emptyDraft());
+  const formReadyRef = useRef(false);
 
   const trainingAgent = useMemo(
     () => (trainingAgentId ? hiredAgents.find((a) => a.id === trainingAgentId) ?? null : null),
@@ -734,8 +786,38 @@ export function EmployeeIncubationWorkspace({
 
   const trainingAgentIdRef = useRef<string | null>(null);
   trainingAgentIdRef.current = trainingAgentId;
+  pendingDraftRef.current = pendingDraft;
+  draftRef.current = draft;
+  formReadyRef.current = formReady;
+
+  const hasPendingClarify = useMemo(
+    () =>
+      messages.some(
+        (m) => m.kind === 'clarify' && !m.payload.submitted && !m.payload.skipped,
+      ),
+    [messages],
+  );
+
+  const visibleReplyChips = useMemo(
+    () => EMPLOYEE_REPLY_CHIPS.filter((chip) => !consumedChipIds.includes(chip.id)),
+    [consumedChipIds],
+  );
+
+  const clearThinkTimers = useCallback(() => {
+    thinkTimersRef.current.forEach((id) => window.clearTimeout(id));
+    thinkTimersRef.current = [];
+  }, []);
+
+  const delay = useCallback((ms: number) => {
+    return new Promise<void>((resolve) => {
+      const id = window.setTimeout(resolve, ms);
+      thinkTimersRef.current.push(id);
+    });
+  }, []);
 
   const resetSession = useCallback(() => {
+    thinkAbortRef.current = true;
+    clearThinkTimers();
     const provisionalId = trainingAgentIdRef.current;
     if (provisionalId) deleteHiredAgent(provisionalId);
     setTrainingAgentId(null);
@@ -747,24 +829,211 @@ export function EmployeeIncubationWorkspace({
     setInput('');
     setThinking(false);
     setThinkSteps([]);
-    setChipSelections([]);
+    setThinkBootLoading(false);
+    setThinkGenerating(false);
+    setConsumedChipIds([]);
+    setEditingUserMsgId(null);
+    setEditingUserMsgDraft('');
     seededRef.current = false;
-  }, [deleteHiredAgent]);
+    thinkStartedAtRef.current = null;
+    pendingGoalRef.current = null;
+    thinkAbortRef.current = false;
+  }, [clearThinkTimers, deleteHiredAgent]);
 
-  const runThinkAnimation = async (steps: SkillThinkStep[]) => {
+  const stopThinking = useCallback(() => {
+    thinkAbortRef.current = true;
+    clearThinkTimers();
+    setThinking(false);
+    setThinkSteps([]);
+    setThinkBootLoading(false);
+    setThinkGenerating(false);
+    thinkStartedAtRef.current = null;
+    showToast('已手动停止 AI 思考');
+  }, [clearThinkTimers, showToast]);
+
+  /** 与技能创建统一：加载扫光 → 正文流式 + Cot 扫光 → 归档到对话；可中止 */
+  const playThink = async (steps: SkillThinkStep[]): Promise<boolean> => {
+    thinkAbortRef.current = false;
+    clearThinkTimers();
+    setThinking(true);
+    setThinkBootLoading(true);
+    setThinkGenerating(false);
     setThinkSteps(steps.map((s) => ({ ...s, status: 'pending' })));
-    for (let i = 0; i < steps.length; i++) {
-      setThinkSteps((prev) =>
-        prev.map((s, idx) => ({
-          ...s,
-          status: idx < i ? 'done' : idx === i ? 'running' : 'pending',
-        })),
-      );
-      await new Promise((r) => setTimeout(r, 380));
+    thinkStartedAtRef.current = Date.now();
+    await delay(1400);
+    if (thinkAbortRef.current) {
+      setThinkSteps([]);
+      setThinking(false);
+      setThinkBootLoading(false);
+      setThinkGenerating(false);
+      thinkStartedAtRef.current = null;
+      return false;
     }
-    setThinkSteps((prev) => prev.map((s) => ({ ...s, status: 'done' })));
-    await new Promise((r) => setTimeout(r, 220));
+    setThinkBootLoading(false);
+    setThinkGenerating(true);
+    setThinkSteps(steps.map((s) => ({ ...s, status: 'done' })));
+    await delay(estimateThinkStreamMs(steps));
+    if (thinkAbortRef.current) {
+      setThinkSteps([]);
+      setThinking(false);
+      setThinkBootLoading(false);
+      setThinkGenerating(false);
+      thinkStartedAtRef.current = null;
+      return false;
+    }
+    setThinkGenerating(false);
+    const startedAt = thinkStartedAtRef.current;
+    const durationSec =
+      startedAt != null ? Math.max(1, Math.round((Date.now() - startedAt) / 1000)) : 1;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: uid('m'),
+        kind: 'think',
+        steps: steps.map((s) => ({ ...s, status: 'done' as const })),
+        durationSec,
+        time: nowTime(),
+      },
+    ]);
+    setThinkSteps([]);
+    setThinking(false);
+    thinkStartedAtRef.current = null;
+    return true;
   };
+
+  const resolveSeedResources = useCallback(() => {
+    const seedSkills = platformSkills
+      .filter((s) => seedSkillIds.includes(s.id))
+      .map((s) => ({ id: s.id, name: s.name, description: s.description }));
+    const seedKbs = platformKbs
+      .filter((kb) => seedKbIds.includes(kb.id))
+      .map((kb) => ({ id: kb.id, name: kb.name }));
+    return { seedSkills, seedKbs };
+  }, [platformSkills, platformKbs, seedSkillIds, seedKbIds]);
+
+  const pushConfirmRound = useCallback(
+    (nextDraft: IncubationDraft, aiText: string) => {
+      setPendingDraft(nextDraft);
+      setMessages((prev) => {
+        const locked = prev.map((m) =>
+          m.kind === 'confirm' && !m.confirmed ? { ...m, locked: true } : m,
+        );
+        return [
+          ...locked,
+          { id: uid('m'), kind: 'ai', text: aiText, time: nowTime() },
+          {
+            id: uid('m'),
+            kind: 'system_status',
+            text: EMPLOYEE_CREATE_CHAT.confirmWriteHint,
+            time: nowTime(),
+          },
+          {
+            id: uid('m'),
+            kind: 'confirm',
+            items: buildEmployeeConfirmItems(nextDraft),
+            title: EMPLOYEE_CREATE_CHAT.confirmCardTitle,
+            time: nowTime(),
+          },
+        ];
+      });
+    },
+    [],
+  );
+
+  const startFirstTurnClarify = useCallback(
+    async (userText: string, opts?: { alreadyPushedUser?: boolean }) => {
+      if (!opts?.alreadyPushedUser) {
+        setMessages((prev) => [
+          ...prev,
+          { id: uid('m'), kind: 'user', text: userText, time: nowTime() },
+        ]);
+      }
+      pendingGoalRef.current = userText;
+      const ok = await playThink(buildClarifyThinkSteps(userText));
+      if (!ok) return;
+      const questions = buildEmployeeClarifyQuestions(userText);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: uid('m'),
+          kind: 'ai',
+          text: EMPLOYEE_CREATE_CHAT.clarifyLead,
+          time: nowTime(),
+        },
+        {
+          id: uid('m'),
+          kind: 'clarify',
+          payload: { questions },
+          time: nowTime(),
+        },
+      ]);
+    },
+    // playThink closes over latest delay/timers; intentional for session
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  const continueAfterClarify = useCallback(
+    async (payload: SkillClarifyPayload) => {
+      const goalText = pendingGoalRef.current;
+      if (!goalText) return;
+      pendingGoalRef.current = null;
+      const clarifyNote = payload.skipped
+        ? undefined
+        : formatClarifyAnswers(payload.questions);
+
+      const ok = await playThink(buildWriteThinkSteps(goalText));
+      if (!ok) return;
+
+      const enriched = clarifyNote
+        ? `${goalText.trim()}\n\n【补充信息】\n${clarifyNote}`
+        : goalText.trim();
+      const { seedSkills, seedKbs } = resolveSeedResources();
+      let nextDraft = applySeedResources(
+        draftFromPrompt(enriched),
+        seedSkills,
+        seedKbs,
+      );
+      if (clarifyNote) {
+        nextDraft = {
+          ...nextDraft,
+          description: `${nextDraft.description}\n\n【补充信息】\n${clarifyNote}`.slice(
+            0,
+            500,
+          ),
+        };
+      }
+
+      pushConfirmRound(
+        nextDraft,
+        clarifyNote
+          ? EMPLOYEE_CREATE_CHAT.clarifyReceived
+          : EMPLOYEE_CREATE_CHAT.clarifySkippedAck,
+      );
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pushConfirmRound, resolveSeedResources],
+  );
+
+  const handleConfirmItems = useCallback(
+    (msgId: string, items: SkillConfirmItem[]) => {
+      const base = pendingDraftRef.current ?? draftRef.current;
+      const next = applyConfirmItemsToDraft(base, items);
+      setDraft(next);
+      setPendingDraft(next);
+      setFormReady(true);
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.kind !== 'confirm') return m;
+          if (m.id === msgId) return { ...m, items, confirmed: true };
+          if (!m.confirmed) return { ...m, locked: true };
+          return m;
+        }),
+      );
+      showToast('已写入右侧配置区');
+    },
+    [showToast],
+  );
 
   useEffect(() => {
     if (!open) {
@@ -772,51 +1041,11 @@ export function EmployeeIncubationWorkspace({
       return;
     }
     resetSession();
-    // 智能创作带入：跳过欢迎空态，立刻进入首轮规划
     if (seedPrompt.trim()) {
       seededRef.current = true;
       const text = seedPrompt.trim();
-      setMessages([
-        { id: uid('m'), kind: 'user', text, time: nowTime() },
-      ]);
-      setThinking(true);
-      void (async () => {
-        const seedSkills = platformSkills
-          .filter((s) => seedSkillIds.includes(s.id))
-          .map((s) => ({ id: s.id, name: s.name, description: s.description }));
-        const seedKbs = platformKbs
-          .filter((kb) => seedKbIds.includes(kb.id))
-          .map((kb) => ({ id: kb.id, name: kb.name }));
-        await runThinkAnimation(buildThinkSteps(text));
-        const nextDraft = applySeedResources(draftFromPrompt(text), seedSkills, seedKbs);
-        setPendingDraft(nextDraft);
-        setDraft(nextDraft);
-        setFormReady(true);
-        setThinking(false);
-        setThinkSteps([]);
-        const mountHint = [
-          seedSkills.length > 0 ? `${seedSkills.length} 项技能` : '',
-          seedKbs.length > 0 ? `${seedKbs.length} 个知识库` : '',
-        ]
-          .filter(Boolean)
-          .join('、');
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: uid('m'),
-            kind: 'ai',
-            text: `已根据你的描述完成自主规划${mountHint ? `，并优先挂载你索引的${mountHint}` : ''}，并写入右侧配置区（含主 Agent、技能与知识库）。\n可继续在对话里改写某一条，或点上方「AI 帮写」快捷补充。`,
-            time: nowTime(),
-          },
-          {
-            id: uid('m'),
-            kind: 'ai',
-            text: AI_TYPOGRAPHY_DEMO,
-            time: nowTime(),
-          },
-        ]);
-        showToast('已写入右侧配置区');
-      })();
+      setMessages([{ id: uid('m'), kind: 'user', text, time: nowTime() }]);
+      void startFirstTurnClarify(text, { alreadyPushedUser: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, seedPrompt, seedSkillIds.join('|'), seedKbIds.join('|')]);
@@ -825,9 +1054,17 @@ export function EmployeeIncubationWorkspace({
     const el = scrollRef.current;
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [messages, thinking, thinkSteps]);
+  }, [messages, thinking, thinkSteps, thinkBootLoading, thinkGenerating]);
 
-  /** 首轮规划写入后物化真实员工，右侧直接复用培训配置 + 预览调试 */
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const next = Math.min(Math.max(el.scrollHeight, 44), 160);
+    el.style.height = `${next}px`;
+  }, [input, formReady, consumedChipIds.length, hasPendingClarify]);
+
+  /** 确认写入后物化真实员工，右侧直接复用培训配置 + 预览调试 */
   useEffect(() => {
     if (!open || !formReady || materializedRef.current) return;
     if (!draft.name.trim()) return;
@@ -889,38 +1126,76 @@ export function EmployeeIncubationWorkspace({
   ]);
 
   const runUserTurn = async (raw: string) => {
-    let text = raw.trim();
-    if (!text || thinking) return;
+    const text = raw.trim();
+    if (!text || thinking || hasPendingClarify) return;
 
-    const wantsWritingHelp = isWritingHelpIntent(text);
+    setMessages((prev) => [
+      ...prev,
+      { id: uid('m'), kind: 'user', text, time: nowTime() },
+    ]);
+    setInput('');
+    setConsumedChipIds([]);
 
-    // 请教写法：只答写法，不改草案
-    if (wantsWritingHelp) {
-      const userMsg: ChatMsg = { id: uid('m'), kind: 'user', text, time: nowTime() };
-      setMessages((prev) => [...prev, userMsg]);
-      setInput('');
-      setChipSelections([]);
-      setThinking(true);
+    const isFirst = !formReadyRef.current && !pendingDraftRef.current;
 
+    // 首轮：只走澄清，不写草案
+    if (isFirst) {
+      pendingGoalRef.current = text;
+      const ok = await playThink(buildClarifyThinkSteps(text));
+      if (!ok) return;
+      const questions = buildEmployeeClarifyQuestions(text);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: uid('m'),
+          kind: 'ai',
+          text: EMPLOYEE_CREATE_CHAT.clarifyLead,
+          time: nowTime(),
+        },
+        {
+          id: uid('m'),
+          kind: 'clarify',
+          payload: { questions },
+          time: nowTime(),
+        },
+      ]);
+      return;
+    }
+
+    // 请教写法：只答写法，不改草案（需已有草案上下文）
+    if (isWritingHelpIntent(text)) {
       const field = detectWritingField(text, []);
-      const helpText = buildWritingHelpReply(field, pendingDraft ?? draft, []);
-      await runThinkAnimation([
+      const helpText = buildWritingHelpReply(
+        field,
+        pendingDraftRef.current ?? draftRef.current,
+        [],
+      );
+      const ok = await playThink([
         {
           id: 'h1',
           label: '理解你的问题',
-          detail: '识别为写法请教，不改动草案',
+          detail: '识别为写法请教，不改动草案。',
           status: 'pending',
+          children: [
+            { id: 'h1-read', label: '已读取写法请教', kind: 'read' },
+            { id: 'h1-run', label: '已锁定「不改草案」边界', kind: 'run' },
+          ],
         },
         {
           id: 'h2',
           label: '整理写法示例',
-          detail: field === 'general' ? '给出可照着写的模板' : `针对“${field}”给示例`,
+          detail:
+            field === 'general'
+              ? '给出可照着写的模板。'
+              : '针对当前字段给出可照着写的示例。',
           status: 'pending',
+          children: [
+            { id: 'h2-run', label: '已整理写法示例', kind: 'run' },
+            { id: 'h2-note', label: '准备输出回复', kind: 'note' },
+          ],
         },
       ]);
-
-      setThinking(false);
-      setThinkSteps([]);
+      if (!ok) return;
       setMessages((prev) => [
         ...prev,
         { id: uid('m'), kind: 'ai', text: helpText, time: nowTime() },
@@ -928,67 +1203,40 @@ export function EmployeeIncubationWorkspace({
       return;
     }
 
-    const userMsg: ChatMsg = { id: uid('m'), kind: 'user', text, time: nowTime() };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput('');
-    setChipSelections([]);
-    setThinking(true);
-
-    const isFirst = !formReady && !pendingDraft;
-    const seedSkills = platformSkills
-      .filter((s) => seedSkillIds.includes(s.id))
-      .map((s) => ({ id: s.id, name: s.name, description: s.description }));
-    const seedKbs = platformKbs
-      .filter((kb) => seedKbIds.includes(kb.id))
-      .map((kb) => ({ id: kb.id, name: kb.name }));
-    const nextDraft = applySeedResources(
-      isFirst ? draftFromPrompt(text) : patchDraftByInstruction(pendingDraft ?? draft, text),
-      isFirst ? seedSkills : [],
-      isFirst ? seedKbs : [],
+    // 后续轮次 / 待确认时的补充：生成新确认卡，确认前不写入右侧
+    const ok = await playThink(buildWriteThinkSteps(text));
+    if (!ok) return;
+    const nextDraft = patchDraftByInstruction(
+      pendingDraftRef.current ?? draftRef.current,
+      text,
     );
-
-    await runThinkAnimation(buildThinkSteps(text));
-
-    setPendingDraft(nextDraft);
-    setDraft(nextDraft);
-    setFormReady(true);
-    setThinking(false);
-    setThinkSteps([]);
-
-    const mountHint = [
-      seedSkills.length > 0 ? `${seedSkills.length} 项技能` : '',
-      seedKbs.length > 0 ? `${seedKbs.length} 个知识库` : '',
-    ]
-      .filter(Boolean)
-      .join('、');
-    const aiText = isFirst
-      ? `已根据你的描述完成自主规划${mountHint ? `，并优先挂载你索引的${mountHint}` : ''}，并写入右侧配置区（含主 Agent、技能与知识库）。\n可继续在对话里改写某一条，或点上方「AI 帮写」快捷补充。`
-      : `已按你的补充更新右侧员工资料与技能/知识库。`;
-
-    setMessages((prev) => [
-      ...prev,
-      { id: uid('m'), kind: 'ai', text: aiText, time: nowTime() },
-      ...(isFirst
-        ? [{ id: uid('m'), kind: 'ai' as const, text: AI_TYPOGRAPHY_DEMO, time: nowTime() }]
-        : []),
-    ]);
-    showToast(isFirst ? '已写入右侧配置区' : '已同步右侧配置');
+    pushConfirmRound(
+      nextDraft,
+      formReadyRef.current
+        ? '已按你的补充更新草案要点，请确认后写入右侧。'
+        : '已根据补充更新草案要点，请确认后写入右侧培训配置。',
+    );
   };
 
-  const toggleChip = (chip: HelpChip) => {
-    setChipSelections((prev) => {
-      const exists = prev.some((c) => c.id === chip.id);
-      const next = exists ? prev.filter((c) => c.id !== chip.id) : [...prev, chip];
-      setInput(next.map((c) => c.send).join('\n'));
-      return next;
+  const applyReplyChip = (chip: (typeof EMPLOYEE_REPLY_CHIPS)[number]) => {
+    setInput((prev) => {
+      const next = prev.trim() ? `${prev.trim()}\n${chip.send}` : chip.send;
+      return next.slice(0, 1000);
     });
-    inputRef.current?.focus();
+    setConsumedChipIds((prev) => (prev.includes(chip.id) ? prev : [...prev, chip.id]));
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      const end = el.value.length;
+      el.setSelectionRange(end, end);
+    });
   };
 
   /** 结束帮写 Builder：落员工卡后关闭；不进入培训页（培训从员工卡“员工培训”进入） */
   const finalizeCreate = () => {
     if (!formReady || !draft.name.trim()) {
-      showToast('请先完成首轮规划，再完成创建');
+      showToast('请先确认草案并写入右侧配置，再完成创建');
       return;
     }
 
@@ -1037,7 +1285,8 @@ export function EmployeeIncubationWorkspace({
 
   if (!open) return null;
 
-  const canSend = input.trim().length > 0 && !thinking;
+  const canSend =
+    input.trim().length > 0 && !thinking && !hasPendingClarify;
 
   return createPortal(
     <div className="fixed inset-0 z-[120] h-screen w-screen flex flex-col bg-paper overflow-hidden text-neutral-800 animate-in fade-in duration-200">
@@ -1046,7 +1295,7 @@ export function EmployeeIncubationWorkspace({
         activeTabId="build"
         onTabChange={() => {}}
         onBack={onClose}
-        backLabel="返回智能创作"
+        backLabel="返回数字员工创作"
         actions={
           <button
             type="button"
@@ -1065,15 +1314,14 @@ export function EmployeeIncubationWorkspace({
       />
 
       <ResizableSplitPane
-        storageKey="js_incubation_split_nl_left_v2"
-        defaultLeftPx={538}
-        defaultRatio={0.33}
-        minLeftPx={320}
-        minRightPx={480}
+        storageKey="js_incubation_split_nl_left_v3"
+        defaultRatio={1 / 3}
+        minLeftPx={280}
+        minRightPx={520}
         className="bg-paper"
         left={
           <section className="flex flex-col min-h-0 h-full bg-[#F9F9FB] select-text">
-          <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+          <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar-thin">
             <div className="w-full max-w-[720px] mx-auto px-4 pt-5 pb-4 space-y-3">
               {messages.length === 0 && !thinking ? (
                 <div className="rounded-2xl border border-neutral-200 bg-white px-4 py-5 space-y-3">
@@ -1082,12 +1330,14 @@ export function EmployeeIncubationWorkspace({
                       <Sparkles size={16} />
                     </span>
                     <div>
-                      <p className="text-[13px] font-semibold text-neutral-900">孵化 AI 助手</p>
+                      <p className="text-[13px] font-semibold text-neutral-900">
+                        {EMPLOYEE_CREATE_CHAT.assistantName}
+                      </p>
                       <p className="text-[11px] text-neutral-500">先说清岗位职责与服务场景</p>
                     </div>
                   </div>
                   <p className="text-[13px] leading-relaxed text-neutral-700">
-                    你好！我会像创建技能一样，用对话帮你规划数字员工的主 Prompt、技能边界与知识库。规划完成后会直接写入右侧员工培训页，可继续配置、能力测试与保存培训存档。
+                    你好！我会像创建技能一样，先补充关键信息，再请你确认草案要点，确认后写入右侧员工培训页。
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {[
@@ -1108,15 +1358,156 @@ export function EmployeeIncubationWorkspace({
                 </div>
               ) : null}
 
-              {messages.map((m) => {
+              {messages.map((m, msgIndex) => {
                 if (m.kind === 'user') {
                   const { text, attachments } = splitChatContentWithAttachments(m.text);
+                  const isEditingBubble = editingUserMsgId === m.id;
                   return (
-                    <div key={m.id} className="flex justify-end">
-                      <div className="max-w-[88%] flex flex-col items-end gap-1.5">
-                        <ChatAttachmentCards attachments={attachments} align="end" />
-                        {text ? <div className={USER_BUBBLE}>{text}</div> : null}
-                        <span className="text-[10px] text-neutral-400">{m.time}</span>
+                    <div key={m.id} className="flex justify-end group/user-msg">
+                      <div
+                        className={cn(
+                          'flex flex-col items-end gap-2 min-w-0',
+                          isEditingBubble ? 'w-2/3 max-w-[480px]' : 'max-w-[88%]',
+                        )}
+                      >
+                        <div className="flex items-center gap-1.5 pr-0.5">
+                          <Avatar className="h-5 w-5 rounded-full overflow-hidden after:hidden shrink-0">
+                            <AvatarFallback
+                              className={cn(PROFILE_USER.fallbackClass, 'text-[10px] select-none')}
+                            >
+                              {PROFILE_USER.initial}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-[12px] leading-4 text-neutral-800">
+                            {PROFILE_USER.name}
+                          </span>
+                        </div>
+                        <div className={cn('relative max-w-full', isEditingBubble && 'w-full')}>
+                          {!isEditingBubble ? (
+                            <div
+                              className={cn(
+                                'absolute -top-7 right-0 z-10 flex items-center gap-0.5 rounded-md border border-neutral-200/80 bg-white/95 px-1 py-0.5',
+                                'shadow-[0_2px_8px_rgba(31,35,41,0.06)]',
+                                'opacity-0 pointer-events-none group-hover/user-msg:opacity-100 group-hover/user-msg:pointer-events-auto',
+                                'transition-opacity duration-150',
+                              )}
+                            >
+                              <span className="inline-flex items-center gap-0.5 px-1 text-[10px] tabular-nums text-neutral-400">
+                                <Clock size={10} className="shrink-0 opacity-70" />
+                                {m.time || '--:--'}
+                              </span>
+                              <span className="w-px h-3 bg-neutral-200/80 shrink-0" aria-hidden />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  void navigator.clipboard.writeText(m.text).then(
+                                    () => showToast('已复制到剪贴板'),
+                                    () => showToast('复制失败，请手动选择文本'),
+                                  );
+                                }}
+                                className="w-6 h-6 rounded text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 flex items-center justify-center cursor-pointer transition"
+                                title="复制"
+                                aria-label="复制消息"
+                              >
+                                <Copy size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={thinking || hasPendingClarify || editingUserMsgId !== null}
+                                onClick={() => {
+                                  setEditingUserMsgId(m.id);
+                                  setEditingUserMsgDraft(m.text.slice(0, 1000));
+                                  requestAnimationFrame(() => {
+                                    const el = userBubbleEditRef.current;
+                                    if (!el) return;
+                                    el.focus();
+                                    el.setSelectionRange(el.value.length, el.value.length);
+                                  });
+                                }}
+                                className="w-6 h-6 rounded text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 flex items-center justify-center cursor-pointer transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                title="编辑"
+                                aria-label="编辑消息"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                            </div>
+                          ) : null}
+                          {isEditingBubble ? (
+                            <div className="skill-ai-composer relative w-full overflow-hidden">
+                              <textarea
+                                ref={userBubbleEditRef}
+                                rows={4}
+                                maxLength={1000}
+                                value={editingUserMsgDraft}
+                                onChange={(e) => setEditingUserMsgDraft(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Escape') {
+                                    e.preventDefault();
+                                    setEditingUserMsgId(null);
+                                    setEditingUserMsgDraft('');
+                                    return;
+                                  }
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    const next = editingUserMsgDraft.trim().slice(0, 1000);
+                                    if (!next) return;
+                                    setMessages((prev) =>
+                                      prev.map((row) =>
+                                        row.id === m.id && row.kind === 'user'
+                                          ? { ...row, text: next }
+                                          : row,
+                                      ),
+                                    );
+                                    setEditingUserMsgId(null);
+                                    setEditingUserMsgDraft('');
+                                    showToast('消息已更新');
+                                  }
+                                }}
+                                className="w-full min-h-[88px] max-h-48 bg-transparent px-3 pt-3 pb-12 text-[14px] leading-[22px] text-[#181D27] outline-none resize-none placeholder:text-neutral-400"
+                                placeholder="编辑消息内容…"
+                                aria-label="编辑消息内容"
+                              />
+                              <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingUserMsgId(null);
+                                    setEditingUserMsgDraft('');
+                                  }}
+                                  className="h-7 px-3 rounded-md text-[13px] border border-neutral-200 bg-white text-neutral-700 cursor-pointer"
+                                >
+                                  取消
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!editingUserMsgDraft.trim()}
+                                  onClick={() => {
+                                    const next = editingUserMsgDraft.trim().slice(0, 1000);
+                                    if (!next) return;
+                                    setMessages((prev) =>
+                                      prev.map((row) =>
+                                        row.id === m.id && row.kind === 'user'
+                                          ? { ...row, text: next }
+                                          : row,
+                                      ),
+                                    );
+                                    setEditingUserMsgId(null);
+                                    setEditingUserMsgDraft('');
+                                    showToast('消息已更新');
+                                  }}
+                                  className="h-7 px-3 rounded-md text-[13px] bg-neutral-900 text-white cursor-pointer disabled:opacity-40"
+                                >
+                                  发送
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-end gap-1.5 w-full">
+                              <ChatAttachmentCards attachments={attachments} align="end" />
+                              {text ? <div className={USER_BUBBLE}>{text}</div> : null}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -1124,12 +1515,112 @@ export function EmployeeIncubationWorkspace({
                 if (m.kind === 'ai') {
                   return (
                     <div key={m.id} className="flex justify-start">
-                      <div className="max-w-[92%] flex flex-col gap-1">
-                        <div className={AI_BUBBLE}>
-                          {renderAiRichContent(m.text)}
-                        </div>
-                        <span className="text-[10px] text-neutral-400">{m.time}</span>
+                      <div className={AI_BUBBLE}>{renderAiBubbleContent(m.text)}</div>
+                    </div>
+                  );
+                }
+                if (m.kind === 'system_status') {
+                  return (
+                    <div key={m.id} className="flex justify-start">
+                      <div className={SYSTEM_STATUS_BUBBLE}>
+                        {renderAiBubbleContent(m.text)}
                       </div>
+                    </div>
+                  );
+                }
+                if (m.kind === 'think') {
+                  return (
+                    <SkillThinkingCard
+                      key={m.id}
+                      title={EMPLOYEE_CREATE_CHAT.thinkDone}
+                      steps={m.steps}
+                      durationSec={m.durationSec}
+                      isComplete
+                      className="!ml-0 mr-0"
+                    />
+                  );
+                }
+                if (m.kind === 'clarify') {
+                  return (
+                    <div key={m.id} className="w-full animate-in fade-in duration-200">
+                      <SkillClarifyCard
+                        payload={m.payload}
+                        onChange={(next) => {
+                          setMessages((prev) =>
+                            prev.map((row) =>
+                              row.id === m.id && row.kind === 'clarify'
+                                ? { ...row, payload: next }
+                                : row,
+                            ),
+                          );
+                        }}
+                        onSubmit={(next) => {
+                          setMessages((prev) =>
+                            prev.map((row) =>
+                              row.id === m.id && row.kind === 'clarify'
+                                ? { ...row, payload: next }
+                                : row,
+                            ),
+                          );
+                          void continueAfterClarify(next);
+                        }}
+                        onSkip={() => {
+                          const skippedPayload: SkillClarifyPayload = {
+                            ...m.payload,
+                            skipped: true,
+                            submitted: false,
+                            collapsed: true,
+                          };
+                          setMessages((prev) =>
+                            prev.map((row) =>
+                              row.id === m.id && row.kind === 'clarify'
+                                ? { ...row, payload: skippedPayload }
+                                : row,
+                            ),
+                          );
+                          void continueAfterClarify(skippedPayload);
+                        }}
+                      />
+                    </div>
+                  );
+                }
+                if (m.kind === 'confirm') {
+                  const hasNewerConfirm = messages
+                    .slice(msgIndex + 1)
+                    .some((row) => row.kind === 'confirm');
+                  const locked =
+                    !m.confirmed && (Boolean(m.locked) || hasNewerConfirm);
+                  return (
+                    <div
+                      key={m.id}
+                      className={cn(
+                        'w-full animate-in fade-in duration-200',
+                        locked && 'opacity-90',
+                      )}
+                    >
+                      <SkillRoundConfirmCard
+                        title={m.title || EMPLOYEE_CREATE_CHAT.confirmCardTitle}
+                        items={m.items}
+                        confirmed={Boolean(m.confirmed)}
+                        locked={locked}
+                        onConfirm={(items) => handleConfirmItems(m.id, items)}
+                        onItemsChange={(items) => {
+                          setMessages((prev) =>
+                            prev.map((row) =>
+                              row.id === m.id && row.kind === 'confirm'
+                                ? { ...row, items }
+                                : row,
+                            ),
+                          );
+                          if (!m.confirmed && !locked) {
+                            const next = applyConfirmItemsToDraft(
+                              pendingDraftRef.current ?? draftRef.current,
+                              items,
+                            );
+                            setPendingDraft(next);
+                          }
+                        }}
+                      />
                     </div>
                   );
                 }
@@ -1138,10 +1629,11 @@ export function EmployeeIncubationWorkspace({
 
               {thinking && thinkSteps.length > 0 ? (
                 <SkillThinkingCard
-                  title="正在规划数字员工"
+                  title={EMPLOYEE_CREATE_CHAT.thinkInProgress}
                   steps={thinkSteps}
-                  isComplete={false}
-                  generating
+                  isComplete={!thinkBootLoading && !thinkGenerating && thinkSteps.length > 0}
+                  loading={thinkBootLoading}
+                  generating={!thinkBootLoading && thinkGenerating}
                   className="!ml-0 mr-0"
                 />
               ) : null}
@@ -1149,45 +1641,44 @@ export function EmployeeIncubationWorkspace({
           </div>
 
           <div className="w-full max-w-[720px] mx-auto px-3 pb-3 pt-1 shrink-0">
-            {formReady && !thinking ? (
+            {formReady && !thinking && !hasPendingClarify && visibleReplyChips.length > 0 ? (
               <div className="pb-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
-                <span className="text-[11px] text-neutral-400 shrink-0 pr-0.5">AI 帮写</span>
-                {HELP_CHIPS.map((chip) => {
-                  const selected = chipSelections.some((c) => c.id === chip.id);
-                  return (
-                    <button
-                      key={chip.id}
-                      type="button"
-                      onClick={() => toggleChip(chip)}
-                      className={selected ? CHIP_ACTIVE : CHIP}
-                    >
-                      {chip.label}
-                    </button>
-                  );
-                })}
+                {visibleReplyChips.map((chip) => (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    onClick={() => applyReplyChip(chip)}
+                    className={CHIP}
+                    title="点选后填入输入框，可再编辑后发送"
+                  >
+                    {chip.label}
+                  </button>
+                ))}
               </div>
             ) : null}
 
             <div className="skill-ai-composer skill-ai-composer--dock p-3">
               <textarea
                 ref={inputRef}
-                rows={3}
+                rows={1}
                 maxLength={1000}
                 value={input}
-                disabled={thinking}
+                disabled={thinking || hasPendingClarify}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    void runUserTurn(input);
+                    if (canSend) void runUserTurn(input);
                   }
                 }}
                 placeholder={
-                  formReady
-                    ? '继续补充规则，或点上方“AI 帮写”快捷填充…'
-                    : '请描述数字员工的岗位职责与服务场景…'
+                  hasPendingClarify
+                    ? `请先在上方「${EMPLOYEE_CREATE_CHAT.clarifyTitle}」卡片中提交或跳过…`
+                    : formReady
+                      ? '继续补充规则，或点上方快捷条填充…'
+                      : '请描述数字员工的岗位职责与服务场景…'
                 }
-                className="w-full min-h-[72px] max-h-36 bg-transparent text-[14px] leading-[21px] outline-none resize-none text-neutral-800 placeholder:text-neutral-400"
+                className="w-full min-h-[44px] max-h-40 overflow-y-auto bg-transparent text-[14px] leading-[22px] pb-2 outline-none resize-none placeholder:text-[#B0B2B8] text-[#1C1D1F] disabled:opacity-60"
               />
 
               <div className="flex items-center justify-between gap-2 pt-2">
@@ -1202,19 +1693,26 @@ export function EmployeeIncubationWorkspace({
                   <span className="text-[11px] text-neutral-400 tabular-nums">
                     {input.length}/1000
                   </span>
-                  <button
-                    type="button"
-                    disabled={!canSend}
-                    onClick={() => void runUserTurn(input)}
-                    className="w-8 h-8 rounded-lg bg-neutral-900 hover:bg-neutral-800 disabled:bg-neutral-200 text-white transition flex items-center justify-center cursor-pointer disabled:cursor-not-allowed"
-                    title="发送"
-                  >
-                    {thinking ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      <ArrowUp size={14} />
-                    )}
-                  </button>
+                  {thinking ? (
+                    <button
+                      type="button"
+                      onClick={stopThinking}
+                      className="w-8 h-8 rounded-full bg-[#ECECF2] hover:bg-[#E9EAEB] text-[#717680] border border-[#E9EAEB] flex items-center justify-center cursor-pointer shrink-0"
+                      title="停止"
+                    >
+                      <Square size={12} className="fill-[#717680]" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={!canSend}
+                      onClick={() => void runUserTurn(input)}
+                      className={SKILL_AOP_SEND_BTN}
+                      title="发送"
+                    >
+                      <ArrowUp size={16} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

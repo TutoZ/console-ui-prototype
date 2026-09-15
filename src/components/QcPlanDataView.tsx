@@ -7,7 +7,7 @@
 
 import React, { useMemo } from 'react';
 import { ArrowLeft } from '@/lib/icons';
-import { PANEL, badgeClass } from '@/lib/ui';
+import { badgeClass } from '@/lib/ui';
 import { cn } from '@/lib/utils';
 import {
   formatPlanPeriod,
@@ -91,7 +91,7 @@ export const QcPlanDataView: React.FC<QcPlanDataViewProps> = ({
 
   return (
     <div className="flex-1 min-w-0 min-h-0 overflow-y-auto p-5 custom-scrollbar bg-white">
-      <div className={cn(PANEL, 'p-5 space-y-5')}>
+      <div className="space-y-5">
         <div className="flex items-start gap-3">
           <button
             type="button"

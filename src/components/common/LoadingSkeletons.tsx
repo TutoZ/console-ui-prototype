@@ -8,7 +8,6 @@
 import React from 'react';
 import { MatrixLoader } from './MatrixLoader';
 import { Skeleton } from '@/components/ui/skeleton';
-import { badgeClass } from '@/lib/ui';
 import { cn } from '@/lib/utils';
 
 export const ChatReplySkeleton: React.FC<{ className?: string; align?: 'left' | 'right' }> = ({
@@ -70,28 +69,3 @@ export const UploadLoadingPanel: React.FC<{ title: string; fileName: string }> =
     <p className="text-[11px] text-neutral-500 mt-1 truncate max-w-xs mx-auto">{fileName}</p>
   </>
 );
-
-export const ParsingStatusSkeleton: React.FC = () => (
-  <div className="min-w-[88px] flex items-center gap-1.5">
-    <MatrixLoader size={14} className="h-3.5 w-3.5" />
-  </div>
-);
-
-function ParsingStatusCell({ progress }: { progress?: number }) {
-  return (
-    <div className="min-w-[88px] flex flex-col items-start gap-1.5">
-      <div className="flex items-center gap-1.5">
-        <MatrixLoader size={14} className="h-3.5 w-3.5" />
-        <span className={badgeClass('live')}>解析中</span>
-      </div>
-      <div className="h-1 w-full rounded-full bg-neutral-100 overflow-hidden">
-        <div
-          className="h-full bg-sky-500 transition-all duration-300"
-          style={{ width: `${progress ?? 0}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-export { ParsingStatusCell };

@@ -7,7 +7,6 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft,
   Check,
   Circle,
   Cpu,
@@ -25,11 +24,24 @@ import {
 } from '@/lib/icons';
 import type { KnowledgeBase } from '../../types';
 import { CardIcon } from '../common/CardIcon';
-import { ParsingStatusCell } from '../common/LoadingSkeletons';
 import { MatrixLoader } from '../common/MatrixLoader';
 import { Modal } from '../common/Modal';
-import { BTN_INK, BTN_OUTLINE, BTN_SOFT, FIELD, LABEL, PANEL, SEARCH_FIELD, badgeClass } from '@/lib/ui';
-import { KB_PAGE_COPY, EMPLOYEE_RESOURCE_TERMS, SEARCH_COPY } from '@/lib/platformTerminology';
+import { NavBackButton } from '../common/NavBackButton';
+import { CompanionAssistOpenButton } from '../common/CompanionAssistPanel';
+import { onlineTableClass } from '../common/OnlinePageLayout';
+import {
+  BTN_INK,
+  BTN_OUTLINE,
+  BTN_SOFT,
+  BTN_TABLE,
+  FIELD,
+  LABEL,
+  LIST_META,
+  PANEL,
+  SEARCH_FIELD,
+  badgeClass,
+} from '@/lib/ui';
+import { KB_PAGE_COPY, SEARCH_COPY } from '@/lib/platformTerminology';
 import { cn } from '@/lib/utils';
 import { pickMockLatencyMs } from '@/lib/mockLatency';
 import { Button } from '@/components/ui/button';
@@ -153,7 +165,7 @@ function DocEnableSwitch({
       onClick={onChange}
       className={cn(
         'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent transition-colors cursor-pointer',
-        enabled ? 'bg-sky-500' : 'bg-neutral-200',
+        enabled ? 'bg-emerald-500' : 'bg-neutral-300',
       )}
     >
       <span
@@ -174,6 +186,9 @@ export interface KnowledgeBaseWorkspaceProps {
   showToast: (message: string) => void;
   /** 弹层模式：顶部统一返回/关闭栏，侧栏不重复返回入口 */
   variant?: 'page' | 'modal';
+  /** 页内 AI 搭子是否已展开（展开时隐藏打开按钮） */
+  companionOpen?: boolean;
+  onOpenCompanion?: () => void;
 }
 
 export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
@@ -183,6 +198,8 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
   onUpdateKb,
   showToast,
   variant = 'page',
+  companionOpen = false,
+  onOpenCompanion,
 }) => {
   const [tab, setTab] = useState<WorkspaceTab>('docs');
   const [documents, setDocuments] = useState<KbDocument[]>(() => seedDocuments(kb));
@@ -239,7 +256,6 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
       total: documents.length,
       done: documents.filter((d) => d.status === 'done').length,
       parsing: documents.filter((d) => d.status === 'parsing').length,
-      enabled: documents.filter((d) => d.enabled).length,
     }),
     [documents],
   );
@@ -454,7 +470,7 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
 
   const renderStatus = (doc: KbDocument) => {
     if (doc.status === 'parsing') {
-      return <ParsingStatusCell progress={doc.parseProgress} />;
+      return <span className={badgeClass('live')}>解析中</span>;
     }
     if (doc.status === 'pending') {
       return (
@@ -475,20 +491,13 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
     <div className="h-full min-h-0 w-full flex flex-col bg-white">
       {variant === 'modal' && (
         <div className="shrink-0 h-11 px-3 border-b border-neutral-200 flex items-center gap-2.5 bg-white">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex items-center gap-1.5 text-[11px] font-medium text-neutral-500 hover:text-neutral-800 cursor-pointer transition shrink-0"
-          >
-            <ArrowLeft size={14} />
-            返回列表
-          </button>
+          <NavBackButton onClick={onBack} label="返回列表" variant="text" />
           <span className="h-4 w-px bg-border shrink-0" />
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <CardIcon seed={kb.id} size="sm">
+            <CardIcon seed={kb.id} size="sm" variant="neutral">
               {kb.firstChar}
             </CardIcon>
-            <span className="text-xs font-bold text-neutral-800 truncate" title={kb.name}>
+            <span className="text-xs font-semibold text-neutral-900 truncate" title={kb.name}>
               {kb.name}
             </span>
           </div>
@@ -498,41 +507,26 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
       <div className="flex-1 min-h-0 flex">
       <aside className={cn('shrink-0 border-r border-neutral-200 bg-white flex flex-col', variant === 'modal' ? 'w-[196px]' : 'w-[212px]')}>
         {variant === 'page' && (
-        <button
-          type="button"
-          onClick={onBack}
-          className="mx-3 mt-3 mb-2 flex items-center gap-1.5 text-[11px] font-medium text-neutral-500 hover:text-neutral-800 cursor-pointer transition"
-        >
-          <ArrowLeft size={14} />
-          返回列表
-        </button>
+          <div className="mx-3 mt-3 mb-2">
+            <NavBackButton onClick={onBack} label="返回列表" variant="text" />
+          </div>
         )}
 
-        <div className={cn(PANEL, 'mx-3 mb-3 p-3', variant === 'modal' && 'mt-3 py-2.5')}>
-          {variant === 'page' && (
-          <div className="flex items-center gap-2.5">
-            <CardIcon seed={kb.id} size="sm">
-              {kb.firstChar}
-            </CardIcon>
-            <div className="min-w-0 flex-1">
-              <p className="text-[10px] text-neutral-500">当前知识库</p>
-              <p className="text-[11px] font-bold text-neutral-800 truncate" title={kb.name}>
-                {kb.name}
-              </p>
+        {variant === 'page' && (
+          <div className={cn(PANEL, 'mx-3 mb-3 p-3')}>
+            <div className="flex items-center gap-2.5">
+              <CardIcon seed={kb.id} size="sm" variant="neutral">
+                {kb.firstChar}
+              </CardIcon>
+              <div className="min-w-0 flex-1">
+                <p className={LIST_META}>当前知识库</p>
+                <p className="text-xs font-semibold text-neutral-900 truncate" title={kb.name}>
+                  {kb.name}
+                </p>
+              </div>
             </div>
           </div>
-          )}
-          <div className={cn('grid grid-cols-2 gap-2 text-center', variant === 'page' && 'mt-2.5 pt-2.5 border-t border-neutral-200')}>
-            <div>
-              <p className="text-sm font-bold text-neutral-800 tabular-nums">{docStats.total}</p>
-              <p className="text-[9px] text-neutral-500">文档</p>
-            </div>
-            <div>
-              <p className="text-sm font-bold text-neutral-800 tabular-nums">{docStats.enabled}</p>
-              <p className="text-[9px] text-neutral-500">已启用</p>
-            </div>
-          </div>
-        </div>
+        )}
 
         <nav className="flex-1 px-2 space-y-0.5">
           {TAB_ITEMS.map((item) => (
@@ -541,26 +535,21 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
               type="button"
               onClick={() => setTab(item.id)}
               className={cn(
-                'relative w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition cursor-pointer',
+                'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition cursor-pointer',
                 tab === item.id
-                  ? 'bg-sky-50 text-sky-700 font-semibold'
+                  ? 'bg-neutral-100/70 text-neutral-900 font-semibold'
                   : 'text-neutral-500 hover:bg-neutral-100/40 hover:text-neutral-800',
               )}
             >
-              {tab === item.id && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-full bg-sky-500" />
-              )}
               <item.icon size={14} className="shrink-0" />
-              <span className="text-[11px]">{item.label}</span>
+              <span className="text-xs">{item.label}</span>
             </button>
           ))}
         </nav>
 
         <div className="px-3 py-3 border-t border-neutral-200">
-          <p className="text-[9px] text-neutral-500 leading-relaxed">
-            由以下员工使用
-          </p>
-          <p className="text-[10px] font-medium text-neutral-800 truncate mt-0.5" title={agentName}>
+          <p className={cn(LIST_META, 'leading-relaxed')}>由以下员工使用</p>
+          <p className="text-[11px] font-medium text-neutral-800 truncate mt-0.5" title={agentName}>
             {agentName}
           </p>
         </div>
@@ -568,14 +557,14 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
 
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
         <header className={cn(
-          'shrink-0 border-b border-neutral-200 flex items-center justify-between gap-4 bg-white/50',
+          'shrink-0 border-b border-neutral-200 flex items-center justify-between gap-4 bg-white',
           variant === 'modal' ? 'px-4 py-2.5' : 'px-5 py-3.5',
         )}>
           <div className="min-w-0">
-            <h2 className="text-sm font-extrabold text-neutral-900">
+            <h2 className="text-sm font-semibold text-neutral-900">
               {tab === 'docs' ? '文档列表' : TAB_ITEMS.find((t) => t.id === tab)?.label}
             </h2>
-            <p className="text-[11px] text-neutral-500 mt-0.5">
+            <p className={cn(LIST_META, 'mt-0.5')}>
               {tab === 'docs' ? (
                 <>
                   共 {docStats.total} 个文档 · {docStats.done} 已完成
@@ -587,14 +576,24 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
             </p>
           </div>
           {tab === 'basic' && (
-            <button type="button" onClick={handleSaveBasic} className={BTN_INK}>
-              保存
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button type="button" onClick={handleSaveBasic} className={BTN_INK}>
+                保存
+              </button>
+              {variant === 'page' && !companionOpen && onOpenCompanion ? (
+                <CompanionAssistOpenButton onClick={onOpenCompanion} />
+              ) : null}
+            </div>
           )}
           {tab === 'parse' && (
-            <button type="button" onClick={handleSaveParse} className={BTN_INK}>
-              保存
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button type="button" onClick={handleSaveParse} className={BTN_INK}>
+                保存
+              </button>
+              {variant === 'page' && !companionOpen && onOpenCompanion ? (
+                <CompanionAssistOpenButton onClick={onOpenCompanion} />
+              ) : null}
+            </div>
           )}
           {tab === 'docs' && (
             <>
@@ -611,12 +610,12 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
               />
               <div className="flex items-center gap-2 shrink-0">
                 <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
                   <input
                     value={docSearch}
                     onChange={(e) => setDocSearch(e.target.value)}
                     placeholder="搜索文档…"
-                    className={cn(SEARCH_FIELD, 'pl-9 pr-8 text-[11px]')}
+                    className={cn(SEARCH_FIELD, 'pl-9 pr-8')}
                   />
                   {docSearch && (
                     <button
@@ -633,9 +632,15 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                   <Upload size={13} />
                   上传文档
                 </button>
+                {variant === 'page' && !companionOpen && onOpenCompanion ? (
+                  <CompanionAssistOpenButton onClick={onOpenCompanion} />
+                ) : null}
               </div>
             </>
           )}
+          {tab === 'recall' && variant === 'page' && !companionOpen && onOpenCompanion ? (
+            <CompanionAssistOpenButton onClick={onOpenCompanion} />
+          ) : null}
         </header>
 
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
@@ -653,21 +658,21 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
               onDrop={handleDocDrop}
             >
               {dragActive && (
-                <div className="absolute inset-0 z-20 flex items-center justify-center bg-sky-50/80 border-2 border-dashed border-sky-300 rounded-[13px] m-3 pointer-events-none">
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-neutral-50/90 border-2 border-dashed border-neutral-300 rounded-[13px] m-3 pointer-events-none">
                   <div className="text-center">
-                    <Upload size={28} className="mx-auto text-sky-500 mb-2" />
-                    <p className="text-sm font-semibold text-sky-700">松开即可上传文档</p>
-                    <p className="text-[11px] text-sky-600/80 mt-1">支持 PDF、Word、Excel、Markdown 等格式</p>
+                    <Upload size={28} className="mx-auto text-neutral-500 mb-2" />
+                    <p className="text-sm font-semibold text-neutral-800">松开即可上传文档</p>
+                    <p className={cn(LIST_META, 'mt-1')}>支持 PDF、Word、Excel、Markdown 等格式</p>
                   </div>
                 </div>
               )}
 
               {selectedCount > 0 && (
-                <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg bg-white border border-neutral-200 shadow-sm">
-                  <span className="text-[11px] font-medium text-neutral-800 mr-1">
+                <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg bg-white border border-neutral-200">
+                  <span className="text-xs font-medium text-neutral-800 mr-1">
                     已选择 {selectedCount} 个文件
                   </span>
-                  <button type="button" onClick={() => setSelectedIds(new Set())} className="text-[10px] text-neutral-500 hover:text-neutral-800 cursor-pointer mr-1">
+                  <button type="button" onClick={() => setSelectedIds(new Set())} className="text-[11px] text-neutral-500 hover:text-neutral-800 cursor-pointer mr-1">
                     取消选择
                   </button>
                   <span className="w-px h-4 bg-border" />
@@ -697,38 +702,39 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                 <div
                   className={cn(
                     PANEL,
-                    'p-12 text-center border-2 border-dashed border-neutral-200 cursor-pointer hover:border-sky-200 hover:bg-sky-50/30 transition',
+                    'p-12 text-center border-2 border-dashed border-neutral-200 cursor-pointer hover:border-neutral-300 hover:bg-neutral-50 transition',
                   )}
                   onClick={() => fileInputRef.current?.click()}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => e.key === 'Enter' && fileInputRef.current?.click()}
                 >
-                  <Upload size={32} className="mx-auto text-neutral-500 mb-3" />
+                  <Upload size={32} className="mx-auto text-neutral-400 mb-3" />
                   <p className="text-sm font-semibold text-neutral-800">拖拽文件到此处，或点击上传</p>
-                  <p className="text-[11px] text-neutral-500 mt-1.5">支持 PDF、Word、Excel、Markdown 等格式</p>
+                  <p className={cn(LIST_META, 'mt-1.5')}>支持 PDF、Word、Excel、Markdown 等格式</p>
                 </div>
               ) : filteredDocs.length === 0 ? (
-                <div className={cn(PANEL, 'p-10 text-center')}>
-                  <Search size={28} className="mx-auto text-neutral-500/50 mb-3" />
+                <div className="py-12 text-center">
+                  <Search size={28} className="mx-auto text-neutral-400/50 mb-3" />
                   <p className="text-sm font-medium text-neutral-800">{SEARCH_COPY.noDoc}</p>
-                  <p className="text-[11px] text-neutral-500 mt-1">
+                  <p className={cn(LIST_META, 'mt-1')}>
                     试试其他关键词，或
                     <button
                       type="button"
                       onClick={() => setDocSearch('')}
-                      className="text-sky-600 hover:underline cursor-pointer ml-0.5"
+                      className="text-neutral-700 hover:text-neutral-900 underline underline-offset-2 cursor-pointer ml-0.5"
                     >
                       清除搜索
                     </button>
                   </p>
                 </div>
               ) : (
-                <div className={cn(PANEL, 'overflow-x-auto')}>
-                  <table className="w-full text-left border-collapse min-w-[760px]">
-                    <thead className="sticky top-0 z-[1] bg-white">
-                      <tr className="border-b border-neutral-200 text-[10px] text-neutral-500">
-                        <th className="px-3 py-2.5 w-10 bg-white">
+                <>
+                <div className={onlineTableClass.wrap}>
+                  <table className={cn(onlineTableClass.table, 'min-w-[760px]')}>
+                    <thead>
+                      <tr className={onlineTableClass.headRow}>
+                        <th className={cn(onlineTableClass.thFirst, 'w-10')}>
                           <input
                             type="checkbox"
                             checked={allFilteredSelected}
@@ -737,17 +743,17 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                             aria-label="全选"
                           />
                         </th>
-                        <th className="px-3 py-2.5 font-medium bg-white">文件名</th>
-                        <th className="px-3 py-2.5 font-medium w-20 bg-white">大小</th>
-                        <th className="px-3 py-2.5 font-medium w-20 bg-white">分段数量</th>
-                        <th className="px-3 py-2.5 font-medium w-24 bg-white">解析器</th>
-                        <th className="px-3 py-2.5 font-medium w-16 text-center bg-white">启用</th>
-                        <th className="px-3 py-2.5 font-medium w-36 bg-white">上传时间</th>
-                        <th className="px-3 py-2.5 font-medium w-28 bg-white">状态</th>
-                        <th className="px-3 py-2.5 font-medium w-14 text-right bg-white">操作</th>
+                        <th className={onlineTableClass.th}>文件名</th>
+                        <th className={cn(onlineTableClass.th, 'w-20')}>大小</th>
+                        <th className={cn(onlineTableClass.th, 'w-20')}>分段数量</th>
+                        <th className={cn(onlineTableClass.th, 'w-24')}>解析器</th>
+                        <th className={cn(onlineTableClass.th, 'w-16 text-center')}>启用</th>
+                        <th className={cn(onlineTableClass.th, 'w-36')}>上传时间</th>
+                        <th className={cn(onlineTableClass.th, 'w-28')}>状态</th>
+                        <th className={cn(onlineTableClass.thLast, 'w-14')}>操作</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-border">
+                    <tbody className={onlineTableClass.body}>
                       {filteredDocs.map((doc) => {
                         const ext = getFileExt(doc.name);
                         const isSelected = selectedIds.has(doc.id);
@@ -755,12 +761,12 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                           <tr
                             key={doc.id}
                             className={cn(
-                              'transition',
-                              isSelected ? 'bg-sky-50/60' : 'hover:bg-neutral-100/20',
+                              onlineTableClass.row,
+                              isSelected && 'bg-neutral-50',
                               !doc.enabled && 'opacity-60',
                             )}
                           >
-                            <td className="px-3 py-2.5">
+                            <td className={onlineTableClass.tdFirst}>
                               <input
                                 type="checkbox"
                                 checked={isSelected}
@@ -769,7 +775,7 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                                 aria-label={`选择 ${doc.name}`}
                               />
                             </td>
-                            <td className="px-3 py-2.5">
+                            <td className={onlineTableClass.td}>
                               <div className="flex items-center gap-2 min-w-0">
                                 <span
                                   className={cn(
@@ -780,21 +786,21 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                                   {ext}
                                 </span>
                                 <span
-                                  className="text-[11px] font-medium text-neutral-800 truncate max-w-[220px]"
+                                  className="font-semibold text-neutral-900 truncate max-w-[220px]"
                                   title={doc.name}
                                 >
                                   {doc.name}
                                 </span>
                               </div>
                             </td>
-                            <td className="px-3 py-2.5 text-[10px] text-neutral-500 tabular-nums">
+                            <td className={cn(onlineTableClass.td, 'text-neutral-500 tabular-nums')}>
                               {doc.sizeLabel}
                             </td>
-                            <td className="px-3 py-2.5 text-[10px] text-neutral-500 tabular-nums">
+                            <td className={cn(onlineTableClass.td, 'text-neutral-500 tabular-nums')}>
                               {doc.segments}
                             </td>
-                            <td className="px-3 py-2.5 text-[10px] text-neutral-500">{doc.parser}</td>
-                            <td className="px-3 py-2.5 text-center">
+                            <td className={cn(onlineTableClass.td, 'text-neutral-500')}>{doc.parser}</td>
+                            <td className={cn(onlineTableClass.td, 'text-center')}>
                               <DocEnableSwitch
                                 enabled={doc.enabled}
                                 label={doc.enabled ? '已启用' : '已停用'}
@@ -807,17 +813,17 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                                 }
                               />
                             </td>
-                            <td className="px-3 py-2.5 text-[10px] text-neutral-500 tabular-nums whitespace-nowrap">
+                            <td className={cn(onlineTableClass.td, 'text-neutral-500 tabular-nums whitespace-nowrap')}>
                               {doc.uploadedAt}
                             </td>
-                            <td className="px-3 py-2.5">{renderStatus(doc)}</td>
-                            <td className="px-3 py-2.5 text-right relative">
+                            <td className={onlineTableClass.td}>{renderStatus(doc)}</td>
+                            <td className={cn(onlineTableClass.tdLast, 'relative')}>
                               <button
                                 type="button"
                                 onClick={() =>
                                   setOpenMenuDocId(openMenuDocId === doc.id ? null : doc.id)
                                 }
-                                className="px-2 py-1 rounded-md border border-neutral-200 text-[11px] text-neutral-500 hover:bg-neutral-100 cursor-pointer"
+                                className={BTN_TABLE}
                                 aria-expanded={openMenuDocId === doc.id}
                               >
                                 ···
@@ -834,7 +840,7 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                                     <button
                                       type="button"
                                       onClick={() => openRename(doc)}
-                                      className="w-full px-3 py-1.5 text-[11px] flex items-center gap-2 hover:bg-neutral-100 cursor-pointer"
+                                      className="w-full px-3 py-1.5 text-[11px] flex items-center gap-2 hover:bg-neutral-50 cursor-pointer"
                                     >
                                       <Pencil size={12} />
                                       重命名
@@ -845,7 +851,7 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                                         setOpenMenuDocId(null);
                                         if (doc.status !== 'parsing') startParsing(doc.id);
                                       }}
-                                      className="w-full px-3 py-1.5 text-[11px] flex items-center gap-2 hover:bg-neutral-100 cursor-pointer"
+                                      className="w-full px-3 py-1.5 text-[11px] flex items-center gap-2 hover:bg-neutral-50 cursor-pointer"
                                     >
                                       <RefreshCw size={12} />
                                       重新解析
@@ -855,7 +861,7 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                                       onClick={() => {
                                         setOpenMenuDocId(null);
                                       }}
-                                      className="w-full px-3 py-1.5 text-[11px] flex items-center gap-2 hover:bg-neutral-100 cursor-pointer"
+                                      className="w-full px-3 py-1.5 text-[11px] flex items-center gap-2 hover:bg-neutral-50 cursor-pointer"
                                     >
                                       <Download size={12} />
                                       下载
@@ -880,21 +886,22 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                       })}
                     </tbody>
                   </table>
-                  <div className="px-3 py-2 border-t border-neutral-200 text-[10px] text-neutral-500 flex items-center justify-between">
-                    <span>
-                      显示 {filteredDocs.length} / {documents.length} 个文档
-                    </span>
-                    {docSearch && (
-                      <button
-                        type="button"
-                        onClick={() => setDocSearch('')}
-                        className="text-sky-600 hover:underline cursor-pointer"
-                      >
-                        清除筛选
-                      </button>
-                    )}
-                  </div>
                 </div>
+                <div className="pt-3 flex items-center justify-between">
+                  <span className={LIST_META}>
+                    显示 {filteredDocs.length} / {documents.length} 个文档
+                  </span>
+                  {docSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setDocSearch('')}
+                      className="text-[12px] text-neutral-600 hover:text-neutral-900 underline underline-offset-2 cursor-pointer"
+                    >
+                      清除筛选
+                    </button>
+                  )}
+                </div>
+                </>
               )}
             </div>
           )}

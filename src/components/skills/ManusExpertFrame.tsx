@@ -254,6 +254,7 @@ export const ManusExpertFrame: React.FC<ManusExpertFrameProps> = ({
   const editorPaneRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const gutterRef = useRef<HTMLDivElement | null>(null);
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const rewriteInputRef = useRef<HTMLTextAreaElement | null>(null);
   const sidebarDragRef = useRef<{ startX: number; startW: number } | null>(null);
@@ -641,12 +642,12 @@ export const ManusExpertFrame: React.FC<ManusExpertFrameProps> = ({
   );
 
   return (
-    <div ref={frameRef} className="flex-1 min-h-0 flex overflow-hidden bg-white select-text">
+    <div ref={frameRef} className="flex-1 min-h-0 min-w-0 flex overflow-hidden bg-white select-text">
       {!sidebarCollapsed ? (
         <>
           <aside
             style={{ width: sidebarWidth }}
-            className="shrink-0 border-r border-[#E9EAEB] overflow-y-auto px-1.5 py-2"
+            className="shrink-0 self-stretch min-h-0 border-r border-[#E9EAEB] overflow-y-auto px-1.5 py-2"
           >
             <button
               type="button"
@@ -683,7 +684,7 @@ export const ManusExpertFrame: React.FC<ManusExpertFrameProps> = ({
         </>
       ) : null}
 
-      <section className="flex-1 min-w-0 flex flex-col bg-white">
+      <section className="flex-1 min-w-0 min-h-0 flex flex-col bg-white overflow-hidden">
         <div className="h-12 px-2 flex items-center justify-between gap-2 border-b border-[#E9EAEB] shrink-0">
           <div className="min-w-0 flex-1 flex items-center gap-1.5 overflow-hidden">
             <button
@@ -784,17 +785,17 @@ export const ManusExpertFrame: React.FC<ManusExpertFrameProps> = ({
         {showCode ? (
           <div
             ref={editorPaneRef}
-            className="flex-1 min-h-0 overflow-auto bg-[#FFFFFE] relative select-text"
+            className="flex-1 min-h-0 min-w-0 overflow-hidden bg-[#FFFFFE] relative select-text"
             onScroll={() => {
               if (!rewriteSession) clearSelectionToolbar();
             }}
           >
             <div className="sticky top-0 h-1.5 pointer-events-none bg-gradient-to-b from-[#DDDDDD]/35 to-transparent z-10" />
             {showInlineDiff && inlineDiffView ? (
-              <div className="min-h-full pb-8" style={{ fontFamily: MONO, fontSize: 13, lineHeight: '20px' }}>
+              <div className="h-full min-h-0 overflow-auto" style={{ fontFamily: MONO, fontSize: 13, lineHeight: '20px' }}>
                 {inlineDiffView.before.map(renderDiffCtxLine)}
                 {inlineDiffView.removed.map(renderDiffDelLine)}
-                <div className="flex bg-[#E7F6ED]">
+                <div className="flex bg-[#E7F6ED] min-w-0">
                   <div
                     aria-hidden
                     className="w-10 shrink-0 border-r border-emerald-200 text-right pr-1.5 select-none tabular-nums text-[10px] leading-[20px] text-emerald-600 bg-emerald-100/50"
@@ -809,7 +810,7 @@ export const ManusExpertFrame: React.FC<ManusExpertFrameProps> = ({
                     onChange={(e) => updateProposed(e.target.value)}
                     spellCheck={false}
                     aria-label="编辑改写结果"
-                    className="flex-1 min-w-0 m-0 px-3 py-0 bg-transparent outline-none resize-none whitespace-pre-wrap break-words leading-[20px] text-neutral-800"
+                    className="flex-1 min-w-0 m-0 px-3 py-0 bg-transparent outline-none resize-none overflow-hidden whitespace-pre-wrap break-words leading-[20px] text-neutral-800"
                     style={{
                       height: `${proposedLineCount * 20}px`,
                       fontFamily: MONO,
@@ -842,10 +843,11 @@ export const ManusExpertFrame: React.FC<ManusExpertFrameProps> = ({
                 )}
               </div>
             ) : (
-              <div className="flex min-h-full">
+              <div className="flex h-full min-h-0 min-w-0">
                 <div
+                  ref={gutterRef}
                   aria-hidden
-                  className="w-7 shrink-0 border-r border-[#E9EAEB] bg-[#FFFFFE] text-right pr-1 py-3 text-[10px] leading-[20px] text-[#237893] select-none tabular-nums"
+                  className="w-8 shrink-0 overflow-hidden border-r border-[#E9EAEB] bg-[#FFFFFE] text-right pr-1 py-3 text-[10px] leading-[20px] text-[#237893] select-none tabular-nums"
                   style={{ fontFamily: MONO }}
                 >
                   {Array.from({ length: lineCount }, (_, idx) => (
@@ -864,6 +866,12 @@ export const ManusExpertFrame: React.FC<ManusExpertFrameProps> = ({
                         }
                       : undefined
                   }
+                  onScroll={(e) => {
+                    if (gutterRef.current) {
+                      gutterRef.current.scrollTop = e.currentTarget.scrollTop;
+                    }
+                    if (!rewriteSession) clearSelectionToolbar();
+                  }}
                   onPointerDown={(e) => {
                     lastPointerRef.current = { x: e.clientX, y: e.clientY };
                   }}
@@ -876,7 +884,6 @@ export const ManusExpertFrame: React.FC<ManusExpertFrameProps> = ({
                     if (rewriteSession) return;
                     lastPointerRef.current = { x: e.clientX, y: e.clientY };
                     const el = e.currentTarget;
-                    // 等选区落定后再读，避免 mouseup 瞬间 selection 仍为空
                     requestAnimationFrame(() => {
                       syncSelectionToolbar(el, { x: e.clientX, y: e.clientY });
                     });
@@ -896,11 +903,10 @@ export const ManusExpertFrame: React.FC<ManusExpertFrameProps> = ({
                   }}
                   spellCheck={false}
                   className={cn(
-                    'w-full min-w-0 flex-1 py-3 pl-3 pr-5 bg-[#FFFFFE] outline-none resize-none overflow-hidden whitespace-pre text-[#181D27] selection:bg-[rgba(21,101,191,0.12)] select-text',
+                    'h-full min-h-0 min-w-0 w-full flex-1 py-3 pl-3 pr-4 bg-[#FFFFFE] outline-none resize-none overflow-auto whitespace-pre-wrap break-words text-[#181D27] selection:bg-[rgba(21,101,191,0.12)] select-text',
                     (!canEdit || rewriteSession) && 'cursor-default text-[#717680]',
                   )}
                   style={{
-                    height: `${Math.max(lineCount, 28) * 20}px`,
                     fontFamily: MONO,
                     fontSize: 13,
                     lineHeight: '20px',

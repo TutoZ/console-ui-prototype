@@ -8,11 +8,25 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, FileText, Pencil, Plus, Trash2 } from '@/lib/icons';
+import { BookOpen, Check, ChevronDown, ChevronUp, FileText, Pencil, Plus, Search, Trash2, X } from '@/lib/icons';
 import { cn } from '@/lib/utils';
-import { BTN_DANGER_SM, BTN_SOFT_SM, confirmStatusBadgeClass, SKILL_AOP_PRIMARY_BTN_SM } from '@/lib/ui';
+import { BTN_DANGER_SM, BTN_SOFT_SM, FIELD, FIELD_CTRL, confirmStatusBadgeClass, SKILL_AOP_PRIMARY_BTN_SM } from '@/lib/ui';
 import { SKILL_CREATE_CHAT } from '@/lib/platformTerminology';
 import { showAppToast } from '@/lib/appToast';
+
+function KbTokenIcon({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center justify-center shrink-0 rounded font-semibold bg-emerald-100 text-emerald-700',
+        size === 'sm' ? 'h-4 w-4 text-[9px] rounded' : 'h-5 w-5 text-[10px] rounded-md',
+      )}
+      aria-hidden
+    >
+      {name.slice(0, 1)}
+    </span>
+  );
+}
 
 export type SkillConfirmFieldKey =
   | 'cnName'
@@ -36,6 +50,13 @@ export type SkillConfirmItem = {
   fieldKey?: SkillConfirmFieldKey;
   fieldLabel?: string;
   value?: string;
+};
+
+/** 确认卡「执行步骤」内逐步挂载的知识库 */
+export type SkillConfirmStepResource = {
+  stepId: number;
+  name: string;
+  associatedKBs: string[];
 };
 
 type SkillRoundConfirmCardProps = {
@@ -65,6 +86,16 @@ type SkillRoundConfirmCardProps = {
   onCollapsedChange?: (collapsed: boolean) => void;
   /** 从对话流移除本张确认卡 */
   onDelete?: () => void;
+  /** 可选知识库（名称） */
+  availableKBs?: string[];
+  /** 当前已挂载知识库 */
+  mountedKBs?: string[];
+  /** 挂载变更（增删） */
+  onMountedKBsChange?: (kbs: string[]) => void;
+  /** 执行步骤及其已挂知识库（与右侧步骤 associatedKBs 同步） */
+  executionSteps?: SkillConfirmStepResource[];
+  /** 步骤知识库变更 */
+  onExecutionStepsChange?: (steps: SkillConfirmStepResource[]) => void;
 };
 
 function rowBodyText(row: SkillConfirmItem): string {
@@ -84,6 +115,11 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   onItemsChange,
   onCollapsedChange,
   onDelete,
+  availableKBs = [],
+  mountedKBs = [],
+  onMountedKBsChange,
+  executionSteps = [],
+  onExecutionStepsChange,
 }) => {
   const readOnly = confirmed || locked;
   const [rows, setRows] = useState<SkillConfirmItem[]>(items);
@@ -98,9 +134,29 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   const [collapsed, setCollapsed] = useState(() =>
     collapsedProp != null ? collapsedProp : confirmed || locked,
   );
+  const [kbPickerOpen, setKbPickerOpen] = useState(false);
+  const [kbQuery, setKbQuery] = useState('');
+  const [stepKbPickerId, setStepKbPickerId] = useState<number | null>(null);
+  const [stepKbQuery, setStepKbQuery] = useState('');
+  const [dragKb, setDragKb] = useState<{ stepId: number; kb: string } | null>(null);
+  const [dragOverKb, setDragOverKb] = useState<{ stepId: number; kb: string } | null>(null);
   const inlineNameRef = useRef<HTMLInputElement>(null);
   const newContentRef = useRef<HTMLTextAreaElement>(null);
+  const kbPickerRef = useRef<HTMLDivElement>(null);
+  const stepKbPickerRef = useRef<HTMLDivElement>(null);
   const editingIdSet = useMemo(() => new Set(editingItemIds), [editingItemIds]);
+  const mountedSet = useMemo(() => new Set(mountedKBs), [mountedKBs]);
+  const filteredAvailableKBs = useMemo(() => {
+    const q = kbQuery.trim().toLowerCase();
+    return availableKBs.filter((kb) => (!q ? true : kb.toLowerCase().includes(q)));
+  }, [availableKBs, kbQuery]);
+  const filteredStepKBs = useMemo(() => {
+    const q = stepKbQuery.trim().toLowerCase();
+    return availableKBs.filter((kb) => (!q ? true : kb.toLowerCase().includes(q)));
+  }, [availableKBs, stepKbQuery]);
+  const canMountKb = Boolean(onMountedKBsChange) && availableKBs.length > 0;
+  const canConfigStepKb =
+    Boolean(onExecutionStepsChange) && availableKBs.length > 0 && executionSteps.length > 0;
 
   useEffect(() => {
     setRows(items);
@@ -119,8 +175,41 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
     setBatchMode(false);
     setInlineEditId(null);
     setAdding(false);
+    setKbPickerOpen(false);
+    setStepKbPickerId(null);
     onBatchModeChange?.(false);
   }, [locked, onBatchModeChange]);
+
+  useEffect(() => {
+    if (!kbPickerOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (target && kbPickerRef.current?.contains(target)) return;
+      setKbPickerOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [kbPickerOpen]);
+
+  useEffect(() => {
+    if (stepKbPickerId == null) return;
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (target && stepKbPickerRef.current?.contains(target)) return;
+      setStepKbPickerId(null);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [stepKbPickerId]);
+
+  useEffect(() => {
+    if (readOnly) {
+      setKbPickerOpen(false);
+      setStepKbPickerId(null);
+      setDragKb(null);
+      setDragOverKb(null);
+    }
+  }, [readOnly]);
 
   useEffect(() => {
     if (!inlineEditId) return;
@@ -130,6 +219,77 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
     el.selectionStart = el.value.length;
     el.selectionEnd = el.value.length;
   }, [inlineEditId]);
+
+  const toggleMountedKb = (kb: string) => {
+    if (readOnly || !onMountedKBsChange) return;
+    if (mountedSet.has(kb)) {
+      onMountedKBsChange(mountedKBs.filter((name) => name !== kb));
+      return;
+    }
+    onMountedKBsChange([...mountedKBs, kb]);
+  };
+
+  const removeMountedKb = (kb: string) => {
+    if (readOnly || !onMountedKBsChange) return;
+    onMountedKBsChange(mountedKBs.filter((name) => name !== kb));
+    if (onExecutionStepsChange && executionSteps.length > 0) {
+      onExecutionStepsChange(
+        executionSteps.map((step) => ({
+          ...step,
+          associatedKBs: step.associatedKBs.filter((name) => name !== kb),
+        })),
+      );
+    }
+  };
+
+  const ensureSkillMounted = (kbs: string[]) => {
+    if (!onMountedKBsChange) return;
+    const missing = kbs.filter((kb) => !mountedSet.has(kb));
+    if (missing.length === 0) return;
+    onMountedKBsChange([...mountedKBs, ...missing]);
+  };
+
+  const setStepAssociatedKBs = (stepId: number, nextKBs: string[]) => {
+    if (readOnly || !onExecutionStepsChange) return;
+    ensureSkillMounted(nextKBs);
+    onExecutionStepsChange(
+      executionSteps.map((step) =>
+        step.stepId === stepId ? { ...step, associatedKBs: nextKBs } : step,
+      ),
+    );
+  };
+
+  const toggleStepKb = (stepId: number, kb: string) => {
+    const step = executionSteps.find((row) => row.stepId === stepId);
+    if (!step) return;
+    const has = step.associatedKBs.includes(kb);
+    setStepAssociatedKBs(
+      stepId,
+      has ? step.associatedKBs.filter((name) => name !== kb) : [...step.associatedKBs, kb],
+    );
+  };
+
+  const removeStepKb = (stepId: number, kb: string) => {
+    const step = executionSteps.find((row) => row.stepId === stepId);
+    if (!step) return;
+    setStepAssociatedKBs(
+      stepId,
+      step.associatedKBs.filter((name) => name !== kb),
+    );
+  };
+
+  const reorderStepKb = (stepId: number, fromKb: string, toKb: string) => {
+    if (readOnly || !onExecutionStepsChange || fromKb === toKb) return;
+    const step = executionSteps.find((row) => row.stepId === stepId);
+    if (!step) return;
+    const next = [...step.associatedKBs];
+    const fromIdx = next.indexOf(fromKb);
+    const toIdx = next.indexOf(toKb);
+    if (fromIdx < 0 || toIdx < 0) return;
+    next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, fromKb);
+    setStepAssociatedKBs(stepId, next);
+  };
 
   const setCollapsedAndSync = (next: boolean) => {
     setCollapsed(next);
@@ -419,6 +579,222 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
                             >
                               {bodyText}
                             </p>
+                            {row.fieldKey === 'actionChain' &&
+                            (executionSteps.length > 0 || canConfigStepKb) ? (
+                              <div className="mt-2 space-y-2">
+                                <p className="text-[11px] font-semibold text-neutral-500 leading-4">
+                                  为每个步骤插入知识库（拖拽图标可排序）
+                                </p>
+                                {executionSteps.length === 0 ? (
+                                  <p className="text-[11px] text-neutral-500 leading-4">
+                                    暂无执行步骤可配置
+                                  </p>
+                                ) : (
+                                  executionSteps.map((step, stepIndex) => {
+                                    const stepChecked = new Set(step.associatedKBs);
+                                    const pickerOpen = stepKbPickerId === step.stepId;
+                                    return (
+                                      <div key={step.stepId} className="space-y-1">
+                                        <p className="text-[12px] font-medium text-neutral-800 truncate leading-4">
+                                          <span className="text-neutral-400 tabular-nums mr-1">
+                                            {stepIndex + 1}.
+                                          </span>
+                                          {step.name || `步骤 ${step.stepId}`}
+                                        </p>
+                                        <div
+                                          className={cn(
+                                            'relative min-h-9 w-full rounded-md border border-neutral-200 bg-white px-2 py-1.5',
+                                            'flex flex-wrap items-center gap-1.5',
+                                            !readOnly && 'focus-within:border-neutral-300',
+                                          )}
+                                          onDragOver={(e) => {
+                                            if (!dragKb || dragKb.stepId !== step.stepId) return;
+                                            e.preventDefault();
+                                            e.dataTransfer.dropEffect = 'move';
+                                          }}
+                                          onDrop={(e) => {
+                                            e.preventDefault();
+                                            if (!dragKb || dragKb.stepId !== step.stepId) return;
+                                            if (dragOverKb?.stepId === step.stepId && dragOverKb.kb) {
+                                              reorderStepKb(step.stepId, dragKb.kb, dragOverKb.kb);
+                                            }
+                                            setDragKb(null);
+                                            setDragOverKb(null);
+                                          }}
+                                        >
+                                          {step.associatedKBs.length === 0 && readOnly ? (
+                                            <span className="text-[11px] text-neutral-400 leading-4 py-0.5">
+                                              未插入知识库
+                                            </span>
+                                          ) : null}
+                                          {step.associatedKBs.map((kb) => {
+                                            const dragging =
+                                              dragKb?.stepId === step.stepId && dragKb.kb === kb;
+                                            const dropTarget =
+                                              dragOverKb?.stepId === step.stepId &&
+                                              dragOverKb.kb === kb;
+                                            return (
+                                              <span
+                                                key={`${step.stepId}-${kb}`}
+                                                draggable={!readOnly && Boolean(onExecutionStepsChange)}
+                                                onDragStart={(e) => {
+                                                  if (readOnly) return;
+                                                  e.dataTransfer.setData('text/plain', kb);
+                                                  e.dataTransfer.effectAllowed = 'move';
+                                                  setDragKb({ stepId: step.stepId, kb });
+                                                  setDragOverKb({ stepId: step.stepId, kb });
+                                                }}
+                                                onDragEnd={() => {
+                                                  setDragKb(null);
+                                                  setDragOverKb(null);
+                                                }}
+                                                onDragEnter={(e) => {
+                                                  if (!dragKb || dragKb.stepId !== step.stepId) return;
+                                                  e.preventDefault();
+                                                  setDragOverKb({ stepId: step.stepId, kb });
+                                                }}
+                                                className={cn(
+                                                  'group relative inline-flex items-center justify-center h-7 w-7 rounded-md',
+                                                  'border border-emerald-200/70 bg-emerald-50 text-emerald-800',
+                                                  'select-none align-middle',
+                                                  !readOnly &&
+                                                    onExecutionStepsChange &&
+                                                    'cursor-grab active:cursor-grabbing',
+                                                  dragging && 'opacity-40',
+                                                  dropTarget &&
+                                                    dragKb?.kb !== kb &&
+                                                    'ring-1 ring-neutral-800 ring-offset-1',
+                                                )}
+                                                title={kb}
+                                                aria-label={kb}
+                                              >
+                                                <BookOpen size={14} className="pointer-events-none" />
+                                                {!readOnly && onExecutionStepsChange ? (
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      removeStepKb(step.stepId, kb);
+                                                    }}
+                                                    className="absolute -top-1.5 -right-1.5 h-3.5 w-3.5 rounded-full bg-white border border-neutral-200 text-neutral-500 opacity-0 group-hover:opacity-100 hover:text-rose-600 cursor-pointer flex items-center justify-center shadow-sm transition"
+                                                    aria-label={`从步骤移除 ${kb}`}
+                                                  >
+                                                    <X size={9} />
+                                                  </button>
+                                                ) : null}
+                                              </span>
+                                            );
+                                          })}
+
+                                          {!readOnly && canConfigStepKb ? (
+                                            <div
+                                              className="relative shrink-0"
+                                              ref={pickerOpen ? stepKbPickerRef : undefined}
+                                            >
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setStepKbQuery('');
+                                                  setStepKbPickerId((id) =>
+                                                    id === step.stepId ? null : step.stepId,
+                                                  );
+                                                }}
+                                                aria-expanded={pickerOpen}
+                                                className={cn(
+                                                  'inline-flex items-center gap-1 h-7 px-1.5 rounded-md text-[11px] font-medium cursor-pointer transition',
+                                                  'text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50 border border-dashed border-neutral-200',
+                                                  pickerOpen && 'border-solid border-neutral-300 bg-neutral-50 text-neutral-800',
+                                                )}
+                                              >
+                                                <Plus size={12} />
+                                                添加
+                                              </button>
+                                              {pickerOpen ? (
+                                                <div className="absolute left-0 top-[calc(100%+6px)] z-20 w-[min(280px,72vw)] rounded-xl border border-neutral-200 bg-white shadow-lg p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                                                  <div className="relative">
+                                                    <Search
+                                                      size={13}
+                                                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
+                                                    />
+                                                    <input
+                                                      autoFocus
+                                                      value={stepKbQuery}
+                                                      onChange={(e) =>
+                                                        setStepKbQuery(e.target.value)
+                                                      }
+                                                      placeholder="搜索知识库…"
+                                                      className={cn(
+                                                        FIELD,
+                                                        FIELD_CTRL,
+                                                        'pl-8 bg-neutral-50',
+                                                      )}
+                                                    />
+                                                  </div>
+                                                  <div className="max-h-[180px] overflow-y-auto space-y-0.5">
+                                                    {filteredStepKBs.length === 0 ? (
+                                                      <p className="px-2 py-3 text-[12px] text-neutral-500 text-center">
+                                                        没有可插入的知识库
+                                                      </p>
+                                                    ) : (
+                                                      filteredStepKBs.map((kb) => {
+                                                        const checked = stepChecked.has(kb);
+                                                        return (
+                                                          <button
+                                                            key={kb}
+                                                            type="button"
+                                                            onClick={() => {
+                                                              toggleStepKb(step.stepId, kb);
+                                                              if (!checked) {
+                                                                setStepKbPickerId(null);
+                                                              }
+                                                            }}
+                                                            className={cn(
+                                                              'w-full text-left px-2 py-1.5 rounded-md text-[12px] transition flex items-center gap-2 cursor-pointer',
+                                                              checked
+                                                                ? 'bg-neutral-100 text-neutral-900 font-medium'
+                                                                : 'hover:bg-neutral-50 text-neutral-700',
+                                                            )}
+                                                          >
+                                                            <KbTokenIcon name={kb} size="sm" />
+                                                            <span className="truncate flex-1 min-w-0">
+                                                              {kb}
+                                                            </span>
+                                                            {checked ? (
+                                                              <Check
+                                                                size={12}
+                                                                className="shrink-0 text-neutral-700"
+                                                              />
+                                                            ) : (
+                                                              <Plus
+                                                                size={12}
+                                                                className="shrink-0 text-neutral-400"
+                                                              />
+                                                            )}
+                                                          </button>
+                                                        );
+                                                      })
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              ) : null}
+                                            </div>
+                                          ) : null}
+
+                                          {!readOnly &&
+                                          canConfigStepKb &&
+                                          step.associatedKBs.length === 0 &&
+                                          !pickerOpen ? (
+                                            <span className="text-[11px] text-neutral-400 leading-4 pointer-events-none">
+                                              点击添加，插入知识库图标
+                                            </span>
+                                          ) : null}
+                                        </div>
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            ) : null}
                           </div>
                         </>
                       )}
@@ -532,6 +908,123 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
             )}
           </div>
         </div>
+
+        {(canMountKb || mountedKBs.length > 0) ? (
+          <div className="rounded bg-white p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold text-neutral-900 leading-5">挂载知识库</p>
+                <p className="text-[11px] text-neutral-500 mt-0.5 leading-4">
+                  技能级可用资料池；执行步骤内可按步选用
+                </p>
+              </div>
+              {!readOnly && canMountKb ? (
+                <div className="relative shrink-0" ref={kbPickerRef}>
+                  <button
+                    type="button"
+                    onClick={() => setKbPickerOpen((open) => !open)}
+                    aria-expanded={kbPickerOpen}
+                    className={cn(
+                      BTN_SOFT_SM,
+                      'gap-1',
+                      kbPickerOpen && 'border-neutral-300',
+                    )}
+                  >
+                    <Plus size={12} />
+                    添加
+                    <ChevronDown size={11} className={cn(kbPickerOpen && 'rotate-180')} />
+                  </button>
+                  {kbPickerOpen ? (
+                    <div className="absolute right-0 top-[calc(100%+6px)] z-20 w-[min(320px,78vw)] rounded-xl border border-neutral-200 bg-white shadow-lg p-2 space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="relative">
+                        <Search
+                          size={13}
+                          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
+                        />
+                        <input
+                          autoFocus
+                          value={kbQuery}
+                          onChange={(e) => setKbQuery(e.target.value)}
+                          placeholder="搜索知识库名称…"
+                          className={cn(FIELD, FIELD_CTRL, 'pl-8 bg-neutral-50')}
+                        />
+                      </div>
+                      <div className="max-h-[200px] overflow-y-auto space-y-0.5">
+                        {filteredAvailableKBs.length === 0 ? (
+                          <p className="px-2 py-3 text-[12px] text-neutral-500 text-center">
+                            没有可挂载的知识库
+                          </p>
+                        ) : (
+                          filteredAvailableKBs.map((kb) => {
+                            const checked = mountedSet.has(kb);
+                            return (
+                              <button
+                                key={kb}
+                                type="button"
+                                onClick={() => toggleMountedKb(kb)}
+                                className={cn(
+                                  'w-full text-left px-2.5 py-1.5 rounded-md text-[12px] transition flex items-center gap-2 cursor-pointer',
+                                  checked
+                                    ? 'bg-neutral-100 text-neutral-900 font-medium'
+                                    : 'hover:bg-neutral-50 text-neutral-700',
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    'w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0',
+                                    checked
+                                      ? 'bg-neutral-800 border-transparent text-white'
+                                      : 'border-neutral-200 bg-white',
+                                  )}
+                                >
+                                  {checked ? <Check size={10} /> : null}
+                                </span>
+                                <span className="truncate">{kb}</span>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            {mountedKBs.length === 0 ? (
+              <p className="text-[12px] text-neutral-500 leading-5 rounded-md border border-dashed border-neutral-200 bg-neutral-50/80 px-3 py-2.5">
+                {readOnly
+                  ? '未挂载知识库'
+                  : canMountKb
+                    ? '尚未挂载。点击“添加”从团队知识库中选用。'
+                    : '暂无可选知识库'}
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {mountedKBs.map((kb) => (
+                  <span
+                    key={kb}
+                    className="inline-flex items-center gap-1 max-w-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60 px-2 py-0.5 rounded-md"
+                    title={kb}
+                  >
+                    <BookOpen size={11} className="shrink-0" />
+                    <span className="truncate min-w-0">{kb}</span>
+                    {!readOnly && onMountedKBsChange ? (
+                      <button
+                        type="button"
+                        onClick={() => removeMountedKb(kb)}
+                        className="hover:text-emerald-900 cursor-pointer shrink-0"
+                        aria-label={`移除 ${kb}`}
+                      >
+                        <X size={11} />
+                      </button>
+                    ) : null}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
 
         {readOnly ? null : (
           <div className="flex flex-wrap items-center gap-2">

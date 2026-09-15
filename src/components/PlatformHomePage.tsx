@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 智能创建 — 一句话创建入口（数字员工创建 / 技能创建）
+ * 数字员工创作 — 一句话创建入口（数字员工创建 / 技能创建）
  * 布局对齐 Figma“B端_AI组件规范”创作平台稿（node 24238:29648）。
  */
 
@@ -116,7 +116,7 @@ const HEADLINE: Record<CreateMode, { plain: string; accent: string }> = {
 };
 
 const SUBTITLE: Record<CreateMode, string> = {
-  skill: '写清要完成的任务与边界，我们会拆进右侧四张卡片并持续帮你优化。',
+  skill: '写清要完成的任务与边界，我们会写入右侧技能包并持续帮你优化。',
   employee: '写清岗位职责与服务边界，我们会帮你生成可培训、可上岗的数字员工草稿。',
 };
 
@@ -1030,7 +1030,7 @@ export const PlatformHomePage: React.FC = () => {
               initialMode="interactive"
               initialPrompt={skillSeed}
               initialSelectedKBs={skillSeedKbNames}
-              closeLabel="返回智能创作"
+              closeLabel="返回数字员工创作"
             />,
             document.body,
           )

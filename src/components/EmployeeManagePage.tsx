@@ -353,7 +353,7 @@ export const EmployeeManagePage: React.FC = () => {
       ? 'customer_service'
       : payload.jobFamily;
 
-    if (payload.mode === 'preset') {
+    if (payload.createMethod === 'workflow' || payload.mode === 'preset') {
       const newAg = createBlankHiredAgent({
         name,
         description: payload.description.trim(),
@@ -368,7 +368,7 @@ export const EmployeeManagePage: React.FC = () => {
         id: newAg.agentId,
         avatar: newAg.avatar,
       });
-      showToast('已进入预设流程编排画布');
+      showToast('已进入工作流编排画布');
       return;
     }
 
