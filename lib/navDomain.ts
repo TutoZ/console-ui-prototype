@@ -141,7 +141,7 @@ export type SubNavItem = {
 export const HOME_SUB_NAV: SubNavItem[] = [
   {
     id: 'nav_platform_home',
-    title: '数字员工创作',
+    title: 'AI搭建',
     tab: 'platformHome',
     icon: 'solar:stars-minimalistic-linear',
     description: '一句话创建数字员工、技能与知识',
@@ -331,7 +331,7 @@ export const DOMAIN_NAV: PrimaryNavItem[] = [
     title: '数字员工',
     icon: 'solar:ghost-linear',
     tab: 'platformHome',
-    description: '数字员工创作 / 我的数字员工 / 市场 / 技能',
+    description: 'AI搭建 / 我的数字员工 / 市场 / 技能',
   },
   {
     id: 'online',

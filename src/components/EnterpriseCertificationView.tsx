@@ -7,7 +7,6 @@
 
 import React, { useRef, useState } from 'react';
 import { Check, Copy, Loader2, Plus, Upload } from '@/lib/icons';
-import { CertExpediteLeadModal } from './CertExpediteLeadModal';
 import styles from './EnterpriseCertificationView.module.scss';
 
 export type CertStep = 1 | 2 | 3;
@@ -125,7 +124,6 @@ export const EnterpriseCertificationView: React.FC<EnterpriseCertificationViewPr
   const [simBranch, setSimBranch] = useState<SimBranch>('trial');
   const [resultStatus, setResultStatus] = useState<CertResultStatus | null>(null);
   const [sidebarTab, setSidebarTab] = useState<'rules' | 'guide'>('rules');
-  const [expediteLeadOpen, setExpediteLeadOpen] = useState(false);
 
   const licenseInputRef = useRef<HTMLInputElement>(null);
   const idFrontInputRef = useRef<HTMLInputElement>(null);
@@ -608,13 +606,6 @@ export const EnterpriseCertificationView: React.FC<EnterpriseCertificationViewPr
                       重新提交证件
                     </button>
                   ) : null}
-                  <button
-                    type="button"
-                    className={styles.primaryBtn}
-                    onClick={() => setExpediteLeadOpen(true)}
-                  >
-                    联系京小灵留资加急
-                  </button>
                   <button type="button" className={styles.secondaryBtn} onClick={onBack}>
                     返回登录
                   </button>
@@ -713,18 +704,6 @@ export const EnterpriseCertificationView: React.FC<EnterpriseCertificationViewPr
           </aside>
         ) : null}
       </div>
-
-      <CertExpediteLeadModal
-        open={expediteLeadOpen}
-        certStatusLabel={resultStatus ? RESULT_META[resultStatus].title : '认证中'}
-        defaultName={contactName}
-        defaultPhone={contactPhone}
-        defaultCompany={MOCK_OCR.legalName}
-        onClose={() => setExpediteLeadOpen(false)}
-        onSubmitted={() => {
-          showToast?.('加急申请已提交，京小灵顾问将优先与您联系');
-        }}
-      />
     </div>
   );
 };

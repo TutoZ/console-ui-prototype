@@ -727,9 +727,9 @@ function IncubationTrainingPane({
 type Props = {
   open: boolean;
   seedPrompt?: string;
-  /** 数字员工创作入口已索引的平台技能 id */
+  /** AI搭建入口已索引的平台技能 id */
   seedSkillIds?: string[];
-  /** 数字员工创作入口已索引的知识库 id */
+  /** AI搭建入口已索引的知识库 id */
   seedKbIds?: string[];
   onClose: () => void;
 };
@@ -1089,6 +1089,7 @@ export function EmployeeIncubationWorkspace({
       description: draft.description,
       jobFamily: 'customer_service',
       buildMode: 'autonomous',
+      createMethod: 'ai',
       enterTraining: false,
     });
 
@@ -1268,6 +1269,7 @@ export function EmployeeIncubationWorkspace({
       description: draft.description,
       jobFamily: 'customer_service',
       buildMode: 'autonomous',
+      createMethod: 'ai',
       enterTraining: false,
     });
 
@@ -1295,7 +1297,7 @@ export function EmployeeIncubationWorkspace({
         activeTabId="build"
         onTabChange={() => {}}
         onBack={onClose}
-        backLabel="返回数字员工创作"
+        backLabel="返回AI搭建"
         actions={
           <button
             type="button"

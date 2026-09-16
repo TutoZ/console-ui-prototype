@@ -167,6 +167,11 @@ export interface HiredAgent {
   transferExternalUrl?: string;
   /** 构建模式：自主规划 / 预设流程（workflow 画布） */
   buildMode?: 'autonomous' | 'preset';
+  /**
+   * 创建方式（卡片角标）：
+   * ai = AI搭建；manual = 手动/Loop 创建；workflow = 流程编排
+   */
+  createMethod?: 'ai' | 'manual' | 'workflow';
   /** 入职考核页配置培训存档 */
   configSnapshots?: AgentConfigSnapshot[];
   /** 当前线上运行的快照 id */

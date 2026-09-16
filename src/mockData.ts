@@ -134,6 +134,8 @@ export const INITIAL_HIRED_AGENTS: HiredAgent[] = [
     knowledgeBases: ['kb_faq', 'kb_product', 'kb_claim'],
     status: 'online',
     hiredAt: '2026-06-01 10:00',
+    createMethod: 'ai',
+    buildMode: 'autonomous',
     syncedTemplateVersion: 'V_1780010000000',
     publishedSnapshotId: 'snap_food_v02',
     configSnapshots: [
@@ -217,7 +219,9 @@ export const INITIAL_HIRED_AGENTS: HiredAgent[] = [
     skills: ['s_claim', 's_crm', 's_emotion'],
     knowledgeBases: ['kb_faq', 'kb_product', 'kb_claim'],
     status: 'online',
-    hiredAt: '2026-06-05 14:12'
+    hiredAt: '2026-06-05 14:12',
+    createMethod: 'ai',
+    buildMode: 'autonomous',
   },
   {
     id: 'h_wechat',
@@ -229,7 +233,9 @@ export const INITIAL_HIRED_AGENTS: HiredAgent[] = [
     skills: ['s_emotion'],
     knowledgeBases: ['kb_faq'],
     status: 'online',
-    hiredAt: '2026-06-10 18:30'
+    hiredAt: '2026-06-10 18:30',
+    createMethod: 'manual',
+    buildMode: 'autonomous',
   },
   {
     id: 'h_workflow_preset',
@@ -239,6 +245,7 @@ export const INITIAL_HIRED_AGENTS: HiredAgent[] = [
     avatar: AGENT_AVATAR_PRESETS[12],
     avatarCustomized: true,
     buildMode: 'preset',
+    createMethod: 'workflow',
     description:
       '基于预设业务节点图编排咨询分流、知识检索与澄清追问，适合标准客服 SOP 与可审计流程场景。',
     jobFamily: 'customer_service',
@@ -268,7 +275,9 @@ export const INITIAL_HIRED_AGENTS: HiredAgent[] = [
     skills: ['s_emotion'],
     knowledgeBases: ['kb_faq'],
     status: 'draft',
-    hiredAt: '2026-06-12 09:20'
+    hiredAt: '2026-06-12 09:20',
+    createMethod: 'manual',
+    buildMode: 'autonomous',
   }
 ];
 

@@ -19,7 +19,6 @@ import {
 } from '@/components/ui/select';
 
 const PHONE_RE = /^1\d{10}$/;
-const CODE_RE = /^\d{6}$/;
 
 const LEAD_LABEL = 'block text-[12px] font-semibold text-neutral-900 mb-1';
 const LEAD_FIELD =
@@ -54,6 +53,7 @@ export type ApplicationLeadForm = {
   businessScenario: string;
   urgency: string;
   phone: string;
+  /** @deprecated 已取消短信验证，保留字段兼容旧调用方 */
   verifyCode: string;
   message: string;
 };
@@ -134,8 +134,6 @@ export const ApplicationLeadModal: React.FC<{
   const [errors, setErrors] = useState<Partial<Record<FormKey, string>>>({});
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
-  const [codeCountdown, setCodeCountdown] = useState(0);
-  const [codeSending, setCodeSending] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -143,19 +141,12 @@ export const ApplicationLeadModal: React.FC<{
       ...emptyForm(),
       ...defaults,
       businessScenario: defaults?.businessScenario ?? defaultBusinessScenario ?? '',
+      verifyCode: '',
     });
     setErrors({});
     setSubmitting(false);
     setDone(false);
-    setCodeCountdown(0);
-    setCodeSending(false);
   }, [open, defaults, defaultBusinessScenario]);
-
-  useEffect(() => {
-    if (codeCountdown <= 0) return;
-    const timer = window.setTimeout(() => setCodeCountdown((value) => value - 1), 1000);
-    return () => window.clearTimeout(timer);
-  }, [codeCountdown]);
 
   const updateField = (key: FormKey, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -168,19 +159,6 @@ export const ApplicationLeadModal: React.FC<{
     }
   };
 
-  const handleSendCode = () => {
-    if (!PHONE_RE.test(form.phone.trim())) {
-      setErrors((prev) => ({ ...prev, phone: '请先填写有效的 11 位手机号' }));
-      return;
-    }
-    if (codeCountdown > 0 || codeSending) return;
-    setCodeSending(true);
-    window.setTimeout(() => {
-      setCodeSending(false);
-      setCodeCountdown(60);
-    }, 500);
-  };
-
   const validate = () => {
     const next: Partial<Record<FormKey, string>> = {};
     if (!form.name.trim()) next.name = '请填写姓名';
@@ -190,7 +168,6 @@ export const ApplicationLeadModal: React.FC<{
     if (!form.businessScenario) next.businessScenario = '请选择业务场景';
     if (!form.urgency) next.urgency = '请选择紧急程度';
     if (!PHONE_RE.test(form.phone.trim())) next.phone = '请填写有效的 11 位手机号';
-    if (!CODE_RE.test(form.verifyCode.trim())) next.verifyCode = '请填写 6 位验证码';
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -205,7 +182,7 @@ export const ApplicationLeadModal: React.FC<{
         company: form.company.trim(),
         jobTitle: form.jobTitle.trim(),
         phone: form.phone.trim(),
-        verifyCode: form.verifyCode.trim(),
+        verifyCode: '',
         message: form.message.trim(),
         businessScenarioLabel: optionLabel(BUSINESS_SCENARIO_OPTIONS, form.businessScenario),
         companyScaleLabel: optionLabel(COMPANY_SCALE_OPTIONS, form.companyScale),
@@ -369,44 +346,19 @@ export const ApplicationLeadModal: React.FC<{
               </LeadField>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <LeadField id="lead-phone" label="手机号" error={errors.phone}>
-                <div className="relative">
-                  <input
-                    id="lead-phone"
-                    className={cn(LEAD_FIELD, 'pr-[7.25rem]')}
-                    placeholder="11 位手机号"
-                    value={form.phone}
-                    onChange={(event) =>
-                      updateField('phone', event.target.value.replace(/\D/g, '').slice(0, 11))
-                    }
-                    inputMode="numeric"
-                    autoComplete="tel"
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 px-2 rounded-[6px] border border-neutral-200 bg-neutral-50 text-[11px] font-medium text-neutral-700 hover:bg-white transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    onClick={handleSendCode}
-                    disabled={codeCountdown > 0 || codeSending}
-                  >
-                    {codeSending ? '发送中…' : codeCountdown > 0 ? `${codeCountdown}s` : '获取验证码'}
-                  </button>
-                </div>
-              </LeadField>
-
-              <LeadField id="lead-code" label="验证码" error={errors.verifyCode}>
-                <input
-                  id="lead-code"
-                  className={LEAD_FIELD}
-                  placeholder="6 位验证码"
-                  value={form.verifyCode}
-                  onChange={(event) =>
-                    updateField('verifyCode', event.target.value.replace(/\D/g, '').slice(0, 6))
-                  }
-                  inputMode="numeric"
-                />
-              </LeadField>
-            </div>
+            <LeadField id="lead-phone" label="手机号" error={errors.phone}>
+              <input
+                id="lead-phone"
+                className={LEAD_FIELD}
+                placeholder="11 位手机号"
+                value={form.phone}
+                onChange={(event) =>
+                  updateField('phone', event.target.value.replace(/\D/g, '').slice(0, 11))
+                }
+                inputMode="numeric"
+                autoComplete="tel"
+              />
+            </LeadField>
 
             <LeadField id="lead-message" label="留言（选填）">
               <textarea

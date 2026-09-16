@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { EmployeeCardRelay } from './employees/relay/EmployeeCardRelay';
 import cardStyles from './employees/relay/EmployeeCardRelay.module.scss';
 import { hasEmployeeTrainNotice } from '@/lib/masterTemplateUpgrade';
+import { resolveEmployeeCreateMethod } from '@/lib/employeeCreateMethod';
 import { EmployeeHomeRelay } from './employees/relay/EmployeeHomeRelay';
 import homeStyles from './employees/relay/EmployeeHomeRelay.module.scss';
 import { RELAY_HOME_ASSETS } from '@/lib/relayHomeAssets';
@@ -359,6 +360,7 @@ export const EmployeeManagePage: React.FC = () => {
         description: payload.description.trim(),
         jobFamily: family,
         buildMode: 'preset',
+        createMethod: 'workflow',
         enterTraining: false,
       });
       setIsCreating(false);
@@ -377,6 +379,7 @@ export const EmployeeManagePage: React.FC = () => {
       description: payload.description.trim(),
       jobFamily: family,
       buildMode: 'autonomous',
+      createMethod: payload.createMethod === 'manual' ? 'manual' : 'ai',
       enterTraining: family === 'customer_service',
     });
     setIsCreating(false);
@@ -901,6 +904,7 @@ export const EmployeeManagePage: React.FC = () => {
         showStatusDot={isTrainingPage}
         hasTrainNotice={hasTrainNotice}
         jobFamilyLabel={isTrainingPage ? undefined : JOB_FAMILY_FULL_LABELS[category]}
+        createMethod={resolveEmployeeCreateMethod(agent)}
         primaryActionLabel={primaryLabel}
         onPrimaryAction={onPrimary}
         onDispatchTask={showDutyToggle ? undefined : openDispatch}

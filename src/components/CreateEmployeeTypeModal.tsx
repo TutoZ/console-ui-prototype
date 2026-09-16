@@ -4,11 +4,15 @@
  *
  * 自建数字员工 — 两步弹窗（common/Modal + 设计系统按钮/选中态）
  * 1) 选择员工分类
- * 2) 选择创建方式：AI 帮写 / 手动创建 / 工作流编排
+ * 2) 选择创建方式：AI搭建 / 手动创建 / 工作流编排
  */
 
 import React, { useEffect, useState } from 'react';
-import { Check, Pencil, Wand2, Workflow } from '@/lib/icons';
+import {
+  CREATE_METHOD_META,
+  type EmployeeCreateMethod,
+} from '@/lib/employeeCreateMethod';
+import { Check } from '@/lib/icons';
 import { JOB_FAMILY_FULL_LABELS } from '@/lib/jobFamily';
 import { BTN_INK, BTN_OUTLINE, BTN_SOFT } from '@/lib/ui';
 import { cn } from '@/lib/utils';
@@ -16,7 +20,7 @@ import { Modal } from './common/Modal';
 import type { JobFamily } from '@/src/types';
 
 export type EmployeeBuildMode = 'autonomous' | 'preset';
-export type EmployeeCreateMethod = 'ai' | 'manual' | 'workflow';
+export type { EmployeeCreateMethod };
 
 export type CreateEmployeePayload = {
   mode: EmployeeBuildMode;
@@ -48,25 +52,25 @@ const METHOD_OPTIONS: {
   id: EmployeeCreateMethod;
   title: string;
   desc: string;
-  Icon: typeof Wand2;
+  Icon: (typeof CREATE_METHOD_META)[EmployeeCreateMethod]['Icon'];
 }[] = [
   {
     id: 'ai',
-    title: 'AI 帮写',
+    title: 'AI搭建',
     desc: '对话生成规则与功能草稿。',
-    Icon: Wand2,
+    Icon: CREATE_METHOD_META.ai.Icon,
   },
   {
     id: 'manual',
     title: '手动创建',
     desc: '直接进入培训配置页自行搭建。',
-    Icon: Pencil,
+    Icon: CREATE_METHOD_META.manual.Icon,
   },
   {
     id: 'workflow',
     title: '工作流编排',
     desc: '在画布上拖拽节点，编排接待与处理流程。',
-    Icon: Workflow,
+    Icon: CREATE_METHOD_META.workflow.Icon,
   },
 ];
 
@@ -210,25 +214,25 @@ export const CreateEmployeeTypeModal: React.FC<CreateEmployeeTypeModalProps> = (
                         <Check size={10} strokeWidth={3} />
                       </span>
                     ) : null}
-                    <div className="flex items-start gap-2.5 pr-5">
-                      <span
-                        className={cn(
-                          'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
-                          active
-                            ? 'bg-neutral-200 text-neutral-700'
-                            : 'bg-neutral-100 text-neutral-500',
-                        )}
-                      >
-                        <Icon size={16} strokeWidth={2} className="shrink-0" />
-                      </span>
-                      <div className="min-w-0">
-                        <span className="text-[13px] font-semibold text-neutral-900">
+                    <div className="pr-5">
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className={cn(
+                            'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
+                            active
+                              ? 'bg-neutral-200 text-neutral-700'
+                              : 'bg-neutral-100 text-neutral-500',
+                          )}
+                        >
+                          <Icon size={16} strokeWidth={2} className="shrink-0" />
+                        </span>
+                        <span className="min-w-0 text-[13px] font-semibold leading-8 text-neutral-900">
                           {opt.title}
                         </span>
-                        <p className="mt-1 text-[12px] text-neutral-500 leading-relaxed">
-                          {opt.desc}
-                        </p>
                       </div>
+                      <p className="mt-1 pl-[42px] text-[12px] text-neutral-500 leading-relaxed">
+                        {opt.desc}
+                      </p>
                     </div>
                   </button>
                 );

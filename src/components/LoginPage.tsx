@@ -7,7 +7,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { showAppToast } from '@/lib/appToast';
+import { Headphones } from '@/lib/icons';
+import { BTN_SOFT } from '@/lib/ui';
+import { cn } from '@/lib/utils';
 import { ToastLoadingIcon } from './common/ToastLoadingIcon';
+import { CertExpediteLeadModal } from './CertExpediteLeadModal';
 import { EnterpriseCertificationView } from './EnterpriseCertificationView';
 import { FirstLoginPasswordModal } from './FirstLoginPasswordModal';
 import { TenantSelectContent, type TenantSelectContentProps } from './TenantSelectContent';
@@ -78,6 +82,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const [entAgreed, setEntAgreed] = useState(false);
   const [entErrors, setEntErrors] = useState<Partial<Record<'contact' | 'phone' | 'agree', string>>>({});
   const [entSubmitting, setEntSubmitting] = useState(false);
+  const [certExpediteOpen, setCertExpediteOpen] = useState(false);
 
   const [privateAccount, setPrivateAccount] = useState('');
   const [privatePassword, setPrivatePassword] = useState('');
@@ -255,6 +260,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             丨
           </span>
           <h1 className={styles.certBrandTitle}>企业实名认证</h1>
+          <div className={styles.certBrandActions}>
+            <button
+              type="button"
+              className={cn(BTN_SOFT, 'gap-1.5 shrink-0')}
+              onClick={() => setCertExpediteOpen(true)}
+            >
+              <Headphones size={14} strokeWidth={2} aria-hidden />
+              联系京小灵加急
+            </button>
+          </div>
         </header>
         <main className={styles.certMain}>
           <EnterpriseCertificationView
@@ -265,6 +280,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             showToast={showAppToast}
           />
         </main>
+        <CertExpediteLeadModal
+          open={certExpediteOpen}
+          certStatusLabel="企业实名认证"
+          defaultName={entContact}
+          defaultPhone={entPhone}
+          defaultCompany=""
+          onClose={() => setCertExpediteOpen(false)}
+          onSubmitted={() => {
+            showAppToast('加急申请已提交，京小灵顾问将优先与您联系');
+          }}
+        />
       </div>
     );
   }

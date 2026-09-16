@@ -20,6 +20,7 @@ import {
 import { PAGE, MODAL_OVERLAY, MODAL_PANEL, badgeClass, FIELD, FIELD_CTRL, BTN_INK, BTN_OUTLINE, BTN_SOFT, SELECT_TRIGGER } from '@/lib/ui';
 import {
   ONLINE_PAGE,
+  OnlineFilterField,
   OnlinePageHeader,
   OnlineSectionHeader,
   OnlineEmptyRow,
@@ -146,29 +147,6 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
     <div className="grid grid-cols-[5.75rem_1fr] gap-x-3 py-2 text-[12px] items-start border-b border-neutral-200/55 last:border-b-0 last:pb-0">
       <dt className="text-neutral-500 pt-px shrink-0">{label}</dt>
       <dd className="text-neutral-800 min-w-0">{children}</dd>
-    </div>
-  );
-}
-
-/** 标签在上 — 对齐 joyteam 筛选条件卡片 */
-function FilterField({
-  label,
-  required,
-  children,
-  className,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn('min-w-0 flex flex-col gap-1', className)}>
-      <span className="text-[12px] text-neutral-800/80 font-medium leading-none flex items-center gap-0.5">
-        {required ? <span className="text-red-500">*</span> : null}
-        {label}
-      </span>
-      {children}
     </div>
   );
 }
@@ -463,7 +441,7 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
         <div className="flex flex-col gap-3">
           {/* 第一行：时间范围 | 会话ID | 是否转人工（桌面默认同行） */}
           <div className="grid grid-cols-[minmax(0,1.55fr)_minmax(168px,0.85fr)_minmax(132px,0.65fr)] max-md:grid-cols-1 gap-x-4 gap-y-3">
-            <FilterField label="时间范围" required>
+            <OnlineFilterField label="时间范围" required>
               <div className="flex items-center gap-1.5 min-w-0 flex-nowrap overflow-x-auto">
                 {(
                   [
@@ -510,9 +488,9 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
                   aria-label="结束时间"
                 />
               </div>
-            </FilterField>
+            </OnlineFilterField>
 
-            <FilterField label="会话ID">
+            <OnlineFilterField label="会话ID">
               <div className="relative">
                 <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none" />
                 <input
@@ -523,9 +501,9 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
                   className={cn(inputClass, 'pl-8')}
                 />
               </div>
-            </FilterField>
+            </OnlineFilterField>
 
-            <FilterField label="是否转人工">
+            <OnlineFilterField label="是否转人工">
               <Select value={transFilter} onValueChange={(v) => v && setTransFilter(v as TriFilter)}>
                 <SelectTrigger className={filterSelectClass}>
                   <SelectValue>
@@ -538,12 +516,12 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
                   <SelectItem value="false">否</SelectItem>
                 </SelectContent>
               </Select>
-            </FilterField>
+            </OnlineFilterField>
           </div>
 
           {/* 第二行：筛选项（桌面默认同行） */}
           <div className="grid grid-cols-[repeat(5,minmax(0,1fr))] max-md:grid-cols-1 gap-x-4 gap-y-3">
-            <FilterField label="转人工是否成功">
+            <OnlineFilterField label="转人工是否成功">
               <Select
                 value={transSuccessFilter}
                 onValueChange={(v) => v && setTransSuccessFilter(v as TriFilter)}
@@ -563,9 +541,9 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
                   <SelectItem value="false">否</SelectItem>
                 </SelectContent>
               </Select>
-            </FilterField>
+            </OnlineFilterField>
 
-            <FilterField label="满意度评分">
+            <OnlineFilterField label="满意度评分">
               <Select value={satFilter} onValueChange={(v) => v && setSatFilter(v as SatFilter)}>
                 <SelectTrigger className={filterSelectClass}>
                   <SelectValue>
@@ -588,9 +566,9 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
                   <SelectItem value="dissatisfied">不满意</SelectItem>
                 </SelectContent>
               </Select>
-            </FilterField>
+            </OnlineFilterField>
 
-            <FilterField label="数字员工">
+            <OnlineFilterField label="数字员工">
               <Select value={employeeId} onValueChange={(v) => v && setEmployeeId(v)}>
                 <SelectTrigger className={filterSelectClass}>
                   <SelectValue>
@@ -608,9 +586,9 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
                   ))}
                 </SelectContent>
               </Select>
-            </FilterField>
+            </OnlineFilterField>
 
-            <FilterField label="业务场景">
+            <OnlineFilterField label="业务场景">
               <Select value={scenarioFilter} onValueChange={(v) => v && setScenarioFilter(v)}>
                 <SelectTrigger className={filterSelectClass}>
                   <SelectValue>{scenarioFilter === 'all' ? '全部' : scenarioFilter}</SelectValue>
@@ -624,10 +602,10 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
                   ))}
                 </SelectContent>
               </Select>
-            </FilterField>
+            </OnlineFilterField>
 
             {!caseLibraryOnly ? (
-              <FilterField label="案例库">
+              <OnlineFilterField label="案例库">
                 <Select
                   value={caseLibraryFilter}
                   onValueChange={(v) => v && setCaseLibraryFilter(v as TriFilter)}
@@ -647,7 +625,7 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
                     <SelectItem value="false">未加入案例库</SelectItem>
                   </SelectContent>
                 </Select>
-              </FilterField>
+              </OnlineFilterField>
             ) : null}
           </div>
         </div>

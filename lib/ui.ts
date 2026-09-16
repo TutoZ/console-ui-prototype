@@ -67,7 +67,7 @@ export const SEARCH_FIELD = `${FIELD_CTRL} ${SEARCH_WIDTH} bg-white border borde
 
 /** 筛选下拉 Trigger（市场 / 我的员工等页头筛选，对齐 shadcn Select） */
 export const SELECT_TRIGGER =
-  'h-8 w-auto min-w-[7.5rem] bg-white border-neutral-200/50 rounded-[7px] text-xs text-neutral-800 shadow-none';
+  'h-8 data-[size=default]:h-8 w-auto min-w-[7.5rem] bg-white border-neutral-200/50 rounded-[7px] text-xs text-neutral-800 shadow-none';
 
 /** 表格行内操作按钮 */
 export const BTN_TABLE = `${BTN_BASE} h-6 px-2.5 text-[11px] bg-white text-neutral-800 border border-neutral-200 hover:bg-neutral-50 shadow-[0_1px_0_rgba(0,0,0,0.05)]`;

@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * 数字员工创作 — 一句话创建入口（数字员工创建 / 技能创建）
+ * AI搭建 — 一句话创建入口（数字员工创建 / 技能创建）
  * 布局对齐 Figma“B端_AI组件规范”创作平台稿（node 24238:29648）。
  */
 
@@ -1030,7 +1030,7 @@ export const PlatformHomePage: React.FC = () => {
               initialMode="interactive"
               initialPrompt={skillSeed}
               initialSelectedKBs={skillSeedKbNames}
-              closeLabel="返回数字员工创作"
+              closeLabel="返回AI搭建"
             />,
             document.body,
           )

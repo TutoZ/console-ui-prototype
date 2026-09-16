@@ -4,6 +4,10 @@
  */
 
 import React, { useState } from 'react';
+import {
+  CREATE_METHOD_META,
+  type EmployeeCreateMethod,
+} from '@/lib/employeeCreateMethod';
 import { isAvatarImageUrl } from '@/lib/agentAvatarDisplay';
 import styles from './EmployeeCardRelay.module.scss';
 
@@ -30,6 +34,8 @@ export interface EmployeeCardRelayProps {
   hasTrainNotice?: boolean;
   /** 岗位族标签（卡片右上角） */
   jobFamilyLabel?: string;
+  /** 创建方式标签（标题下方，对齐市场卡）：AI搭建 / 手动 / 流程编排 */
+  createMethod?: EmployeeCreateMethod;
   moreMenu?: React.ReactNode;
   moreOpen?: boolean;
   /** 头像角标在线状态，首页快捷入口不展示 */
@@ -51,6 +57,7 @@ export const EmployeeCardRelay: React.FC<EmployeeCardRelayProps> = ({
   onMoreClick,
   hasTrainNotice = false,
   jobFamilyLabel,
+  createMethod,
   moreMenu,
   moreOpen,
   showStatusDot = true,
@@ -60,6 +67,13 @@ export const EmployeeCardRelay: React.FC<EmployeeCardRelayProps> = ({
   const showPrimary = Boolean(primaryActionLabel && onPrimaryAction);
   const [hoverOpen, setHoverOpen] = useState(false);
   const menuVisible = Boolean(moreMenu) && (moreOpen || hoverOpen);
+  const methodMeta = createMethod ? CREATE_METHOD_META[createMethod] : null;
+  const methodTagClass =
+    createMethod === 'workflow'
+      ? styles.tagMethodWorkflow
+      : createMethod === 'manual'
+        ? styles.tagMethodManual
+        : styles.tagMethodAi;
 
   return (
     <div className={styles.card}>
@@ -85,6 +99,14 @@ export const EmployeeCardRelay: React.FC<EmployeeCardRelayProps> = ({
         </div>
 
         <div className={styles.name}>{name}</div>
+
+        {methodMeta ? (
+          <div className={styles.tagWrap}>
+            <span className={methodTagClass} title={methodMeta.label}>
+              {methodMeta.tagLabel}
+            </span>
+          </div>
+        ) : null}
 
         <div className={styles.descWrap}>
           <div className={styles.desc}>{desc}</div>

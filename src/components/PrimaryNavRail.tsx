@@ -44,7 +44,15 @@ import {
   subscribeInviteStore,
   updateInviteApplicationStatus,
 } from '@/lib/subUserInviteStore';
-import { Bell, ClipboardCheck, HelpCircle, LogOut, ShieldCheck, User } from '@/lib/icons';
+import {
+  Bell,
+  ClipboardCheck,
+  ExternalLink,
+  HelpCircle,
+  LogOut,
+  ShieldCheck,
+  User,
+} from '@/lib/icons';
 import { PictureWebp } from './common/PictureWebp';
 import { PersonalCenterModal } from './PersonalCenterModal';
 import { NotificationCenterFlyout, NOTIFICATION_FLYOUT_SELECTOR } from './nav/NotificationCenterFlyout';
@@ -190,6 +198,7 @@ export const PrimaryNavRail: React.FC<{
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showPersonalCenter, setShowPersonalCenter] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [notifications, setNotifications] = useState<NavNotification[]>(() =>
     buildInviteNavNotifications(),
   );
@@ -206,14 +215,20 @@ export const PrimaryNavRail: React.FC<{
   const profileRef = useRef<HTMLButtonElement>(null);
   const notificationRef = useRef<HTMLButtonElement>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
+  const workspaceRef = useRef<HTMLButtonElement>(null);
   const notificationCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const profileCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moreCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const workspaceCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [profileMenuStyle, setProfileMenuStyle] = useState<{
     left: number;
     bottom: number;
   } | null>(null);
   const [moreMenuStyle, setMoreMenuStyle] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
+  const [workspaceMenuStyle, setWorkspaceMenuStyle] = useState<{
     left: number;
     top: number;
   } | null>(null);
@@ -272,10 +287,27 @@ export const PrimaryNavRail: React.FC<{
     });
   }, []);
 
+  const updateWorkspaceMenuPosition = useCallback(() => {
+    const anchor = workspaceRef.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    setWorkspaceMenuStyle({
+      left: rect.right + 8,
+      top: rect.top + rect.height / 2,
+    });
+  }, []);
+
   const clearMoreCloseTimer = useCallback(() => {
     if (moreCloseTimerRef.current) {
       clearTimeout(moreCloseTimerRef.current);
       moreCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const clearWorkspaceCloseTimer = useCallback(() => {
+    if (workspaceCloseTimerRef.current) {
+      clearTimeout(workspaceCloseTimerRef.current);
+      workspaceCloseTimerRef.current = null;
     }
   }, []);
 
@@ -437,7 +469,26 @@ export const PrimaryNavRail: React.FC<{
     }, 140);
   }, [clearMoreCloseTimer]);
 
+  const openWorkspaceMenu = useCallback(() => {
+    clearWorkspaceCloseTimer();
+    setShowWorkspaceMenu(true);
+  }, [clearWorkspaceCloseTimer]);
+
+  const scheduleCloseWorkspaceMenu = useCallback(() => {
+    clearWorkspaceCloseTimer();
+    workspaceCloseTimerRef.current = setTimeout(() => {
+      setShowWorkspaceMenu(false);
+      workspaceCloseTimerRef.current = null;
+    }, 140);
+  }, [clearWorkspaceCloseTimer]);
+
+  const openOnlineWorkspace = useCallback(() => {
+    setShowWorkspaceMenu(false);
+    setActiveTab('workspace');
+  }, [setActiveTab]);
+
   useEffect(() => () => clearMoreCloseTimer(), [clearMoreCloseTimer]);
+  useEffect(() => () => clearWorkspaceCloseTimer(), [clearWorkspaceCloseTimer]);
   useEffect(() => () => clearNotificationCloseTimer(), [clearNotificationCloseTimer]);
   useEffect(() => () => clearProfileCloseTimer(), [clearProfileCloseTimer]);
 
@@ -468,6 +519,20 @@ export const PrimaryNavRail: React.FC<{
       window.removeEventListener('scroll', updateMoreMenuPosition, true);
     };
   }, [showMoreMenu, updateMoreMenuPosition]);
+
+  useLayoutEffect(() => {
+    if (!showWorkspaceMenu) {
+      setWorkspaceMenuStyle(null);
+      return;
+    }
+    updateWorkspaceMenuPosition();
+    window.addEventListener('resize', updateWorkspaceMenuPosition);
+    window.addEventListener('scroll', updateWorkspaceMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateWorkspaceMenuPosition);
+      window.removeEventListener('scroll', updateWorkspaceMenuPosition, true);
+    };
+  }, [showWorkspaceMenu, updateWorkspaceMenuPosition]);
 
   useLayoutEffect(() => {
     if (!showProfileMenu) {
@@ -580,10 +645,17 @@ export const PrimaryNavRail: React.FC<{
       {/* 底部工具区：人工工作台 + 资源中心 + 通用配置 + 账号 */}
       <div className="w-full px-2 pt-1.5 mt-0.5 border-t border-neutral-200/80 flex flex-col items-center gap-1 shrink-0">
         <button
+          ref={workspaceRef}
           type="button"
           id="primary_nav_workspace"
           title={NAV_TERMS.workspace}
-          onClick={() => setActiveTab('workspace')}
+          aria-expanded={showWorkspaceMenu}
+          aria-haspopup="menu"
+          onClick={openOnlineWorkspace}
+          onMouseEnter={openWorkspaceMenu}
+          onMouseLeave={scheduleCloseWorkspaceMenu}
+          onFocus={openWorkspaceMenu}
+          onBlur={scheduleCloseWorkspaceMenu}
           className={cn(railNavClass(isWorkspaceActive, true), 'relative')}
         >
           <span className="relative inline-flex">
@@ -604,7 +676,9 @@ export const PrimaryNavRail: React.FC<{
           <span
             className={cn(
               'text-[11px] leading-tight tracking-tight whitespace-nowrap',
-              isWorkspaceActive ? cn('font-semibold', activeRailLabelClass) : 'font-medium',
+              isWorkspaceActive
+                ? cn('font-semibold', activeRailLabelClass)
+                : 'font-medium',
             )}
           >
             工作台
@@ -665,6 +739,33 @@ export const PrimaryNavRail: React.FC<{
           ) : null}
         </button>
       </div>
+
+      {showWorkspaceMenu &&
+        workspaceMenuStyle &&
+        createPortal(
+          <div
+            className="fixed z-[301] -translate-y-1/2 bg-white text-neutral-800 rounded-[13px] shadow-[0_8px_24px_rgba(17,17,17,0.08)] border border-neutral-200 p-1.5 animate-in fade-in slide-in-from-left-2 duration-150 text-[12px] space-y-0.5 min-w-[176px]"
+            style={{
+              left: workspaceMenuStyle.left,
+              top: workspaceMenuStyle.top,
+            }}
+            role="menu"
+            aria-label="客服工作台"
+            onMouseEnter={openWorkspaceMenu}
+            onMouseLeave={scheduleCloseWorkspaceMenu}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={openOnlineWorkspace}
+              className="w-full flex items-center justify-between gap-3 px-2.5 py-2 rounded-lg text-left font-medium text-neutral-600 hover:bg-neutral-100/70 hover:text-neutral-900 transition cursor-pointer"
+            >
+              <span>在线客服工作台</span>
+              <ExternalLink size={13} className="shrink-0 text-neutral-400" aria-hidden />
+            </button>
+          </div>,
+          document.body,
+        )}
 
       {showMoreMenu &&
         moreMenuStyle &&

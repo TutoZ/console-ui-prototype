@@ -1811,14 +1811,14 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section
           id="tpl-list"
           source="KnowledgeBasePage · OnlinePageHeader + TABLE + ListPagination"
-          desc="对齐产品「员工知识」列表：页头（搜索 + 新建）→ 扁平表（知识库 / 文档数 / 字符数 / 更新时间 / 操作）→ 底部分页。不要再套 CARD，也不要在表前加区块头。"
+          desc="对齐产品「员工知识」列表：页头（搜索 + 新建）→ ContentBusy 扁平表（知识库 / 文档数 / 字符数 / 操作）→ 底部分页。不要再套 CARD，也不要在表前加区块头。"
           dos={[
             '标题 OnlinePageHeader（如「员工知识」）',
-            'CardIcon soft + 名称 semibold',
-            '行内操作用文字链 + 图标钮（上传 / 重命名 / 删除）',
+            'CardIcon neutral + sm + 首字；名称 semibold，hover 变 sky',
+            '行内操作：重命名 / 删除图标钮（无「上传」文字链）',
             '超过 10 条再出 ListPagination（底栏 border-t）',
           ]}
-          donts={['表不要包进 CARD', '不要用「管理」描边钮代替行内操作', '不要再套 OnlineSectionHeader 在表上方']}
+          donts={['表不要包进 CARD', '不要用 soft 色块做行首', '不要再套 OnlineSectionHeader 在表上方', '不要加「更新时间」列']}
         >
           <PageMock>
             <div className="px-5 pt-5">
@@ -1852,19 +1852,18 @@ export const ComponentLibraryPage: React.FC = () => {
                       <th className={onlineTableClass.thFirst}>知识库</th>
                       <th className={onlineTableClass.th}>文档数</th>
                       <th className={onlineTableClass.th}>字符数</th>
-                      <th className={onlineTableClass.th}>更新时间</th>
                       <th className={onlineTableClass.thLast}>操作</th>
                     </tr>
                   </thead>
                   <tbody className={onlineTableClass.body}>
                     {TPL_LIST_ROWS.map((row) => (
-                      <tr key={row.id} className={onlineTableClass.row}>
+                      <tr key={row.id} className={cn(onlineTableClass.row, 'cursor-pointer')}>
                         <td className={onlineTableClass.tdFirst}>
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <CardIcon seed={row.id} size="sm" variant="soft">
+                            <CardIcon seed={row.id} size="sm" variant="neutral">
                               {row.firstChar}
                             </CardIcon>
-                            <span className="font-semibold text-neutral-900 truncate">
+                            <span className="font-semibold text-neutral-900 truncate hover:text-sky-700 transition-colors">
                               {row.name}
                             </span>
                           </div>
@@ -1873,18 +1872,8 @@ export const ComponentLibraryPage: React.FC = () => {
                         <td className={cn(onlineTableClass.td, 'font-mono tabular-nums')}>
                           {row.words.toLocaleString()}
                         </td>
-                        <td className={cn(onlineTableClass.td, 'text-neutral-500')}>
-                          {row.updatedAt}
-                        </td>
                         <td className={onlineTableClass.tdLast}>
                           <div className="inline-flex items-center gap-1">
-                            <button
-                              type="button"
-                              className="text-[11px] font-semibold text-live hover:underline cursor-pointer"
-                              onClick={() => showToast(`演示：上传到「${row.name}」`, 'info')}
-                            >
-                              上传
-                            </button>
                             <button
                               type="button"
                               className="p-1 text-neutral-400 hover:text-neutral-800 rounded-lg hover:bg-neutral-100 transition cursor-pointer"
@@ -3344,7 +3333,7 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section
           id="pattern-online"
           source="OnlinePageLayout · KnowledgeBasePage"
-          desc="在线域列表壳：OnlinePageHeader（标题 + 搜索 + 新建）+ 扁平 TABLE；区块头仅用于表下详情区（如上传面板），不要压在表上方。"
+          desc="在线域列表壳：OnlinePageHeader（标题 + 搜索 + 新建）+ 扁平 TABLE；列：知识库 / 文档数 / 字符数 / 操作。区块头仅用于表下详情区，不要压在表上方。"
         >
           <OnlinePageHeader title="员工知识">
             <div className="relative w-full sm:w-64 shrink-0">
@@ -3369,34 +3358,28 @@ export const ComponentLibraryPage: React.FC = () => {
                   <th className={onlineTableClass.thFirst}>知识库</th>
                   <th className={onlineTableClass.th}>文档数</th>
                   <th className={onlineTableClass.th}>字符数</th>
-                  <th className={onlineTableClass.th}>更新时间</th>
                   <th className={onlineTableClass.thLast}>操作</th>
                 </tr>
               </thead>
               <tbody className={onlineTableClass.body}>
                 {TPL_LIST_ROWS.slice(0, 2).map((row) => (
-                  <tr key={row.id} className={onlineTableClass.row}>
+                  <tr key={row.id} className={cn(onlineTableClass.row, 'cursor-pointer')}>
                     <td className={onlineTableClass.tdFirst}>
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <CardIcon seed={row.id} size="sm" variant="soft">
+                        <CardIcon seed={row.id} size="sm" variant="neutral">
                           {row.firstChar}
                         </CardIcon>
-                        <span className="font-semibold text-neutral-900 truncate">{row.name}</span>
+                        <span className="font-semibold text-neutral-900 truncate hover:text-sky-700 transition-colors">
+                          {row.name}
+                        </span>
                       </div>
                     </td>
                     <td className={onlineTableClass.td}>{row.docs} 个</td>
                     <td className={cn(onlineTableClass.td, 'font-mono tabular-nums')}>
                       {row.words.toLocaleString()}
                     </td>
-                    <td className={cn(onlineTableClass.td, 'text-neutral-500')}>{row.updatedAt}</td>
                     <td className={onlineTableClass.tdLast}>
                       <div className="inline-flex items-center gap-1">
-                        <button
-                          type="button"
-                          className="text-[11px] font-semibold text-live hover:underline cursor-pointer"
-                        >
-                          上传
-                        </button>
                         <button
                           type="button"
                           className="p-1 text-neutral-400 hover:text-neutral-800 rounded-lg hover:bg-neutral-100 transition cursor-pointer"
@@ -3448,15 +3431,15 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section
           id="pattern-card-icon"
           source="common/CardIcon · KnowledgeBasePage"
-          desc="列表行首彩色圆角方块；颜色由 seed 稳定派生。产品默认：size=sm + variant=soft + 首字，与「员工知识」行首同构。"
+          desc="列表行首彩色圆角方块；颜色由 seed 稳定派生（ai / neutral 除外）。产品默认：size=sm + variant=neutral + 首字，与「员工知识」行首同构。"
           dos={[
-            '知识列表用 soft + sm + 首字',
-            '同一对象固定传同一 seed',
+            '知识列表用 neutral + sm + 首字',
+            '同一对象固定传同一 seed（neutral 时仅作 key 习惯）',
             '仅底色+字色，无描边',
           ]}
           donts={[
             '不要手写渐变方块替代 CardIcon',
-            '不要给 soft 加 border / ring',
+            '不要给列表行首用 soft / ring',
             '技能卡图标走 SkillListIcon 中性灰底，不混用 CardIcon',
           ]}
         >
@@ -3472,10 +3455,10 @@ export const ComponentLibraryPage: React.FC = () => {
                   key={row.id}
                   className="flex items-center gap-2.5 px-3 py-2 rounded-[10px] border border-neutral-200/80 bg-white"
                 >
-                  <CardIcon seed={row.id} size="sm" variant="soft">
+                  <CardIcon seed={row.id} size="sm" variant="neutral">
                     {row.char}
                   </CardIcon>
-                  <span className="font-semibold text-neutral-900 text-[13px] truncate">
+                  <span className="font-semibold text-neutral-900 text-[13px] truncate hover:text-sky-700 transition-colors">
                     {row.name}
                   </span>
                 </div>
@@ -3488,7 +3471,7 @@ export const ComponentLibraryPage: React.FC = () => {
                 <div className="flex flex-wrap gap-3 items-end">
                   {(['sm', 'md', 'lg', 'xl'] as const).map((size) => (
                     <div key={size} className="flex flex-col items-center gap-1.5">
-                      <CardIcon seed={`size-${size}`} size={size} variant="soft">
+                      <CardIcon seed={`size-${size}`} size={size} variant="neutral">
                         知
                       </CardIcon>
                       <code className="text-[10px] font-mono text-neutral-400">{size}</code>
@@ -3499,6 +3482,12 @@ export const ComponentLibraryPage: React.FC = () => {
               <div>
                 <p className="text-[11px] font-semibold text-neutral-500 mb-2.5">变体</p>
                 <div className="flex flex-wrap gap-4 items-end">
+                  <div className="flex flex-col items-center gap-1.5">
+                    <CardIcon seed="var-neutral" size="md" variant="neutral">
+                      知
+                    </CardIcon>
+                    <code className="text-[10px] font-mono text-neutral-400">neutral</code>
+                  </div>
                   <div className="flex flex-col items-center gap-1.5">
                     <CardIcon seed="var-soft" size="md" variant="soft">
                       知
@@ -3538,6 +3527,8 @@ export const ComponentLibraryPage: React.FC = () => {
                 avatar="客"
                 avatarFallback="客"
                 isOnline
+                createMethod="ai"
+                jobFamilyLabel="在线客服"
                 primaryActionLabel="培训"
                 onPrimaryAction={() => showToast('打开培训', 'info')}
                 onDispatchTask={() => showToast('派发任务', 'success')}
@@ -3549,12 +3540,27 @@ export const ComponentLibraryPage: React.FC = () => {
                 avatar="催"
                 avatarFallback="催"
                 isOnline={false}
+                createMethod="manual"
+                jobFamilyLabel="电话催收"
                 primaryActionLabel="培训"
-                onPrimaryAction={() => undefined}
+                onPrimaryAction={() => showToast('打开培训', 'info')}
                 showGoOnlineButton
-                onGoOnline={() => showToast('已上岗', 'success')}
+                onGoOnline={() => showToast('上岗', 'success')}
                 onMoreClick={() => undefined}
-                hasTrainNotice
+              />
+              <EmployeeCardRelay
+                name="流程编排客服"
+                desc="按画布节点处理咨询分流与澄清追问。"
+                avatar="流"
+                avatarFallback="流"
+                isOnline
+                createMethod="workflow"
+                jobFamilyLabel="在线客服"
+                primaryActionLabel="培训"
+                onPrimaryAction={() => showToast('打开培训', 'info')}
+                onDispatchTask={() => showToast('派出渠道', 'success')}
+                dispatchActionLabel="派出渠道"
+                onMoreClick={() => undefined}
               />
             </div>
           </SpecStage>
@@ -4166,9 +4172,9 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section
           id="recipe-list"
           source="KnowledgeBasePage 配方"
-          desc="对齐产品列表：OnlinePageHeader（标题 + 搜索 + 新建）→ 扁平表 → 底部分页。区块头留给表下详情区，不要压在表上方。"
-          dos={['页头右对齐工具', '行首 CardIcon soft', '行内：文字链 + 图标操作']}
-          donts={['不要再放大 PageHeader', '不要用「管理」描边钮', '表上方不要 OnlineSectionHeader']}
+          desc="对齐产品列表：OnlinePageHeader（标题 + 搜索 + 新建）→ 扁平表（知识库 / 文档数 / 操作）→ 底部分页。区块头留给表下详情区，不要压在表上方。"
+          dos={['页头右对齐工具', '行首 CardIcon neutral', '行内：重命名 / 删除图标']}
+          donts={['不要再放大 PageHeader', '不要用 soft 行首', '表上方不要 OnlineSectionHeader', '不要加上传文字链 / 更新时间列']}
         >
           <SpecPanel>
             <OnlinePageHeader title="员工知识">
@@ -4193,13 +4199,15 @@ export const ComponentLibraryPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className={onlineTableClass.body}>
-                <tr className={onlineTableClass.row}>
+                <tr className={cn(onlineTableClass.row, 'cursor-pointer')}>
                   <td className={onlineTableClass.tdFirst}>
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <CardIcon seed="demo" size="sm" variant="soft">
+                      <CardIcon seed="demo" size="sm" variant="neutral">
                         示
                       </CardIcon>
-                      <span className="font-semibold text-neutral-900 truncate">示例知识库</span>
+                      <span className="font-semibold text-neutral-900 truncate hover:text-sky-700 transition-colors">
+                        示例知识库
+                      </span>
                     </div>
                   </td>
                   <td className={onlineTableClass.td}>3 个</td>
@@ -4207,16 +4215,17 @@ export const ComponentLibraryPage: React.FC = () => {
                     <div className="inline-flex items-center gap-1">
                       <button
                         type="button"
-                        className="text-[11px] font-semibold text-live hover:underline cursor-pointer"
-                      >
-                        上传
-                      </button>
-                      <button
-                        type="button"
                         className="p-1 text-neutral-400 hover:text-neutral-800 rounded-lg hover:bg-neutral-100 transition cursor-pointer"
                         title="重命名"
                       >
                         <Pencil size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        className="p-1 text-neutral-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition cursor-pointer"
+                        title="删除"
+                      >
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </td>

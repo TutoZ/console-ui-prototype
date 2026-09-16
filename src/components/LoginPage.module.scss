@@ -104,6 +104,14 @@
   line-height: 24px;
 }
 
+.certBrandActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .certMain {
   flex: 1;
   min-height: 0;

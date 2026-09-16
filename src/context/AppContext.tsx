@@ -121,23 +121,40 @@ function normalizeAgentDefaults(agents: HiredAgent[]): HiredAgent[] {
   return agents.map((a, index) => {
     const openingLine = a.openingLine?.trim() || defaultOpeningLineForAgent(a.name);
     const fallbackScript = a.fallbackScript?.trim() || defaultFallbackScriptForAgent();
+    const createMethod =
+      a.createMethod ??
+      (a.buildMode === 'preset' ? 'workflow' : undefined);
     // 旧版 emoji 头像 → 官方形象预设（localStorage 残留）
     if (a.avatar && !isAvatarImageUrl(a.avatar)) {
       return {
         ...a,
         openingLine,
         fallbackScript,
+        ...(createMethod ? { createMethod } : {}),
         avatar: AGENT_AVATAR_PRESETS[index % AGENT_AVATAR_PRESETS.length],
         avatarCustomized: true,
       };
     }
-    return { ...a, openingLine, fallbackScript };
+    return {
+      ...a,
+      openingLine,
+      fallbackScript,
+      ...(createMethod ? { createMethod } : {}),
+    };
   });
 }
 
-/** 本地已存在旧雇佣数据时，补齐后续新增的演示员工（自建 / 预设流程） */
+/** 本地已存在旧雇佣数据时，补齐后续新增的演示员工（自建 / 预设流程）并回填创建方式 */
 function mergeSeedHiredAgents(parsed: HiredAgent[]): HiredAgent[] {
-  const existingIds = new Set(parsed.map((a) => a.id));
+  const seedById = new Map(INITIAL_HIRED_AGENTS.map((s) => [s.id, s]));
+  const withCreateMethod = parsed.map((a) => {
+    if (a.createMethod) return a;
+    const seed = seedById.get(a.id);
+    if (seed?.createMethod) return { ...a, createMethod: seed.createMethod, buildMode: a.buildMode ?? seed.buildMode };
+    if (a.buildMode === 'preset') return { ...a, createMethod: 'workflow' as const };
+    return a;
+  });
+  const existingIds = new Set(withCreateMethod.map((a) => a.id));
   const missingSeed = INITIAL_HIRED_AGENTS.filter(
     (seed) =>
       !existingIds.has(seed.id) &&
@@ -146,7 +163,7 @@ function mergeSeedHiredAgents(parsed: HiredAgent[]): HiredAgent[] {
         seed.buildMode === 'preset' ||
         seed.id === 'h_workflow_preset'),
   );
-  return missingSeed.length > 0 ? [...parsed, ...missingSeed] : parsed;
+  return missingSeed.length > 0 ? [...withCreateMethod, ...missingSeed] : withCreateMethod;
 }
 
 function loadHiredAgents(): HiredAgent[] {
@@ -257,6 +274,7 @@ interface AppContextType {
     description: string;
     jobFamily?: JobFamily;
     buildMode?: 'autonomous' | 'preset';
+    createMethod?: HiredAgent['createMethod'];
     /** 默认 true：进入培训；false 仅创建 */
     enterTraining?: boolean;
   }) => HiredAgent;
@@ -538,6 +556,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: supportsDutyToggle({ jobFamily }) ? 'draft' : 'online',
       hiredAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
       jobFamily,
+      createMethod: 'ai',
+      buildMode: 'autonomous',
       openingLine: isQc
         ? `您好，我是质检专员“${agentName}”。请提供样例会话，我将按已配置标准给出质检结果。`
         : defaultOpeningLineForAgent(agentName),
@@ -591,11 +611,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     description: string;
     jobFamily?: JobFamily;
     buildMode?: 'autonomous' | 'preset';
+    createMethod?: HiredAgent['createMethod'];
     enterTraining?: boolean;
   }): HiredAgent => {
     const jobFamily = opts.jobFamily ?? 'customer_service';
     const name = opts.name.trim().slice(0, 8) || '新员工';
     const buildMode = opts.buildMode ?? 'autonomous';
+    const createMethod =
+      opts.createMethod ?? (buildMode === 'preset' ? 'workflow' : 'ai');
     const enterTraining = opts.enterTraining !== false && jobFamily === 'customer_service';
 
     const newAgent: HiredAgent = {
@@ -609,6 +632,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : AGENT_AVATAR_PRESETS[12],
       avatarCustomized: true,
       buildMode,
+      createMethod,
       description: opts.description.trim(),
       skills: [],
       knowledgeBases: [],

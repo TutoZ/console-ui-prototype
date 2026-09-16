@@ -70,7 +70,7 @@ export const CertExpediteLeadModal: React.FC<CertExpediteLeadModalProps> = ({
     <ApplicationLeadModal
       open={open}
       onClose={onClose}
-      title="联系京小灵 · 留资加急"
+      title="联系京小灵加急"
       description="留下联系方式后，京小灵顾问将优先协助您推进企业实名认证。"
       submitLabel="提交加急申请"
       successTitle="加急申请已提交"

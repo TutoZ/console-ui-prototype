@@ -65,6 +65,29 @@ export function OnlinePageToolbar({
   );
 }
 
+/** 筛选条件：标签在上（对齐接待记录） */
+export function OnlineFilterField({
+  label,
+  required,
+  children,
+  className,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('min-w-0 flex flex-col gap-1', className)}>
+      <span className="text-[12px] text-neutral-800/80 font-medium leading-none flex items-center gap-0.5">
+        {required ? <span className="text-red-500">*</span> : null}
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
 /** 区块标题（筛选区、列表区等） */
 export function OnlineSectionHeader({
   title,
