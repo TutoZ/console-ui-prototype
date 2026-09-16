@@ -265,6 +265,78 @@
       "prototype_status": "not_run",
       "integration_status": "not_run",
       "evidence": []
+    },
+    {
+      "id": "AU-SK01",
+      "parent_case": "SKILL-CONFIRM",
+      "rule": "DOM-SK-01",
+      "precondition": "确认前",
+      "trigger": "查看编辑内容",
+      "assertion": "内容保持原文",
+      "evidence_kind": "recording",
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": []
+    },
+    {
+      "id": "AU-SK02",
+      "parent_case": "SKILL-CONFIRM",
+      "rule": "DOM-SK-01",
+      "precondition": "有待确认方案",
+      "trigger": "确认当前方案",
+      "assertion": "目标内容更新为当前方案",
+      "evidence_kind": "recording",
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": []
+    },
+    {
+      "id": "AU-SK03",
+      "parent_case": "SKILL-CONFIRM",
+      "rule": "DOM-SK-01",
+      "precondition": "方案 A 待确认",
+      "trigger": "生成方案 B 后操作 A",
+      "assertion": "A 只读且不可再次写入",
+      "evidence_kind": "recording",
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": []
+    },
+    {
+      "id": "AU-SK04",
+      "parent_case": "SKILL-CONFIRM",
+      "rule": "DOM-SK-01",
+      "precondition": "确认完成",
+      "trigger": "展开历史卡",
+      "assertion": "原确认内容仍可阅读",
+      "evidence_kind": "recording",
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": []
+    },
+    {
+      "id": "AU-SK05",
+      "parent_case": "SKILL-CONFIRM",
+      "rule": "DOM-SK-01",
+      "precondition": "常用和窄宽视口",
+      "trigger": "检查确认区与编辑区",
+      "assertion": "层级清楚且无横向内容遮挡",
+      "evidence_kind": "screenshot",
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": []
+    },
+    {
+      "id": "AU-SK06",
+      "parent_case": "SKILL-CONFIRM",
+      "rule": "DOM-SK-01",
+      "precondition": "当前方案可操作",
+      "trigger": "使用键盘遍历并确认",
+      "assertion": "焦点可见且可完成操作",
+      "evidence_kind": "recording",
+      "prototype_status": "not_run",
+      "integration_status": "not_run",
+      "evidence": []
     }
   ]
 }

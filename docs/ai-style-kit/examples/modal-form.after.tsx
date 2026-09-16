@@ -2,7 +2,6 @@ import {
   BTN_INK,
   BTN_SOFT,
   FIELD,
-  FIELD_CTRL,
   LABEL,
   Modal,
   cn,
@@ -36,7 +35,7 @@ export function CreateKbModalAfter({
       <div className="space-y-4">
         <div>
           <label className={LABEL}>知识库名称</label>
-          <input className={cn(FIELD, FIELD_CTRL)} placeholder="请输入" />
+          <input className={FIELD} placeholder="请输入" />
         </div>
         <div>
           <label className={LABEL}>说明</label>

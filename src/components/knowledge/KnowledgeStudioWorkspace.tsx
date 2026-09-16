@@ -26,10 +26,8 @@ import { CompanionAssistPanel } from '../common/CompanionAssistPanel';
 import { NavBackButton } from '../common/NavBackButton';
 import { KnowledgeBaseWorkspace } from './KnowledgeBaseWorkspace';
 import {
-  BTN_OUTLINE,
   CHIP,
   SKILL_AOP_GRADIENT_TEXT,
-  SKILL_AOP_PRIMARY_BTN,
   SKILL_AOP_SEND_BTN,
 } from '@/lib/ui';
 import { cn } from '@/lib/utils';
@@ -223,7 +221,7 @@ export const KnowledgeStudioWorkspace: React.FC<KnowledgeStudioWorkspaceProps> =
       label: '文档入库',
       icon: <Upload size={16} strokeWidth={1.75} />,
       onClick: () => {
-        showToast('请点击对话输入框旁「+」上传 1 个文件');
+        showToast('请点击对话输入框旁「+」上传文件');
       },
     },
     {
@@ -277,27 +275,7 @@ export const KnowledgeStudioWorkspace: React.FC<KnowledgeStudioWorkspaceProps> =
               variant="soft"
             />
           </div>
-          <div className="flex-1 min-w-0 flex items-center justify-end px-2 gap-2">
-            {!rightCollapsed && activeKb ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => showToast('请在右侧文档列表中点击「上传文档」')}
-                  className={cn(BTN_OUTLINE, 'h-8 gap-1.5')}
-                >
-                  <Upload size={13} />
-                  上传文档
-                </button>
-                <button
-                  type="button"
-                  onClick={() => showToast('已发布当前知识库配置')}
-                  className={cn(SKILL_AOP_PRIMARY_BTN, 'h-8 px-3 rounded-lg text-[13px]')}
-                >
-                  发布
-                </button>
-              </>
-            ) : null}
-          </div>
+          <div className="flex-1 min-w-0 flex items-center justify-end px-2 gap-2" />
           <div className="flex items-center px-3 shrink-0">
             <button
               type="button"

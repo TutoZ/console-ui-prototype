@@ -88,3 +88,9 @@ python3 -B -m unittest discover -s docs/digital-employee-playbook/tools -p 'test
 `npm run design-io:bindings` 检查保存样例的真实导入路径及槽位内 JSX 引用，并区分 element、container、component_internal 的 Token 放置。组件内部校验仅为源码符号检查，不证明运行时分支或最终样式；计算样式和画面另行观察。
 
 `npm run design-io:verify` 顺序执行绑定、定向类型、11 条代码测试与独立构建。它当前只覆盖 `runs/save-candidate/bindings.json` 与 `src/design-io`，不得将命令成功当成其他功能或 G1/G2 通过。新需求需要自身绑定、测试入口和运行证据。自然语言理解由助手完成，静态路由器只核对结构化结果。
+
+## 逐任务验收入口（0.3）
+
+`design-io:start` 从助手理解后的意图建立本任务清单；`design-io:review` 读取本任务 plan/results。上下文按模板 context_keys 检查，避免把 employeeId 强加给 Skill。缺少 required_units、未执行、失败、错误证据类型或不存在的证据文件均返回不完整。
+
+工具仅验证证据清单，不验证描述真实性；ready_for_human_review 不是视觉通过或上线授权。新试跑以 scripts/test-skill-confirm-browser.mjs 检查实际浏览器行为，截图由观察者检查；运行环境使用 PLAYWRIGHT_MODULE 与可选 CHROME_EXECUTABLE，不把机器绝对路径固化进项目。

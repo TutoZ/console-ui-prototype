@@ -18,22 +18,27 @@ interface ModalProps {
   onClose: () => void;
   /** @deprecated 优先使用纯文字标题；仅遗留场景保留 */
   icon?: React.ReactNode;
+  /** 覆盖默认图标容器样式（如警告确认：圆形琥珀底） */
+  iconClassName?: string;
   title: string;
   /** 标题下方说明 */
   description?: string;
   /** 右上角关闭按钮，默认开启 */
   showClose?: boolean;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   footer?: React.ReactNode;
   maxWidth?: string;
   overlayClassName?: string;
   className?: string;
+  /** footer 顶部分隔线，确认类弹窗可用 */
+  footerDivider?: boolean;
 }
 
 export const Modal: React.FC<ModalProps> = ({
   open,
   onClose,
   icon,
+  iconClassName,
   title,
   description,
   showClose = true,
@@ -42,6 +47,7 @@ export const Modal: React.FC<ModalProps> = ({
   maxWidth = 'max-w-sm',
   overlayClassName,
   className,
+  footerDivider = false,
 }) => {
   if (!open) return null;
 
@@ -56,7 +62,12 @@ export const Modal: React.FC<ModalProps> = ({
       >
         {icon ? (
           <div className="flex items-start gap-3 mb-3">
-            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[7px] bg-neutral-100 text-neutral-700">
+            <span
+              className={cn(
+                'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[7px] bg-neutral-100 text-neutral-700',
+                iconClassName,
+              )}
+            >
               {icon}
             </span>
             <div className="min-w-0 flex-1">
@@ -101,9 +112,20 @@ export const Modal: React.FC<ModalProps> = ({
           </div>
         )}
 
-        <div className="text-xs text-neutral-800 leading-relaxed">{children}</div>
+        {children != null && children !== false ? (
+          <div className="text-xs text-neutral-800 leading-relaxed">{children}</div>
+        ) : null}
 
-        {footer ? <div className="flex gap-2 justify-end mt-6 pt-3">{footer}</div> : null}
+        {footer ? (
+          <div
+            className={cn(
+              'flex gap-2 justify-end',
+              footerDivider ? 'mt-5 pt-4 border-t border-neutral-100' : 'mt-6 pt-3',
+            )}
+          >
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body,

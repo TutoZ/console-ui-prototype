@@ -132,7 +132,7 @@ export const SKILL_AOP_SELECTED_ROW = 'border-[rgba(21,101,191,0.25)] bg-[rgba(2
 export const SKILL_AOP_SEND_BTN =
   'w-9 h-9 rounded-[7px] bg-[linear-gradient(135deg,#000000_0%,#1565BF_100%)] text-white hover:opacity-90 flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0 shadow-[0_1px_0_rgba(0,0,0,0.05)]';
 export const SKILL_AOP_PRIMARY_BTN =
-  'rounded-lg bg-[linear-gradient(135deg,#000000_0%,#1565BF_100%)] text-white font-medium hover:opacity-90 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed';
+  'inline-flex items-center justify-center gap-1 rounded-lg bg-[linear-gradient(135deg,#000000_0%,#1565BF_100%)] text-white font-medium hover:opacity-90 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed';
 /** 对话卡内主 CTA 小号（确认执行等） */
 export const SKILL_AOP_PRIMARY_BTN_SM = `${SKILL_AOP_PRIMARY_BTN} h-6 px-2.5 rounded-md text-[11px]`;
 

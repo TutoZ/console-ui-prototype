@@ -23,7 +23,6 @@ import {
   Sparkles,
   Upload,
   ArrowUp,
-  Info,
   X,
 } from '@/lib/icons';
 import {
@@ -60,7 +59,21 @@ const USER_CHAT_BUBBLE = cn(
   'border',
 );
 const AI_CHAT_BUBBLE =
-  'max-w-[min(100%,420px)] px-3.5 py-2.5 rounded-2xl text-[14px] leading-[22px] whitespace-pre-line bg-white border border-neutral-200 text-[#595959] shadow-[0_1px_2px_rgba(17,17,17,0.03)]';
+  'max-w-[88%] px-3.5 py-2.5 rounded-2xl text-[14px] leading-[22px] whitespace-pre-line bg-neutral-100 text-[#595959]';
+
+function renderAiBubbleContent(content: string) {
+  const parts = content.split(/([「『“][^」』”]*[」』”])/);
+  if (parts.length <= 1) return content;
+  return parts.map((part, i) =>
+    /^[「『“].*[」』”]$/.test(part) ? (
+      <span key={i} className="font-semibold text-[#1c1d1f]">
+        {part}
+      </span>
+    ) : (
+      part
+    ),
+  );
+}
 
 const STORAGE_KEY = 'js_companion_assist_open';
 const ATTACH_ACCEPT = '.pdf,.txt,.md,.doc,.docx,.csv,.json,.xlsx,.xls,.png,.jpg,.jpeg,.webp';
@@ -94,6 +107,7 @@ export type CompanionAssistPanelProps = {
 };
 
 type PendingAttach = {
+  id: string;
   name: string;
   sizeLabel: string;
   file?: File;
@@ -136,6 +150,8 @@ type CompanionChatMsg =
       result: KnowledgeProcessResult;
       confirmed?: boolean;
       discarded?: boolean;
+      /** 用户选择「重新处理」，结果卡进入调整中态 */
+      reprocessing?: boolean;
     };
 
 const DEFAULT_TOOLS: CompanionTool[] = [
@@ -195,7 +211,7 @@ function buildKnowledgeReply(userText: string, knowledgeName?: string): string {
     return `建议在右侧切到「检索配置 / 召回调试」：\n· 用 3–5 条真实业务问法试跑\n· 关注 Top3 命中是否覆盖关键条款\n· 若跑偏，优先检查分块过碎或标题缺失\n\n可以说一条想试的问法，我帮你拆检索要点。`;
   }
   if (/上传|入库|文档|PDF|手册|xlsx|excel/.test(t)) {
-    return `可以直接点输入框旁「+」上传 1 个文件（格式与大小限制与普通上传一致）。\n我会先清洗无效格式与重复内容，再生成普通文本分片与 QA 问答对；处理完成后你可预览，确认后才写入「${kb}」。`;
+    return `可以直接点输入框旁「+」上传文件（格式与大小限制与普通上传一致，数量不限）。\n我会先清洗无效格式与重复内容，再生成普通文本分片与 QA 问答对；处理完成后你可预览，确认后才写入「${kb}」。`;
   }
   if (/缺口|缺失|覆盖/.test(t)) {
     return `知识缺口可从三侧排查：\n1. 文档清单是否缺「拒赔 / 理赔材料 / 时效」等高频主题\n2. 检索试跑是否命中空或答非所问\n3. 绑定员工场景与库内容是否匹配\n\n说下业务场景，我帮你列一份待补主题清单。`;
@@ -264,7 +280,7 @@ export function CompanionAssistPanel({
   const [questionSeed, setQuestionSeed] = useState(0);
   const [messages, setMessages] = useState<CompanionChatMsg[]>([]);
   const [thinking, setThinking] = useState(false);
-  const [pendingAttach, setPendingAttach] = useState<PendingAttach | null>(null);
+  const [pendingAttach, setPendingAttach] = useState<PendingAttach[]>([]);
   const [attachPreview, setAttachPreview] = useState<AttachPreviewState | null>(null);
   const [preview, setPreview] = useState<{
     result: KnowledgeProcessResult;
@@ -273,7 +289,7 @@ export function CompanionAssistPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const thinkTimerRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const pendingPreviewUrlRef = useRef<string | null>(null);
+  const pendingPreviewUrlsRef = useRef<string[]>([]);
 
   const questions = useMemo(() => {
     if (questionsProp?.length) return questionsProp;
@@ -285,12 +301,26 @@ export function CompanionAssistPanel({
   const isDock = layout === 'dock';
   const busy = thinking;
 
+  const hasPending = pendingAttach.length > 0;
+
   const clearPendingAttach = () => {
-    if (pendingPreviewUrlRef.current) {
-      URL.revokeObjectURL(pendingPreviewUrlRef.current);
-      pendingPreviewUrlRef.current = null;
-    }
-    setPendingAttach(null);
+    pendingPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    pendingPreviewUrlsRef.current = [];
+    setPendingAttach([]);
+  };
+
+  const removePendingAttach = (id: string) => {
+    setPendingAttach((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      const removed = prev.find((item) => item.id === id);
+      if (removed?.previewUrl) {
+        URL.revokeObjectURL(removed.previewUrl);
+        pendingPreviewUrlsRef.current = pendingPreviewUrlsRef.current.filter(
+          (url) => url !== removed.previewUrl,
+        );
+      }
+      return next;
+    });
   };
 
   const openAttachPreview = async (attach: {
@@ -332,15 +362,10 @@ export function CompanionAssistPanel({
         text: kb
           ? `你好，我可以帮你整理文档、清洗内容、提取问答并生成适合知识库使用的知识分片。处理完成后，我会先把结果发给你查看，只有在你确认后才会写入「${kb}」。`
           : `你好，我是知识搭子。选中知识库后，可一起完善解析、入库与检索试跑。`,
-        tip: '① 单次任务支持上传 1 个文件，文件格式和大小限制与普通上传一致。',
       },
     ]);
     setDraft('');
-    if (pendingPreviewUrlRef.current) {
-      URL.revokeObjectURL(pendingPreviewUrlRef.current);
-      pendingPreviewUrlRef.current = null;
-    }
-    setPendingAttach(null);
+    clearPendingAttach();
     setThinking(false);
     setPreview(null);
     setAttachPreview(null);
@@ -356,10 +381,8 @@ export function CompanionAssistPanel({
   useEffect(
     () => () => {
       if (thinkTimerRef.current) window.clearTimeout(thinkTimerRef.current);
-      if (pendingPreviewUrlRef.current) {
-        URL.revokeObjectURL(pendingPreviewUrlRef.current);
-        pendingPreviewUrlRef.current = null;
-      }
+      pendingPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      pendingPreviewUrlsRef.current = [];
     },
     [],
   );
@@ -438,8 +461,8 @@ export function CompanionAssistPanel({
   };
 
   const handleSend = () => {
-    const text = draft.trim() || (pendingAttach ? DEFAULT_KB_PROCESS_PROMPT : '');
-    if ((!text && !pendingAttach) || busy) return;
+    const text = draft.trim() || (hasPending ? DEFAULT_KB_PROCESS_PROMPT : '');
+    if ((!text && !hasPending) || busy) return;
 
     if (!isDock) {
       onSend?.(text);
@@ -454,28 +477,26 @@ export function CompanionAssistPanel({
         id: `u_${Date.now()}`,
         kind: 'user',
         text,
-        attachments: attach
-          ? [
-              {
-                name: attach.name,
-                sizeLabel: attach.sizeLabel,
-                statusLabel: '上传成功',
-                previewUrl: attach.previewUrl,
-                mime: attach.file?.type || guessMimeFromName(attach.name),
-              },
-            ]
+        attachments: attach.length
+          ? attach.map((item) => ({
+              name: item.name,
+              sizeLabel: item.sizeLabel,
+              statusLabel: '上传成功',
+              previewUrl: item.previewUrl,
+              mime: item.file?.type || guessMimeFromName(item.name),
+            }))
           : undefined,
       },
     ]);
     setDraft('');
-    // 预览 URL 交给气泡附件持有，此处仅清空待发态
-    pendingPreviewUrlRef.current = null;
-    setPendingAttach(null);
+    pendingPreviewUrlsRef.current = [];
+    setPendingAttach([]);
 
-    if (shouldRunDocumentProcess(text, Boolean(attach))) {
+    if (shouldRunDocumentProcess(text, attach.length > 0)) {
       const fileMeta =
-        attach ??
+        attach[0] ??
         ({
+          id: 'fallback',
           name: '食安随问答知识库0827(1).xlsx',
           sizeLabel: '37.90 KB',
         } satisfies PendingAttach);
@@ -492,19 +513,26 @@ export function CompanionAssistPanel({
   };
 
   const onPickFile = async (fileList: FileList | null) => {
-    const file = fileList?.[0];
-    if (!file) return;
-    clearPendingAttach();
-    const previewUrl = URL.createObjectURL(file);
-    pendingPreviewUrlRef.current = previewUrl;
-    setPendingAttach({
-      name: file.name,
-      sizeLabel: formatFileSizeLabel(file.size),
-      file,
-      previewUrl,
+    const incoming = Array.from(fileList ?? []);
+    if (incoming.length === 0) return;
+    const added: PendingAttach[] = incoming.map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      pendingPreviewUrlsRef.current.push(previewUrl);
+      return {
+        id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name: file.name,
+        sizeLabel: formatFileSizeLabel(file.size),
+        file,
+        previewUrl,
+      };
     });
+    setPendingAttach((prev) => [...prev, ...added]);
     if (!draft.trim()) setDraft(DEFAULT_KB_PROCESS_PROMPT);
-    toast(`已选择「${file.name}」，可点芯片预览，发送后开始处理`);
+    toast(
+      added.length === 1
+        ? `已选择「${added[0].name}」，可点芯片预览，发送后开始处理`
+        : `已选择 ${added.length} 个文件，可点芯片预览，发送后开始处理`,
+    );
   };
 
   const openPreview = (result: KnowledgeProcessResult, tab: KnowledgeChunkKind) => {
@@ -564,6 +592,7 @@ export function CompanionAssistPanel({
       type="file"
       className="hidden"
       accept={ATTACH_ACCEPT}
+      multiple
       onChange={(e) => {
         void onPickFile(e.target.files);
         e.currentTarget.value = '';
@@ -591,34 +620,37 @@ export function CompanionAssistPanel({
 
       <div className="pt-1">
         <div className="skill-ai-composer skill-ai-composer--dock p-3">
-          {pendingAttach ? (
+          {hasPending ? (
             <div className="flex items-center gap-2 pb-2 mb-1 overflow-x-auto no-scrollbar">
-              <span
-                className={COMPOSER_FILE_CHIP}
-                title={`${pendingAttach.name} · ${pendingAttach.sizeLabel} · 点击预览`}
-              >
-                <button
-                  type="button"
-                  onClick={() => void openAttachPreview(pendingAttach)}
-                  className="inline-flex items-center gap-1.5 min-w-0 cursor-pointer text-left"
-                  aria-label={`预览 ${pendingAttach.name}`}
+              {pendingAttach.map((item) => (
+                <span
+                  key={item.id}
+                  className={COMPOSER_FILE_CHIP}
+                  title={`${item.name} · ${item.sizeLabel} · 点击预览`}
                 >
-                  <FileText size={12} className="text-neutral-500 shrink-0" />
-                  <span className="truncate min-w-0">{pendingAttach.name}</span>
-                  <span className="text-[10px] tabular-nums text-neutral-400 shrink-0">
-                    {pendingAttach.sizeLabel}
-                  </span>
-                  <Eye size={12} className="text-neutral-400 shrink-0" />
-                </button>
-                <button
-                  type="button"
-                  onClick={clearPendingAttach}
-                  className="ml-0.5 text-neutral-400 hover:text-neutral-800 cursor-pointer shrink-0"
-                  aria-label={`移除 ${pendingAttach.name}`}
-                >
-                  <X size={12} />
-                </button>
-              </span>
+                  <button
+                    type="button"
+                    onClick={() => void openAttachPreview(item)}
+                    className="inline-flex items-center gap-1.5 min-w-0 cursor-pointer text-left"
+                    aria-label={`预览 ${item.name}`}
+                  >
+                    <FileText size={12} className="text-neutral-500 shrink-0" />
+                    <span className="truncate min-w-0">{item.name}</span>
+                    <span className="text-[10px] tabular-nums text-neutral-400 shrink-0">
+                      {item.sizeLabel}
+                    </span>
+                    <Eye size={12} className="text-neutral-400 shrink-0" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removePendingAttach(item.id)}
+                    className="ml-0.5 text-neutral-400 hover:text-neutral-800 cursor-pointer shrink-0"
+                    aria-label={`移除 ${item.name}`}
+                  >
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
             </div>
           ) : null}
           <textarea
@@ -643,9 +675,9 @@ export function CompanionAssistPanel({
                 onClick={() => fileInputRef.current?.click()}
                 className={cn(
                   'w-8 h-8 rounded border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 flex items-center justify-center cursor-pointer shrink-0',
-                  pendingAttach && 'border-neutral-300',
+                  pendingAttach.length > 0 && 'border-neutral-300',
                 )}
-                title="上传文件（单次 1 个）"
+                title="上传文件"
                 aria-label="上传文件"
               >
                 <Plus size={16} />
@@ -657,7 +689,7 @@ export function CompanionAssistPanel({
             <button
               type="button"
               onClick={handleSend}
-              disabled={(!draft.trim() && !pendingAttach) || busy}
+              disabled={(!draft.trim() && !hasPending) || busy}
               title="发送"
               aria-label="发送"
               className={cn(SKILL_AOP_SEND_BTN, 'w-8 h-8')}
@@ -727,7 +759,7 @@ export function CompanionAssistPanel({
     if (msg.kind === 'user') {
       return (
         <div key={msg.id} className="flex justify-end">
-          <div className="flex flex-col items-end gap-1.5 max-w-[min(100%,420px)]">
+          <div className="flex flex-col items-end gap-1.5 max-w-[88%]">
             {msg.attachments?.length ? (
               <ChatAttachmentCards
                 align="end"
@@ -746,15 +778,7 @@ export function CompanionAssistPanel({
     if (msg.kind === 'ai') {
       return (
         <div key={msg.id} className="flex justify-start">
-          <div className="flex flex-col items-start gap-1.5 max-w-[min(100%,420px)]">
-            <div className={AI_CHAT_BUBBLE}>{msg.text}</div>
-            {msg.tip ? (
-              <p className="flex items-start gap-1 px-1 text-[11px] leading-4 text-neutral-400">
-                <Info size={12} className="shrink-0 mt-0.5" />
-                <span>{msg.tip}</span>
-              </p>
-            ) : null}
-          </div>
+          <div className={AI_CHAT_BUBBLE}>{renderAiBubbleContent(msg.text)}</div>
         </div>
       );
     }
@@ -762,22 +786,30 @@ export function CompanionAssistPanel({
       return (
         <SkillThinkingCard
           key={msg.id}
-          title={msg.generating ? '正在处理文档…' : '已完成文档处理思考'}
           steps={msg.steps}
           durationSec={msg.durationSec}
           isComplete={!msg.generating}
           generating={msg.generating}
-          className="!ml-0 mr-0 max-w-[min(100%,420px)]"
+          className="!ml-0 mr-0 w-full"
         />
       );
     }
     if (msg.kind === 'process_result') {
+      const latestProcessId = [...messages]
+        .reverse()
+        .find((m) => m.kind === 'process_result')?.id;
+      const locked = msg.id !== latestProcessId;
       return (
-        <div key={msg.id} className="flex justify-start w-full">
+        <div
+          key={msg.id}
+          className={cn('w-full animate-in fade-in duration-200', locked && 'opacity-90')}
+        >
           <KnowledgeProcessResultCard
             result={msg.result}
             confirmed={msg.confirmed}
             discarded={msg.discarded}
+            reprocessing={msg.reprocessing}
+            locked={locked}
             onPreviewFile={(file: KnowledgeProcessFile) =>
               openPreview(msg.result, file.kind)
             }
@@ -788,17 +820,26 @@ export function CompanionAssistPanel({
               toast(`已将 ${msg.result.total} 条候选知识写入当前知识库`);
             }}
             onReprocess={() => {
-              updateProcessMsg(msg.id, { discarded: true });
+              updateProcessMsg(msg.id, { reprocessing: true, discarded: false });
+              const fileName = msg.result.sourceFileName;
               const attach: PendingAttach = {
-                name: msg.result.sourceFileName,
+                id: `att_re_${Date.now()}`,
+                name: fileName,
                 sizeLabel: msg.result.sourceSizeLabel,
               };
-              setDraft(DEFAULT_KB_PROCESS_PROMPT);
-              setPendingAttach(attach);
-              toast('已载入原文件，可调整说明后重新发送处理');
+              setPendingAttach([attach]);
+              setDraft('');
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: `ai_re_${Date.now()}`,
+                  kind: 'ai',
+                  text: `好的，请在下方输入框告诉我新的处理要求，我会基于原文件 “${fileName}” 重新整理知识。`,
+                },
+              ]);
             }}
             onDiscard={() => {
-              updateProcessMsg(msg.id, { discarded: true });
+              updateProcessMsg(msg.id, { discarded: true, reprocessing: false });
               toast('已放弃本次生成结果');
             }}
           />
@@ -840,7 +881,6 @@ export function CompanionAssistPanel({
             initialTab={preview.tab}
             onClose={() => setPreview(null)}
             onDownload={() => toast('已开始下载候选文件')}
-            onViewRaw={() => toast('已打开原始 JSONL（原型）')}
           />
         ) : null}
         <AttachFilePreviewModal

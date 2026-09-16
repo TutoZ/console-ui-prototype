@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * 知识搭子 · 文档处理结果确认卡
- * 结构对齐 SkillRoundConfirmCard：灰底壳 + 可折叠头栏 + 白底要点 + 底部操作。
+ * 灰底壳 + 说明文案 + 文本分片 / QA 文件行 + 底部小号操作；宽度随对话列铺满。
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -19,18 +19,23 @@ import {
 } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 import {
+  BTN_DANGER,
   BTN_DANGER_SM,
   BTN_OUTLINE_SM,
+  BTN_SOFT,
   BTN_SOFT_SM,
   SKILL_AOP_PRIMARY_BTN_SM,
   confirmStatusBadgeClass,
 } from '@/lib/ui';
 import type { KnowledgeProcessFile, KnowledgeProcessResult } from '@/lib/knowledgeAssistMock';
+import { Modal } from '../common/Modal';
 
 export type KnowledgeProcessResultCardProps = {
   result: KnowledgeProcessResult;
   confirmed?: boolean;
   discarded?: boolean;
+  reprocessing?: boolean;
+  locked?: boolean;
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
   onPreviewFile?: (file: KnowledgeProcessFile) => void;
@@ -44,6 +49,8 @@ export const KnowledgeProcessResultCard: React.FC<KnowledgeProcessResultCardProp
   result,
   confirmed = false,
   discarded = false,
+  reprocessing = false,
+  locked = false,
   collapsed: collapsedProp,
   onCollapsedChange,
   onPreviewFile,
@@ -52,19 +59,21 @@ export const KnowledgeProcessResultCard: React.FC<KnowledgeProcessResultCardProp
   onReprocess,
   onDiscard,
 }) => {
-  const locked = confirmed || discarded;
+  const superseded = locked && !confirmed && !discarded;
+  const readOnly = confirmed || discarded || superseded;
   const headerButtonRef = useRef<HTMLButtonElement>(null);
   const [collapsed, setCollapsed] = useState(() =>
-    collapsedProp != null ? collapsedProp : locked,
+    collapsedProp != null ? collapsedProp : readOnly,
   );
+  const [discardOpen, setDiscardOpen] = useState(false);
 
   useEffect(() => {
     if (collapsedProp != null) setCollapsed(collapsedProp);
   }, [collapsedProp]);
 
   useEffect(() => {
-    if (locked) setCollapsed(true);
-  }, [locked]);
+    if (readOnly) setCollapsed(true);
+  }, [readOnly]);
 
   const setCollapsedAndSync = (next: boolean) => {
     setCollapsed(next);
@@ -77,12 +86,28 @@ export const KnowledgeProcessResultCard: React.FC<KnowledgeProcessResultCardProp
     <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-neutral-100 text-neutral-500 font-medium">
       已放弃
     </span>
+  ) : superseded ? (
+    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-neutral-100 text-neutral-500 font-medium">
+      已失效
+    </span>
+  ) : reprocessing ? (
+    <span className={confirmStatusBadgeClass('pending')}>调整中</span>
   ) : (
     <span className={confirmStatusBadgeClass('pending')}>待确认</span>
   );
 
+  const collapsedHint = confirmed
+    ? `已入库 ${result.total} 条`
+    : discarded
+      ? '未写入知识库'
+      : superseded
+        ? `${result.total} 条候选`
+        : reprocessing
+          ? '等待重新处理'
+          : `${result.total} 条候选`;
+
   return (
-    <div className="w-full max-w-[min(100%,420px)] rounded-lg border border-neutral-200 bg-neutral-50 overflow-hidden animate-in fade-in duration-200">
+    <div className="w-full rounded-lg border border-neutral-200 bg-neutral-50 overflow-hidden">
       <div className="flex items-center gap-1 px-3 py-2">
         <button
           type="button"
@@ -96,13 +121,7 @@ export const KnowledgeProcessResultCard: React.FC<KnowledgeProcessResultCardProp
             <span className="text-[13px] font-semibold text-neutral-600 leading-5">确认信息</span>
             {statusBadge}
             {collapsed ? (
-              <span className="truncate text-[11px] text-neutral-400">
-                {confirmed
-                  ? `已入库 ${result.total} 条`
-                  : discarded
-                    ? '未写入知识库'
-                    : `${result.total} 条候选`}
-              </span>
+              <span className="truncate text-[11px] text-neutral-400">{collapsedHint}</span>
             ) : null}
           </div>
           {collapsed ? (
@@ -115,7 +134,7 @@ export const KnowledgeProcessResultCard: React.FC<KnowledgeProcessResultCardProp
 
       {!collapsed ? (
         <div className="px-3 pb-2.5 space-y-2">
-          <div className="rounded bg-white p-3 space-y-2.5">
+          <div className={cn('rounded bg-white p-3 space-y-2.5', superseded && 'opacity-80')}>
             <div className="space-y-2 text-[13px] leading-5 text-neutral-700">
               <p>
                 我按照工作表结构、业务主题和语义边界对内容进行了整理，并保留了原始文件、Sheet
@@ -165,6 +184,12 @@ export const KnowledgeProcessResultCard: React.FC<KnowledgeProcessResultCardProp
             </div>
           ) : discarded ? (
             <p className="px-0.5 text-[12px] text-neutral-500">已放弃本次结果，未写入知识库。</p>
+          ) : superseded ? (
+            <p className="px-0.5 text-[12px] text-neutral-500">已有新的处理结果，本轮不可再操作。</p>
+          ) : reprocessing ? (
+            <p className="px-0.5 text-[12px] text-neutral-500">
+              请在下方输入新的处理要求后发送。
+            </p>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -183,13 +208,39 @@ export const KnowledgeProcessResultCard: React.FC<KnowledgeProcessResultCardProp
                   重新处理
                 </span>
               </button>
-              <button type="button" onClick={onDiscard} className={BTN_DANGER_SM}>
+              <button type="button" onClick={() => setDiscardOpen(true)} className={BTN_DANGER_SM}>
                 放弃
               </button>
             </div>
           )}
         </div>
       ) : null}
+
+      <Modal
+        open={discardOpen}
+        onClose={() => setDiscardOpen(false)}
+        title="放弃本次处理结果？"
+        description="结果将直接废弃，不会写入当前知识库。需要时可重新上传或再处理。"
+        overlayClassName="z-[280]"
+        footer={
+          <>
+            <button type="button" onClick={() => setDiscardOpen(false)} className={BTN_SOFT}>
+              取消
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDiscardOpen(false);
+                headerButtonRef.current?.focus({ preventScroll: true });
+                onDiscard?.();
+              }}
+              className={BTN_DANGER}
+            >
+              确认放弃
+            </button>
+          </>
+        }
+      />
     </div>
   );
 };
@@ -218,7 +269,7 @@ function ProcessFileRow({
       <div className="min-w-0 flex-1">
         <p className="text-[12px] font-medium text-neutral-800 truncate leading-4">{file.name}</p>
         <p className="text-[11px] text-neutral-400 tabular-nums leading-4 mt-0.5">
-          {isQa ? 'QA' : '文本'} · {file.count} 条 · {file.sizeLabel}
+          {isQa ? 'QA 问答' : '文本分片'} · {file.count} 条 · {file.sizeLabel}
         </p>
       </div>
       <div className="flex items-center gap-1 shrink-0">

@@ -96,8 +96,9 @@ def plan_errors(plan, catalog):
     if plan.get('evidence_mode') not in ['prototype', 'integration']:
         fail('invalid_evidence_mode', plan.get('evidence_mode'))
     context = plan.get('entity_context', {})
-    if not all(isinstance(context.get(k), str) and context[k].strip() for k in ['teamId', 'employeeId']):
-        fail('missing_entity_context', 'teamId/employeeId required')
+    context_keys = template.get('context_keys', ['teamId', 'employeeId'])
+    if not all(isinstance(context.get(k), str) and context[k].strip() for k in context_keys):
+        fail('missing_entity_context', '/'.join(context_keys) + ' required')
     supplied_rules = plan.get('domain_rules', [])
     if set(supplied_rules) != set(template['domain_rules']):
         fail('domain_rule_scope', supplied_rules)
