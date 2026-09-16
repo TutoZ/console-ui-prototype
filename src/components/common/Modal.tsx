@@ -4,6 +4,7 @@
  *
  * 统一弹窗：遮罩 + 面板 + 标题区 + 底部操作区。
  * 分区用间距，不用横线分割。
+ * 含 Tab / 可切换内容时请用 MODAL_SHELL_FIXED（固定 h），禁止因切 Tab 改变弹窗尺寸。
  */
 
 import React from 'react';

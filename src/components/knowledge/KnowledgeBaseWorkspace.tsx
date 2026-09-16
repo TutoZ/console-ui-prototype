@@ -184,9 +184,9 @@ export interface KnowledgeBaseWorkspaceProps {
   onBack: () => void;
   onUpdateKb: (id: string, updates: Partial<KnowledgeBase>) => void;
   showToast: (message: string) => void;
-  /** 弹层模式：顶部统一返回/关闭栏，侧栏不重复返回入口 */
-  variant?: 'page' | 'modal';
-  /** 页内 AI 搭子是否已展开（展开时隐藏打开按钮） */
+  /** 弹层模式：顶部统一返回/关闭栏，侧栏不重复返回入口；fullscreen：技能式全屏壳内嵌 */
+  variant?: 'page' | 'modal' | 'fullscreen';
+  /** 页内知识搭子是否已展开（展开时隐藏打开按钮） */
   companionOpen?: boolean;
   onOpenCompanion?: () => void;
 }
@@ -487,6 +487,103 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
     return <span className={badgeClass('success')}>已完成</span>;
   };
 
+  const isFullscreen = variant === 'fullscreen';
+  const isEmbeddedChrome = variant === 'modal' || isFullscreen;
+  const showCompanionOpen =
+    (variant === 'page' || isFullscreen) && !companionOpen && Boolean(onOpenCompanion);
+  const activeTabMeta = TAB_ITEMS.find((t) => t.id === tab);
+
+  const contentHeader = (
+    <header
+      className={cn(
+        'shrink-0 border-b border-neutral-200 flex items-center justify-between gap-3 bg-white',
+        isEmbeddedChrome ? 'px-4 py-2.5' : 'px-5 py-3.5',
+      )}
+    >
+      <div className="min-w-0">
+        <h2 className="text-sm font-semibold text-neutral-900">
+          {tab === 'docs' ? '文档列表' : activeTabMeta?.label}
+        </h2>
+        <p className={cn(LIST_META, 'mt-0.5 truncate')}>
+          {tab === 'docs' ? (
+            <>
+              共 {docStats.total} 个文档 · {docStats.done} 已完成
+              {docStats.parsing > 0 ? ` · ${docStats.parsing} 解析中` : ''}
+            </>
+          ) : (
+            activeTabMeta?.hint
+          )}
+        </p>
+      </div>
+      {tab === 'basic' && (
+        <div className="flex items-center gap-2 shrink-0">
+          <button type="button" onClick={handleSaveBasic} className={BTN_INK}>
+            保存
+          </button>
+          {showCompanionOpen && !isFullscreen ? (
+            <CompanionAssistOpenButton onClick={onOpenCompanion!} />
+          ) : null}
+        </div>
+      )}
+      {tab === 'parse' && (
+        <div className="flex items-center gap-2 shrink-0">
+          <button type="button" onClick={handleSaveParse} className={BTN_INK}>
+            保存
+          </button>
+          {showCompanionOpen && !isFullscreen ? (
+            <CompanionAssistOpenButton onClick={onOpenCompanion!} />
+          ) : null}
+        </div>
+      )}
+      {tab === 'docs' && (
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.txt,.doc,.docx,.xlsx,.md"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleUpload(file);
+              e.target.value = '';
+            }}
+          />
+          <div className="flex items-center gap-2 shrink-0 min-w-0">
+            <div className="relative hidden sm:block">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+              <input
+                value={docSearch}
+                onChange={(e) => setDocSearch(e.target.value)}
+                placeholder="搜索文档…"
+                className={cn(SEARCH_FIELD, 'pl-9 pr-8 w-[160px]')}
+              />
+              {docSearch && (
+                <button
+                  type="button"
+                  onClick={() => setDocSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 hover:text-neutral-800 cursor-pointer"
+                  aria-label="清除搜索"
+                >
+                  清除
+                </button>
+              )}
+            </div>
+            <button type="button" onClick={() => fileInputRef.current?.click()} className={BTN_INK}>
+              <Upload size={13} />
+              上传文档
+            </button>
+            {showCompanionOpen && !isFullscreen ? (
+              <CompanionAssistOpenButton onClick={onOpenCompanion!} />
+            ) : null}
+          </div>
+        </>
+      )}
+      {tab === 'recall' && showCompanionOpen && !isFullscreen ? (
+        <CompanionAssistOpenButton onClick={onOpenCompanion!} />
+      ) : null}
+    </header>
+  );
+
   return (
     <div className="h-full min-h-0 w-full flex flex-col bg-white">
       {variant === 'modal' && (
@@ -504,8 +601,45 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
         </div>
       )}
 
+      {isFullscreen && (
+        <div className="shrink-0 border-b border-neutral-200 px-3 pt-2.5 pb-0">
+          <div className="flex items-center gap-2 min-w-0 mb-2 px-1">
+            <CardIcon seed={kb.id} size="sm" variant="neutral">
+              {kb.firstChar}
+            </CardIcon>
+            <p className="text-[13px] font-semibold text-neutral-900 truncate" title={kb.name}>
+              {kb.name}
+            </p>
+          </div>
+          <nav className="flex items-center gap-0.5 overflow-x-auto no-scrollbar -mb-px">
+            {TAB_ITEMS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setTab(item.id)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 h-9 px-3 text-[13px] whitespace-nowrap border-b-2 transition cursor-pointer',
+                  tab === item.id
+                    ? 'border-neutral-900 text-neutral-900 font-medium'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-800',
+                )}
+              >
+                <item.icon size={14} className="shrink-0 text-[#717680]" />
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 flex">
-      <aside className={cn('shrink-0 border-r border-neutral-200 bg-white flex flex-col', variant === 'modal' ? 'w-[196px]' : 'w-[212px]')}>
+      {!isFullscreen && (
+      <aside
+        className={cn(
+          'shrink-0 border-r border-neutral-200 bg-white flex flex-col',
+          variant === 'modal' ? 'w-[196px]' : 'w-[212px]',
+        )}
+      >
         {variant === 'page' && (
           <div className="mx-3 mt-3 mb-2">
             <NavBackButton onClick={onBack} label="返回列表" variant="text" />
@@ -554,99 +688,15 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
           </p>
         </div>
       </aside>
+      )}
 
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
-        <header className={cn(
-          'shrink-0 border-b border-neutral-200 flex items-center justify-between gap-4 bg-white',
-          variant === 'modal' ? 'px-4 py-2.5' : 'px-5 py-3.5',
-        )}>
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-neutral-900">
-              {tab === 'docs' ? '文档列表' : TAB_ITEMS.find((t) => t.id === tab)?.label}
-            </h2>
-            <p className={cn(LIST_META, 'mt-0.5')}>
-              {tab === 'docs' ? (
-                <>
-                  共 {docStats.total} 个文档 · {docStats.done} 已完成
-                  {docStats.parsing > 0 ? ` · ${docStats.parsing} 解析中` : ''}
-                </>
-              ) : (
-                TAB_ITEMS.find((t) => t.id === tab)?.hint
-              )}
-            </p>
-          </div>
-          {tab === 'basic' && (
-            <div className="flex items-center gap-2 shrink-0">
-              <button type="button" onClick={handleSaveBasic} className={BTN_INK}>
-                保存
-              </button>
-              {variant === 'page' && !companionOpen && onOpenCompanion ? (
-                <CompanionAssistOpenButton onClick={onOpenCompanion} />
-              ) : null}
-            </div>
-          )}
-          {tab === 'parse' && (
-            <div className="flex items-center gap-2 shrink-0">
-              <button type="button" onClick={handleSaveParse} className={BTN_INK}>
-                保存
-              </button>
-              {variant === 'page' && !companionOpen && onOpenCompanion ? (
-                <CompanionAssistOpenButton onClick={onOpenCompanion} />
-              ) : null}
-            </div>
-          )}
-          {tab === 'docs' && (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                accept=".pdf,.txt,.doc,.docx,.xlsx,.md"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleUpload(file);
-                  e.target.value = '';
-                }}
-              />
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
-                  <input
-                    value={docSearch}
-                    onChange={(e) => setDocSearch(e.target.value)}
-                    placeholder="搜索文档…"
-                    className={cn(SEARCH_FIELD, 'pl-9 pr-8')}
-                  />
-                  {docSearch && (
-                    <button
-                      type="button"
-                      onClick={() => setDocSearch('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 hover:text-neutral-800 cursor-pointer"
-                      aria-label="清除搜索"
-                    >
-                      清除
-                    </button>
-                  )}
-                </div>
-                <button type="button" onClick={() => fileInputRef.current?.click()} className={BTN_INK}>
-                  <Upload size={13} />
-                  上传文档
-                </button>
-                {variant === 'page' && !companionOpen && onOpenCompanion ? (
-                  <CompanionAssistOpenButton onClick={onOpenCompanion} />
-                ) : null}
-              </div>
-            </>
-          )}
-          {tab === 'recall' && variant === 'page' && !companionOpen && onOpenCompanion ? (
-            <CompanionAssistOpenButton onClick={onOpenCompanion} />
-          ) : null}
-        </header>
+        {contentHeader}
 
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
           {tab === 'docs' && (
             <div
-              className={cn('relative min-h-full space-y-3', variant === 'modal' ? 'p-4' : 'p-5')}
+              className={cn('relative min-h-full space-y-3', isFullscreen ? 'p-3' : isEmbeddedChrome ? 'p-4' : 'p-5')}
               onDragEnter={(e) => {
                 e.preventDefault();
                 setDragActive(true);
@@ -730,8 +780,8 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                 </div>
               ) : (
                 <>
-                <div className={onlineTableClass.wrap}>
-                  <table className={cn(onlineTableClass.table, 'min-w-[760px]')}>
+                <div className={cn(onlineTableClass.wrap, 'overflow-x-auto')}>
+                  <table className={cn(onlineTableClass.table, isFullscreen ? 'min-w-[720px]' : 'min-w-[760px]')}>
                     <thead>
                       <tr className={onlineTableClass.headRow}>
                         <th className={cn(onlineTableClass.thFirst, 'w-10')}>
@@ -886,20 +936,6 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                       })}
                     </tbody>
                   </table>
-                </div>
-                <div className="pt-3 flex items-center justify-between">
-                  <span className={LIST_META}>
-                    显示 {filteredDocs.length} / {documents.length} 个文档
-                  </span>
-                  {docSearch && (
-                    <button
-                      type="button"
-                      onClick={() => setDocSearch('')}
-                      className="text-[12px] text-neutral-600 hover:text-neutral-900 underline underline-offset-2 cursor-pointer"
-                    >
-                      清除筛选
-                    </button>
-                  )}
                 </div>
                 </>
               )}

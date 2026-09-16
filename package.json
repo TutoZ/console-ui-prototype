@@ -27,7 +27,11 @@
     "design-io:build": "vite build --config vite.design-io.config.ts",
     "design-io:verify": "npm run design-io:bindings && npm run design-io:typecheck && npm run design-io:test && npm run design-io:build",
     "design-io:typecheck": "tsc --noEmit -p tsconfig.design-io.json",
-    "design-io:preview": "vite preview --config vite.design-io.config.ts --host 127.0.0.1 --port 5274 --strictPort"
+    "design-io:preview": "vite preview --config vite.design-io.config.ts --host 127.0.0.1 --port 5274 --strictPort",
+    "design-io:start": "python3 -B docs/digital-employee-playbook/tools/workpack.py start",
+    "design-io:review": "python3 -B docs/digital-employee-playbook/tools/workpack.py review",
+    "design-io:tools-test": "python3 -B -m unittest discover -s docs/digital-employee-playbook/tools -p \"test_*.py\"",
+    "design-io:skill-browser": "node scripts/test-skill-confirm-browser.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

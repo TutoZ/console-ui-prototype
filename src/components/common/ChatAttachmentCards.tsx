@@ -13,8 +13,14 @@ import {
   type ChatAttachmentRef,
 } from '@/lib/chatAttachments';
 
+export type ChatAttachmentCardItem = ChatAttachmentRef & {
+  statusLabel?: string;
+  statusTone?: 'success' | 'neutral';
+  onPreview?: () => void;
+};
+
 type ChatAttachmentCardsProps = {
-  attachments: ChatAttachmentRef[];
+  attachments: ChatAttachmentCardItem[];
   /** 用户气泡侧右对齐；AI 侧左对齐 */
   align?: 'start' | 'end';
   className?: string;
@@ -47,7 +53,9 @@ export const ChatAttachmentCards: React.FC<ChatAttachmentCardsProps> = ({
           <span
             className={cn(
               'w-9 h-9 rounded-[8px] shrink-0 flex flex-col items-center justify-center',
-              'bg-[rgba(21,101,191,0.08)] text-[#1565BF]',
+              /\.(xlsx|xls|csv)$/i.test(file.name)
+                ? 'bg-emerald-50 text-emerald-600'
+                : 'bg-[rgba(21,101,191,0.08)] text-[#1565BF]',
             )}
             aria-hidden
           >
@@ -60,12 +68,32 @@ export const ChatAttachmentCards: React.FC<ChatAttachmentCardsProps> = ({
             <p className="text-[13px] font-medium text-[#1c1d1f] truncate leading-5">
               {file.name}
             </p>
-            {file.sizeLabel ? (
-              <p className="text-[11px] text-neutral-400 leading-4 tabular-nums mt-0.5">
-                {file.sizeLabel}
-              </p>
-            ) : null}
+            <p className="text-[11px] leading-4 mt-0.5 flex items-center gap-1.5 flex-wrap">
+              {file.sizeLabel ? (
+                <span className="text-neutral-400 tabular-nums">{file.sizeLabel}</span>
+              ) : null}
+              {file.statusLabel ? (
+                <span
+                  className={cn(
+                    'tabular-nums',
+                    file.statusTone === 'success' ? 'text-emerald-600' : 'text-neutral-400',
+                  )}
+                >
+                  {file.sizeLabel ? '· ' : ''}
+                  {file.statusLabel}
+                </span>
+              ) : null}
+            </p>
           </div>
+          {file.onPreview ? (
+            <button
+              type="button"
+              onClick={file.onPreview}
+              className="text-[12px] font-medium text-[#1565BF] hover:underline cursor-pointer shrink-0"
+            >
+              预览
+            </button>
+          ) : null}
         </div>
       ))}
     </div>

@@ -9,12 +9,12 @@ import React, { useEffect, useState } from 'react';
 
 const TAB_HOLD_MS = 2800;
 
-export type GoalComposerGhostVariant = 'skill' | 'employee';
+export type GoalComposerGhostVariant = 'skill' | 'employee' | 'knowledge';
 
 export function formatGoalGhostText(label: string, variant: GoalComposerGhostVariant) {
-  return variant === 'employee'
-    ? `帮我创建一个“${label}”数字员工`
-    : `帮我做一个“${label}”技能`;
+  if (variant === 'employee') return `帮我创建一个“${label}”数字员工`;
+  if (variant === 'knowledge') return `帮我建一个“${label}”知识库`;
+  return `帮我做一个“${label}”技能`;
 }
 
 export function GoalComposerGhost({

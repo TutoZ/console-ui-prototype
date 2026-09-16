@@ -1,6 +1,6 @@
 {
-  "version": "0.2",
-  "scope": "online_service.training_snapshot",
+  "version": "0.3",
+  "scope": "online_service.training_snapshot + skill_creation.confirm_write",
   "kind": "declarative_recipes_not_react_templates",
   "product_rules": [
     "P01",
@@ -47,6 +47,13 @@
       "domain": "online_service",
       "source": "domain.md",
       "status": "proposed"
+    },
+    "DOM-SK-01": {
+      "domain": "skill_creation",
+      "source": "domain.md",
+      "status": "proposed",
+      "evidence": "cases/02-aop-skill.md",
+      "rule": "仅改变 Skill 内容时确认；新方案使旧确认只读；确认前不覆盖"
     }
   },
   "tokens": {
@@ -119,6 +126,15 @@
       "source": "lib/ui.ts",
       "symbols": [
         "BTN_AI_TEXT"
+      ],
+      "kind": "existing_export_binding"
+    },
+    "K-SKILL-CONFIRM": {
+      "source": "lib/ui.ts",
+      "symbols": [
+        "SKILL_AOP_PRIMARY_BTN_SM",
+        "confirmStatusBadgeClass",
+        "FIELD"
       ],
       "kind": "existing_export_binding"
     }
@@ -220,6 +236,14 @@
         "K-PANEL"
       ],
       "status": "observed_requires_runtime_validation"
+    },
+    "CMP-SKILL-CONFIRM": {
+      "source": "src/components/skills/SkillRoundConfirmCard.tsx",
+      "symbol": "SkillRoundConfirmCard",
+      "tokens": [
+        "K-SKILL-CONFIRM"
+      ],
+      "status": "observed_requires_runtime_validation"
     }
   },
   "templates": [
@@ -294,6 +318,10 @@
           ],
           "required": true
         }
+      ],
+      "context_keys": [
+        "teamId",
+        "employeeId"
       ]
     },
     {
@@ -349,6 +377,10 @@
           ],
           "required": true
         }
+      ],
+      "context_keys": [
+        "teamId",
+        "employeeId"
       ]
     },
     {
@@ -411,6 +443,10 @@
           ],
           "required": true
         }
+      ],
+      "context_keys": [
+        "teamId",
+        "employeeId"
       ]
     },
     {
@@ -455,22 +491,73 @@
           ],
           "required": true
         }
+      ],
+      "context_keys": [
+        "teamId",
+        "employeeId"
       ]
+    },
+    {
+      "id": "TPL-SKILL-CONFIRM",
+      "domain": "skill_creation",
+      "object": "skill",
+      "action": "confirm_write",
+      "outcome": "content_updated",
+      "context_keys": [
+        "skillId"
+      ],
+      "domain_rules": [
+        "DOM-SK-01"
+      ],
+      "claims": [
+        "E1",
+        "E2"
+      ],
+      "required_units": [
+        "AU-SK01",
+        "AU-SK02",
+        "AU-SK03",
+        "AU-SK04",
+        "AU-SK05",
+        "AU-SK06"
+      ],
+      "slots": [
+        {
+          "id": "confirmation",
+          "component": "CMP-SKILL-CONFIRM",
+          "tokens": [
+            "K-SKILL-CONFIRM"
+          ],
+          "required": true
+        },
+        {
+          "id": "content",
+          "component": "CMP-FIELD",
+          "tokens": [
+            "K-FIELD",
+            "K-LABEL"
+          ],
+          "required": true
+        }
+      ],
+      "applicability": "AI 即将修改当前 Skill 内容；纯问答与用户手改不套用",
+      "status": "prototype_recipe"
     }
   ],
   "sources": {
-    "DESIGN.md": "ade7bbbafaca62780369a90aa06e75b4230bec49b6d4c1586e18e31e7d8d5bde",
-    "lib/navDomain.ts": "3d2da40d963bab8fb68aa74537e9c867dcb42a3942e5c3dfb43fa3eb2031dc64",
-    "lib/platformTerminology.ts": "c48ef270ca6ef6c1ee079a630cafcc7c4c2b989d611289f219cce48bc39e4a17",
-    "lib/ui.ts": "450db1242831f39182617e0827cfa28e6c23ea0e21a17d3fb33985494eb05599",
+    "DESIGN.md": "0e25e8961d2d3a2d17848f167c362b874b7e36f9573ca75eae930092b629d44e",
+    "lib/navDomain.ts": "0d8c299fc926324b9b3d0e313173791a4e5954a20db15210fb0ff9043928f2c6",
+    "lib/platformTerminology.ts": "6ba341edab0dd430147eae1b91e4644ccab19e3c72a9d14406b6a4dc5cd18172",
+    "lib/ui.ts": "d9bf7e1b99d57a41b29a7e0321235878dae8e73d6a8c06c49c53561391ee4eba",
     "src/components/common/ContentBusy.tsx": "b02508ad17ae469f32fbb1be787904a4dcdb604913a08aeda28c245935991e82",
     "src/components/common/PageHeader.tsx": "db5dc1013adc0d42408e7b84a4421874e78ca3c4264036e62294ea38fbb325b7",
     "src/components/common/PanelModal.tsx": "6bf054ebd90a97bfaf7df2de7bbb87c32119a2c244668ff40d145ac8f2d4d5e2",
     "src/components/common/ResizableSplitPane.tsx": "3bbce36bb1a2a35d46c9b8d48edc69698f86bae3d99219b7024e7c17ee212c9d",
     "src/components/onboarding/AgentVersionPanel.tsx": "00e37240cfc017bad52d111e529d09659909b495c733f817c3b562f06327c950",
-    "src/components/onboarding/OnboardingCapabilityTestPanel.tsx": "b4099ddd82dd1d77c05edcc8202b1b475a4bb7a619f949399684771d5f6cf17e",
+    "src/components/onboarding/OnboardingCapabilityTestPanel.tsx": "62c2eb48afb68f51b293181b24ec2eda1fad95e6119b08ea08d4fa8499bcd515",
     "src/components/onboarding/OnboardingWorkspaceHeader.tsx": "a204f4c15d12787cfa3a79053d7ba4da94393dcc3c8151ffa86ded999dc15d90",
-    "src/index.css": "e1de0da052aebdb1d9ba2a2eb20c3642eebb7ad083e525e31d9fb9f11633963d"
+    "src/index.css": "e1de0da052aebdb1d9ba2a2eb20c3642eebb7ad083e525e31d9fb9f11633963d",
+    "src/components/skills/SkillRoundConfirmCard.tsx": "56857b3cec4a676454661c62c2cbc260616d3f29c29649de25ae57ab46e35c18"
   },
   "known_gaps": [
     "GAP-BRAND-01",

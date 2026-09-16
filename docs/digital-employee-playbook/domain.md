@@ -73,3 +73,9 @@ employeeId/teamId、draftRevision、candidateSnapshotId、activeSnapshotId、tes
 域 ID / 岗位用户 / 对象与关联 / 输入输出 / 关键动作 / 状态表 / 前置资格 / 权限 / 生效范围 / 不可逆动作 / 失败与重试 / 指标定义 / 正例反例 / 规则来源与确认人 / 可复用模板 / 最小验收用例。
 
 新增规则先成为 proposed；经业务决策后记录 confirmed。产品级主线冲突回 product.md；业务规则缺失留在本文件；配色和组件接口不得在业务章节临时补充。
+
+## 6. skill_creation：确认写入（设计策略提炼）
+
+DOM-SK-01，proposed，来源 cases/02-aop-skill.md 与用户 Skill 设计策略：只有 AI 将修改当前 Skill 内容时出现写入确认；纯问答不触发。新方案出现后旧方案只读；确认前保留原内容；确认后在当前编辑位置更新。上下文为 skillId，不要求 employeeId。该规则不包含发布、员工创建或训练资格。试跑以演示数据验证交互，模型生成另接。
+
+账号邀请与员工三栏案例目前为候选知识，尚无完整机器配方。遇到这类意图应读取对应案例及源码建立本任务规格，不能默认套用本节或在线客服培训。

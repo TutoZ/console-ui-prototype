@@ -140,6 +140,7 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
   const [stepKbQuery, setStepKbQuery] = useState('');
   const [dragKb, setDragKb] = useState<{ stepId: number; kb: string } | null>(null);
   const [dragOverKb, setDragOverKb] = useState<{ stepId: number; kb: string } | null>(null);
+  const headerButtonRef = useRef<HTMLButtonElement>(null);
   const inlineNameRef = useRef<HTMLInputElement>(null);
   const newContentRef = useRef<HTMLTextAreaElement>(null);
   const kbPickerRef = useRef<HTMLDivElement>(null);
@@ -389,8 +390,9 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
       <div className="flex items-center gap-1 px-3 py-2">
         <button
           type="button"
+          ref={headerButtonRef}
           onClick={() => setCollapsedAndSync(!collapsed)}
-          className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left cursor-pointer select-none"
+          className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left cursor-pointer select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           aria-expanded={!collapsed}
         >
           <div className="flex items-center gap-1.5 min-w-0">
@@ -1030,7 +1032,12 @@ export const SkillRoundConfirmCard: React.FC<SkillRoundConfirmCardProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => onConfirm(rows)}
+              onClick={() => {
+                if (readOnly) return;
+                // The submit control disappears on confirmation; retain focus on the persistent header.
+                headerButtonRef.current?.focus({ preventScroll: true });
+                onConfirm(rows);
+              }}
               className={SKILL_AOP_PRIMARY_BTN_SM}
             >
               确认执行

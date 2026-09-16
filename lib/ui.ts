@@ -189,6 +189,15 @@ export const MODAL_OVERLAY =
   'fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200';
 export const MODAL_PANEL =
   'bg-white text-neutral-900 rounded-[13px] w-full shadow-lg ring-1 ring-black/10 p-5 animate-in fade-in zoom-in-95 duration-200';
+/**
+ * 含 Tab / 可切换内容区的弹窗壳：固定高度，禁止因切 Tab 或内容多少而缩放。
+ * 与 flex-col + 内部 min-h-0 overflow 滚动区配合使用。
+ */
+export const MODAL_SHELL_FIXED =
+  'bg-white text-neutral-900 rounded-[16px] w-full shadow-[0_16px_48px_rgba(17,17,17,0.18)] overflow-hidden flex flex-col h-[min(860px,92vh)] animate-in fade-in zoom-in-95 duration-150';
+/** 中等固定高度壳（审批批处理等同级） */
+export const MODAL_SHELL_FIXED_MD =
+  'bg-white text-neutral-900 rounded-[13px] w-full shadow-lg ring-1 ring-black/10 overflow-hidden flex flex-col h-[min(720px,calc(100vh-80px))] animate-in fade-in zoom-in-95 duration-200';
 
 /** 筛选 / 快捷指令 Chip（#atom-chip）— 可点；不是 Badge；仅底色+字色，禁止描边 */
 export const CHIP =

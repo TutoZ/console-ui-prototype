@@ -44,6 +44,12 @@ export const BTN_MD = BTN_INK;
 /** 危险描边 */
 export const BTN_DANGER = `${BTN_BASE} h-8 px-3 bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 hover:text-rose-600`;
 
+/** 小号尺寸（对话卡内 CTA 等，h-6 / 11px） */
+export const BTN_INK_SM = `${BTN_BASE} h-6 px-2.5 text-[11px] bg-neutral-800 text-white hover:opacity-90`;
+export const BTN_SOFT_SM = `${BTN_BASE} h-6 px-2.5 text-[11px] bg-neutral-100 text-neutral-800 border border-neutral-200 hover:bg-neutral-200`;
+export const BTN_OUTLINE_SM = `${BTN_BASE} h-6 px-2.5 text-[11px] bg-white text-neutral-800 border border-neutral-200 hover:bg-neutral-50 shadow-[0_1px_0_rgba(0,0,0,0.05)]`;
+export const BTN_DANGER_SM = `${BTN_BASE} h-6 px-2.5 text-[11px] bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 hover:text-rose-600`;
+
 /** 输入框 / 下拉 / 文本域。单行默认 32px（与按钮同高）；textarea 用 min-h-[*] 撑开，勿再叠 h-* */
 export const FIELD =
   'w-full h-8 box-border bg-white border border-neutral-200/50 rounded-[7px] text-xs text-neutral-800 placeholder:text-neutral-800/50 px-2.5 py-0 outline-none transition duration-200 focus:border-neutral-300 disabled:opacity-50 disabled:cursor-not-allowed';
@@ -87,7 +93,7 @@ export const LABEL = 'block text-xs font-medium text-neutral-500 mb-1';
 
 /** 分段 Tab 容器（总高 38px） */
 export const SEGMENTED_BAR =
-  'inline-flex h-[38px] items-center gap-1 bg-neutral-100 rounded-lg p-1 w-fit shrink-0';
+  'inline-flex h-[38px] items-center gap-1 bg-neutral-100 rounded-lg p-1 w-fit max-w-full min-w-0';
 
 /** 分段 Tab 项 */
 export function segmentedItemClass(active: boolean): string {
@@ -122,11 +128,12 @@ export const SKILL_AOP_SEND_BTN =
   'w-9 h-9 rounded-[7px] bg-[linear-gradient(135deg,#000000_0%,#1565BF_100%)] text-white hover:opacity-90 flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0 shadow-[0_1px_0_rgba(0,0,0,0.05)]';
 export const SKILL_AOP_PRIMARY_BTN =
   'rounded-lg bg-[linear-gradient(135deg,#000000_0%,#1565BF_100%)] text-white font-medium hover:opacity-90 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed';
+/** 对话卡内主 CTA 小号（确认执行等） */
+export const SKILL_AOP_PRIMARY_BTN_SM = `${SKILL_AOP_PRIMARY_BTN} h-6 px-2.5 rounded-md text-[11px]`;
 
 /** AI 色按钮别名（黑 → #1565BF） */
 export const BTN_AI = SKILL_AOP_SEND_BTN;
-export const BTN_AI_TEXT =
-  'inline-flex items-center justify-center gap-1 font-semibold rounded-[7px] text-xs transition cursor-pointer outline-none select-none disabled:opacity-50 disabled:pointer-events-none h-8 px-3 text-white hover:opacity-90 bg-[linear-gradient(135deg,#000000_0%,#1565BF_100%)] shadow-[0_1px_0_rgba(0,0,0,0.05)]';
+export const BTN_AI_TEXT = `${BTN_BASE} h-8 px-3 text-white hover:opacity-90 ${NAV_ACTIVE_GRADIENT_BG} shadow-[0_1px_0_rgba(0,0,0,0.05)]`;
 
 /** “改写”等 AI 轻按钮 */
 export const AI_LIGHT_BTN_BG = 'bg-[rgba(21,101,191,0.08)]';
@@ -167,6 +174,11 @@ export const MODAL_OVERLAY =
   'fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200';
 export const MODAL_PANEL =
   'bg-white text-neutral-900 rounded-[13px] w-full shadow-lg ring-1 ring-black/10 p-5 animate-in fade-in zoom-in-95 duration-200';
+/** 含 Tab 的弹窗壳：固定高度，禁止切 Tab 时缩放 */
+export const MODAL_SHELL_FIXED =
+  'bg-white text-neutral-900 rounded-[16px] w-full shadow-[0_16px_48px_rgba(17,17,17,0.18)] overflow-hidden flex flex-col h-[min(860px,92vh)] animate-in fade-in zoom-in-95 duration-150';
+export const MODAL_SHELL_FIXED_MD =
+  'bg-white text-neutral-900 rounded-[13px] w-full shadow-lg ring-1 ring-black/10 overflow-hidden flex flex-col h-[min(720px,calc(100vh-80px))] animate-in fade-in zoom-in-95 duration-200';
 
 /** 筛选 / 快捷指令 Chip — 可点；不是 Badge；仅底色+字色，禁止描边 */
 export const CHIP =

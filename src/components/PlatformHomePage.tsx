@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * AI搭建 — 一句话创建入口（数字员工创建 / 技能创建）
+ * AI搭建 — 一句话创建入口（数字员工创建 / 技能创建 / 知识库创建）
  * 布局对齐 Figma“B端_AI组件规范”创作平台稿（node 24238:29648）。
  */
 
@@ -33,8 +33,10 @@ import {
   SkillStudioWorkspace,
   type SkillStudioPublishPayload,
 } from './skills/SkillStudioWorkspace';
+import { KnowledgeStudioWorkspace } from './knowledge/KnowledgeStudioWorkspace';
 import {
   EMPLOYEE_CREATE_CASES,
+  KNOWLEDGE_CREATE_CASES,
   SKILL_CREATE_CASES,
   type HomeCreateCase,
 } from '@/lib/homeCreateCases';
@@ -101,7 +103,7 @@ function buildPromptWithAttachments(prompt: string, files: HomeAttachment[]): st
   return `${body}\n\n${block}`;
 }
 
-type CreateMode = 'employee' | 'skill';
+type CreateMode = 'employee' | 'skill' | 'knowledge';
 
 type HomeSession = {
   id: string;
@@ -113,11 +115,13 @@ type HomeSession = {
 const HEADLINE: Record<CreateMode, { plain: string; accent: string }> = {
   skill: { plain: '要完成什么任务，我来帮你', accent: '创建技能' },
   employee: { plain: '要服务什么场景，我来帮你', accent: '创建员工' },
+  knowledge: { plain: '要沉淀什么资料，我来帮你', accent: '创建知识库' },
 };
 
 const SUBTITLE: Record<CreateMode, string> = {
   skill: '写清要完成的任务与边界，我们会写入右侧技能包并持续帮你优化。',
   employee: '写清岗位职责与服务边界，我们会帮你生成可培训、可上岗的数字员工草稿。',
+  knowledge: '写清知识用途与覆盖范围，我们会写入右侧知识库并持续帮你补全。',
 };
 
 const INDEX_CHIP =
@@ -148,8 +152,13 @@ function sessionTitleFromPrompt(text: string, mode: CreateMode): string {
   const prefix =
     mode === 'skill'
       ? /^(帮我)?(做一个|创建)?(一个)?/
-      : /^(帮我)?(创建一个|创建)?(一个)?/;
-  const stripped = trimmed.replace(prefix, '').replace(/数字员工|技能/g, '').trim();
+      : mode === 'knowledge'
+        ? /^(帮我)?(建一个|创建一个|创建)?(一个)?/
+        : /^(帮我)?(创建一个|创建)?(一个)?/;
+  const stripped = trimmed
+    .replace(prefix, '')
+    .replace(/数字员工|技能|知识库/g, '')
+    .trim();
   return (stripped || trimmed).slice(0, 28);
 }
 
@@ -158,9 +167,10 @@ export const PlatformHomePage: React.FC = () => {
   const pendingSkillAutoStartRef = useRef(false);
   const [mode, setMode] = useState<CreateMode>(() => {
     try {
-      if (sessionStorage.getItem('js_home_create_mode') === 'skill') {
+      const stored = sessionStorage.getItem('js_home_create_mode');
+      if (stored === 'skill' || stored === 'knowledge') {
         sessionStorage.removeItem('js_home_create_mode');
-        return 'skill';
+        return stored;
       }
     } catch {
       /* ignore */
@@ -188,6 +198,9 @@ export const PlatformHomePage: React.FC = () => {
   const [skillSeed, setSkillSeed] = useState<string | null>(null);
   const [skillSeedKbNames, setSkillSeedKbNames] = useState<string[]>([]);
   const [skillStudioKey, setSkillStudioKey] = useState(0);
+  const [knowledgeStudioOpen, setKnowledgeStudioOpen] = useState(false);
+  const [knowledgeSeed, setKnowledgeSeed] = useState<string | null>(null);
+  const [knowledgeStudioKey, setKnowledgeStudioKey] = useState(0);
   const [indexedSkillIds, setIndexedSkillIds] = useState<string[]>([]);
   const [indexedKbIds, setIndexedKbIds] = useState<string[]>([]);
   const [indexOpen, setIndexOpen] = useState(false);
@@ -235,7 +248,11 @@ export const PlatformHomePage: React.FC = () => {
 
   const canSubmit = prompt.trim().length > 0 || attachments.length > 0;
   const cases: readonly HomeCreateCase[] =
-    mode === 'skill' ? SKILL_CREATE_CASES : EMPLOYEE_CREATE_CASES;
+    mode === 'skill'
+      ? SKILL_CREATE_CASES
+      : mode === 'knowledge'
+        ? KNOWLEDGE_CREATE_CASES
+        : EMPLOYEE_CREATE_CASES;
   const chipLabels = cases.map((c) => c.label);
   const headline = HEADLINE[mode];
 
@@ -351,6 +368,11 @@ export const PlatformHomePage: React.FC = () => {
     setSkillSeedKbNames([]);
   };
 
+  const closeKnowledgeStudio = () => {
+    setKnowledgeStudioOpen(false);
+    setKnowledgeSeed(null);
+  };
+
   const handleSkillPublished = (payload: SkillStudioPublishPayload) => {
     if (payload.draftOnly) return;
     showToast(
@@ -364,7 +386,9 @@ export const PlatformHomePage: React.FC = () => {
   const indexedTotal =
     mode === 'employee'
       ? indexedSkillIds.length + indexedKbIds.length
-      : indexedKbIds.length;
+      : mode === 'skill'
+        ? indexedKbIds.length
+        : 0;
 
   const pushSession = useCallback((text: string, nextMode: CreateMode) => {
     const session: HomeSession = {
@@ -386,6 +410,8 @@ export const PlatformHomePage: React.FC = () => {
         .map((kb) => kb.name);
       pushSession(text, 'skill');
       setIncubationOpen(false);
+      setKnowledgeStudioOpen(false);
+      setKnowledgeSeed(null);
       setSkillSeed(text);
       setSkillSeedKbNames(kbNames);
       setSkillStudioKey((k) => k + 1);
@@ -396,6 +422,27 @@ export const PlatformHomePage: React.FC = () => {
       setIndexOpen(false);
     },
     [pushSession, knowledgeBases, indexedKbIds],
+  );
+
+  /** 知识库创建：带入文案后立刻建库并进入对话工作台 */
+  const startKnowledgeCreate = useCallback(
+    (raw: string) => {
+      const text = raw.trim();
+      if (!text) return;
+      pushSession(text, 'knowledge');
+      setIncubationOpen(false);
+      setSkillStudioOpen(false);
+      setSkillSeed(null);
+      setKnowledgeSeed(text);
+      setKnowledgeStudioKey((k) => k + 1);
+      setKnowledgeStudioOpen(true);
+      setPrompt('');
+      setAttachments([]);
+      setIndexedSkillIds([]);
+      setIndexedKbIds([]);
+      setIndexOpen(false);
+    },
+    [pushSession],
   );
 
   useEffect(() => {
@@ -421,8 +468,15 @@ export const PlatformHomePage: React.FC = () => {
       return;
     }
 
+    if (session.mode === 'knowledge') {
+      startKnowledgeCreate(session.prompt);
+      return;
+    }
+
     setSkillStudioOpen(false);
     setSkillSeed(null);
+    setKnowledgeStudioOpen(false);
+    setKnowledgeSeed(null);
     setIncubationSeed(session.prompt);
     setIncubationSkillIds([]);
     setIncubationKbIds([]);
@@ -456,6 +510,11 @@ export const PlatformHomePage: React.FC = () => {
 
     if (mode === 'skill') {
       startSkillCreate(text);
+      return;
+    }
+
+    if (mode === 'knowledge') {
+      startKnowledgeCreate(text);
       return;
     }
 
@@ -650,6 +709,12 @@ export const PlatformHomePage: React.FC = () => {
               icon={<GitBranch size={16} strokeWidth={1.75} className="text-neutral-800" />}
               onClick={() => setMode('skill')}
             />
+            <ModeTab
+              active={mode === 'knowledge'}
+              label="知识库创建"
+              icon={<Library size={16} strokeWidth={1.75} className="text-neutral-800" />}
+              onClick={() => setMode('knowledge')}
+            />
           </div>
 
           <div
@@ -721,7 +786,9 @@ export const PlatformHomePage: React.FC = () => {
                 aria-label={
                   mode === 'skill'
                     ? '描述希望 Skill 完成的业务任务'
-                    : '描述希望创建的数字员工职责'
+                    : mode === 'knowledge'
+                      ? '描述希望沉淀的知识用途与范围'
+                      : '描述希望创建的数字员工职责'
                 }
                 rows={3}
                 className="relative z-[1] w-full min-h-[80px] max-h-36 bg-transparent text-[14px] leading-[21px] px-1 pt-1 pb-2 outline-none resize-none text-[#181D27]"
@@ -752,7 +819,7 @@ export const PlatformHomePage: React.FC = () => {
 
             {(mode === 'employee'
               ? selectedSkills.length + selectedKbs.length > 0
-              : selectedKbs.length > 0) ? (
+              : mode === 'skill' && selectedKbs.length > 0) ? (
               <div className="px-1 pb-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
                 {mode === 'employee'
                   ? selectedSkills.map((sk) => (
@@ -805,6 +872,7 @@ export const PlatformHomePage: React.FC = () => {
                   <Plus size={16} />
                 </button>
                 <div className="relative" ref={indexPanelRef}>
+                  {mode !== 'knowledge' ? (
                   <button
                     type="button"
                     title={mode === 'employee' ? '索引技能与知识库' : '索引知识'}
@@ -829,7 +897,8 @@ export const PlatformHomePage: React.FC = () => {
                       </span>
                     ) : null}
                   </button>
-                  {indexOpen ? (
+                  ) : null}
+                  {indexOpen && mode !== 'knowledge' ? (
                     <div className="skill-goal-composer-menu absolute left-0 top-[calc(100%+6px)] z-[90] w-[min(340px,88vw)] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
                       <div className="px-3 pt-2.5 pb-2 border-b border-neutral-100 space-y-2">
                         {mode === 'employee' ? (
@@ -966,8 +1035,20 @@ export const PlatformHomePage: React.FC = () => {
                   type="button"
                   onClick={handleSubmit}
                   disabled={!canSubmit}
-                  title={mode === 'skill' ? '开始创建技能' : '开始创建数字员工'}
-                  aria-label={mode === 'skill' ? '开始创建技能' : '开始创建数字员工'}
+                  title={
+                    mode === 'skill'
+                      ? '开始创建技能'
+                      : mode === 'knowledge'
+                        ? '开始创建知识库'
+                        : '开始创建数字员工'
+                  }
+                  aria-label={
+                    mode === 'skill'
+                      ? '开始创建技能'
+                      : mode === 'knowledge'
+                        ? '开始创建知识库'
+                        : '开始创建数字员工'
+                  }
                   className={cn(BTN_AI, 'transition')}
                 >
                   <ArrowUp size={18} />
@@ -1035,6 +1116,14 @@ export const PlatformHomePage: React.FC = () => {
             document.body,
           )
         : null}
+
+      <KnowledgeStudioWorkspace
+        key={`kb-create-${knowledgeStudioKey}-${(knowledgeSeed ?? '').slice(0, 24)}`}
+        open={knowledgeStudioOpen && Boolean(knowledgeSeed)}
+        onClose={closeKnowledgeStudio}
+        initialPrompt={knowledgeSeed}
+        closeLabel="返回AI搭建"
+      />
       </div>
     </div>
   );

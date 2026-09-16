@@ -160,13 +160,6 @@ export const HOME_SUB_NAV: SubNavItem[] = [
     icon: 'solar:cart-large-2-linear',
     description: '进入员工市场页面',
   },
-  {
-    id: 'nav_skills',
-    title: '数字员工技能',
-    tab: 'skills',
-    icon: 'solar:magic-stick-3-linear',
-    description: '进入我的已订阅技能页面，可以切换到技能市场',
-  },
 ];
 
 /** 在线客服 · 二级 */
@@ -198,6 +191,13 @@ export const ONLINE_SUB_NAV: SubNavItem[] = [
     tab: 'kb',
     icon: 'solar:book-2-linear',
     description: '进入数字员工支持配置页面',
+  },
+  {
+    id: 'nav_skills',
+    title: '员工技能',
+    tab: 'skills',
+    icon: 'solar:magic-stick-3-linear',
+    description: '进入我的已订阅技能页面，可以切换到技能市场',
   },
   {
     id: 'nav_dashboard',
@@ -331,14 +331,14 @@ export const DOMAIN_NAV: PrimaryNavItem[] = [
     title: '数字员工',
     icon: 'solar:ghost-linear',
     tab: 'platformHome',
-    description: 'AI搭建 / 我的数字员工 / 市场 / 技能',
+    description: 'AI搭建 / 我的数字员工 / 市场',
   },
   {
     id: 'online',
     title: '在线客服',
     icon: 'solar:headphones-round-linear',
     tab: 'training',
-    description: '培训、知识、业绩、接待、比拼',
+    description: '培训、接待、知识、技能、业绩、比拼',
   },
   {
     id: 'hotline',

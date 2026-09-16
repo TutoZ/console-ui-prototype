@@ -65,9 +65,8 @@
   width: 100%;
 }
 
-.tagMethodAi,
-.tagMethodManual,
-.tagMethodWorkflow {
+.tagMethodAutonomous,
+.tagMethodPreset {
   display: inline-block;
   font-size: 9px;
   font-weight: 600;
@@ -78,17 +77,12 @@
   white-space: nowrap;
 }
 
-.tagMethodAi {
+.tagMethodAutonomous {
   background-color: rgb(240, 249, 255);
   color: rgb(3, 105, 161);
 }
 
-.tagMethodManual {
-  background-color: rgb(255, 251, 235);
-  color: rgb(180, 83, 9);
-}
-
-.tagMethodWorkflow {
+.tagMethodPreset {
   background-color: rgb(236, 253, 245);
   color: rgb(0, 153, 102);
 }

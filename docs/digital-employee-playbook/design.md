@@ -42,3 +42,7 @@ catalog.json 对每个 K-ID 记录 source/symbols；可运行检查确保导出�
 GAP-BRAND-01：根规范与共享实现不一致，owner=设计师；不修改旧源码来适配本文。
 GAP-FOCUS-01：部分按钮常量去掉 outline，复用并不能保证键盘可见焦点；需实测后在共享层修复，业务页不能假报通过。
 缺少令牌时登记：语义角色、场景、现有候选、为什么不能复用、影响范围、建议值与负责人。未批准前使用明确标注的原型占位，禁止把新值写成品牌事实。
+
+## Skill 局部视觉绑定
+
+K-SKILL-CONFIRM → lib/ui.ts 的 SKILL_AOP_PRIMARY_BTN_SM、confirmStatusBadgeClass、FIELD，由 SkillRoundConfirmCard 内部使用。继承该组件现状，不向通用按钮传播其 AI 样式。组件内部常量与父层 PANEL、字段 LABEL 分开检查；AST 只能确认引用，不能证明最终画面合格。

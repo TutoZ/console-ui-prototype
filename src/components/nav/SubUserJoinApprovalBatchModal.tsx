@@ -12,14 +12,16 @@ import {
   countProcessedInviteApplications,
   getInviteApplications,
 } from '@/lib/subUserInviteStore';
-import { BTN_DANGER, BTN_INK, LIST_META, MODAL_OVERLAY, MODAL_PANEL, SEARCH_FIELD } from '@/lib/ui';
+import { BTN_DANGER, BTN_INK, LIST_META, MODAL_OVERLAY, MODAL_PANEL, MODAL_SHELL_FIXED_MD, SEARCH_FIELD } from '@/lib/ui';
 import { cn } from '@/lib/utils';
 import { OnlineEmptyRow, onlineTableClass } from '../common/OnlinePageLayout';
 
 type ApprovalTab = 'pending' | 'processed';
 
-const MODAL_SHELL =
-  'w-[920px] max-w-[calc(100vw-32px)] h-[min(720px,calc(100vh-80px))] flex flex-col p-0 overflow-hidden ring-1 ring-black/10 shadow-lg';
+const MODAL_SHELL = cn(
+  MODAL_SHELL_FIXED_MD,
+  'w-[920px] max-w-[calc(100vw-32px)] p-0',
+);
 
 function ApprovalStatusTabs({
   tab,

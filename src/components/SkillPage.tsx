@@ -7,7 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Icon, addCollection } from '@iconify/react';
 import solarIcons from '@iconify-json/solar/icons.json';
 import { useApp } from '../context/AppContext';
-import { History, Pencil, Plus, Search, Sparkles, Trash2, UploadCloud } from '@/lib/icons';
+import { GitBranch, History, Pencil, Plus, Search, Trash2, UploadCloud } from '@/lib/icons';
 import { ListPagination, LIST_PAGE_SIZE, paginateItems } from './common/ListPagination';
 import {
   SkillStudioWorkspace,
@@ -476,7 +476,7 @@ export const SkillPage: React.FC = () => {
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-white text-neutral-800 font-sans text-xs antialiased">
       <div className="shrink-0 px-5 pt-5">
-      <OnlinePageHeader title="数字员工技能">
+      <OnlinePageHeader title="员工技能">
         <div className="relative w-full sm:w-64 shrink-0">
           <Search
             size={14}
@@ -521,7 +521,7 @@ export const SkillPage: React.FC = () => {
                     onClick={() => openCreate('interactive')}
                     className="w-full text-left px-3 py-2.5 hover:bg-neutral-50 cursor-pointer flex items-start gap-2.5"
                   >
-                    <Sparkles size={15} className="text-neutral-700 shrink-0 mt-0.5" />
+                    <GitBranch size={15} strokeWidth={1.75} className="text-neutral-700 shrink-0 mt-0.5" />
                     <span className="min-w-0">
                       <span className="block text-[13px] font-semibold text-neutral-900">
                         对话式创建

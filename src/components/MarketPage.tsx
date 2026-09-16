@@ -8,7 +8,6 @@ import { useApp } from '../context/AppContext';
 import { agentAvatarForCard } from '@/lib/agentAvatarDisplay';
 import {
   JOB_FAMILY_FULL_LABELS,
-  JOB_FAMILY_LABELS,
   resolveJobFamily,
 } from '@/lib/jobFamily';
 import { SELECT_TRIGGER } from '@/lib/ui';
@@ -96,7 +95,7 @@ export const MarketPage: React.FC = () => {
         avatarSrc={cardAvatar.kind === 'image' ? cardAvatar.src : undefined}
         avatarEmoji={cardAvatar.kind === 'emoji' ? cardAvatar.emoji : agent.avatar}
         category={agent.category}
-        jobFamilyLabel={JOB_FAMILY_LABELS[family]}
+        jobFamilyLabel={JOB_FAMILY_FULL_LABELS[family]}
         isHiredAlready={isHiredAlready}
         onHire={() => handleHire(agent.id)}
         onCustomRequest={() => {

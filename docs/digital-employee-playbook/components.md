@@ -60,3 +60,11 @@ import { BTN_INK, FIELD, FIELD_CTRL, LABEL, badgeClass } from '@/lib/ui';
 | GAP-FOCUS-01 | 按钮共享常量 outline-none | 验证实际 focus-visible；缺失则共享层补充 |
 
 新增组件必须写：现有组件为什么不足、最小新增接口、必需状态、Token引用、至少一个正例和负例、原子用例。业务规则留在 domain/Spec，不能塞进全局组件供所有域误用。
+
+## Skill 确认组件接入
+
+CMP-SKILL-CONFIRM：src/components/skills/SkillRoundConfirmCard.tsx，导出 SkillRoundConfirmCard。
+
+必需 items、onConfirm；可选 title、confirmed、locked、collapsed。items 为 id / label / checked，可用 fieldKey、fieldLabel、value；不要把员工字段名直接作为 Skill fieldKey。locked 用于过期轮次；confirmed 表达已确认。父级仍应拒绝过期或重复回调，不能只依靠按钮视觉状态。
+
+内部样式来自 lib/ui.ts 的 SKILL_AOP_PRIMARY_BTN_SM、confirmStatusBadgeClass、FIELD 等。K-SKILL-CONFIRM 表达内部绑定，不向组件臆造 className 或 token props。外部容器和内容字段单独映射。键盘焦点和嵌套操作仍需运行检查。

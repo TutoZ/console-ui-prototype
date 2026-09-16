@@ -12,7 +12,7 @@ export interface MarketCardRelayProps {
   avatarSrc?: string;
   avatarEmoji?: string;
   category: 'ready' | 'custom';
-  /** 岗位族标签，如“质检” */
+  /** 员工类型（卡片右上角，对齐我的数字员工） */
   jobFamilyLabel?: string;
   isHiredAlready: boolean;
   onHire: () => void;
@@ -38,6 +38,14 @@ export const MarketCardRelay: React.FC<MarketCardRelayProps> = ({
 }) => {
   return (
     <article className={styles.card}>
+      {jobFamilyLabel ? (
+        <div className={styles.familyRibbon}>
+          <span className={styles.familyBadge} title={jobFamilyLabel}>
+            {jobFamilyLabel}
+          </span>
+        </div>
+      ) : null}
+
       <div className={styles.avatarWrap}>
         {avatarSrc ? (
           <img className={styles.avatarImg} src={avatarSrc} alt="" />
@@ -49,7 +57,6 @@ export const MarketCardRelay: React.FC<MarketCardRelayProps> = ({
       <h3 className={styles.title}>{name}</h3>
 
       <div className={styles.tagWrap}>
-        {jobFamilyLabel ? <span className={styles.tagFamily}>{jobFamilyLabel}</span> : null}
         {category === 'ready' ? (
           <span className={styles.tagReady}>开箱即用</span>
         ) : (

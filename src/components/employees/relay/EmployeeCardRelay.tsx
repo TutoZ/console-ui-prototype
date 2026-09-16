@@ -5,7 +5,8 @@
 
 import React, { useState } from 'react';
 import {
-  CREATE_METHOD_META,
+  CREATE_METHOD_DISPLAY_META,
+  resolveCreateMethodDisplay,
   type EmployeeCreateMethod,
 } from '@/lib/employeeCreateMethod';
 import { isAvatarImageUrl } from '@/lib/agentAvatarDisplay';
@@ -34,7 +35,7 @@ export interface EmployeeCardRelayProps {
   hasTrainNotice?: boolean;
   /** 岗位族标签（卡片右上角） */
   jobFamilyLabel?: string;
-  /** 创建方式标签（标题下方，对齐市场卡）：AI搭建 / 手动 / 流程编排 */
+  /** 创建方式标签（标题下方）：自主规划 / 预设流程 */
   createMethod?: EmployeeCreateMethod;
   moreMenu?: React.ReactNode;
   moreOpen?: boolean;
@@ -67,13 +68,10 @@ export const EmployeeCardRelay: React.FC<EmployeeCardRelayProps> = ({
   const showPrimary = Boolean(primaryActionLabel && onPrimaryAction);
   const [hoverOpen, setHoverOpen] = useState(false);
   const menuVisible = Boolean(moreMenu) && (moreOpen || hoverOpen);
-  const methodMeta = createMethod ? CREATE_METHOD_META[createMethod] : null;
+  const displayKind = createMethod ? resolveCreateMethodDisplay(createMethod) : null;
+  const methodMeta = displayKind ? CREATE_METHOD_DISPLAY_META[displayKind] : null;
   const methodTagClass =
-    createMethod === 'workflow'
-      ? styles.tagMethodWorkflow
-      : createMethod === 'manual'
-        ? styles.tagMethodManual
-        : styles.tagMethodAi;
+    displayKind === 'preset' ? styles.tagMethodPreset : styles.tagMethodAutonomous;
 
   return (
     <div className={styles.card}>

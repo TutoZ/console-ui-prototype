@@ -51,3 +51,15 @@ route 输出模板 ID、选中的业务规则、每个槽位的组件与Token绑
 id / domain / object / action / outcome / 适用与排除 / 必需槽位 / 可选槽位与明确条件 / 组件限制 / Token绑定 / 业务规则 / 小单元用例 / 组合用例 / 当前缺口 / 来源与版本。
 
 新模板先写一条匹配正例、一条同词异域反例、一条字段缺失反例，再通过目录检查。新增知识不默认进入所有任务上下文。
+
+## TPL-SKILL-CONFIRM｜AI 修改前核对
+
+意图签名：skill_creation / skill / confirm_write / content_updated。来源：Skill 策略与 S05；状态 prototype_recipe。
+
+适用：当前 Skill 有待确认的 AI 修改。排除：纯问答、用户直接编辑、发布、员工创建。必须有 skillId。
+
+- confirmation → CMP-SKILL-CONFIRM → K-SKILL-CONFIRM：变更要点、当前轮次、确认状态。旧轮次只读但可回看。
+- content → CMP-FIELD → K-FIELD / K-LABEL：本次独立试跑的内容核对区。现有完整产品使用 ManusExpertFrame 时需另建编辑器配方，不能把 textarea 当等价专家编辑器。
+- 布局：宽屏左右核对，窄宽上下排列；不强制所有创建首屏展开。必须沿用已有样式，并实际检查遮挡与滚动。
+
+验证 AU-SK01–06。可运行参考：src/design-io/SkillConfirmPreview.tsx，design-io.html?case=skill-confirm。此为小单元交互样例，不是完整 Skill 生成。

@@ -168,8 +168,7 @@ export interface HiredAgent {
   /** 构建模式：自主规划 / 预设流程（workflow 画布） */
   buildMode?: 'autonomous' | 'preset';
   /**
-   * 创建方式（卡片角标）：
-   * ai = AI搭建；manual = 手动/Loop 创建；workflow = 流程编排
+   * 创建方式（内部）：ai / manual → 卡片展示「自主规划」；workflow →「预设流程」
    */
   createMethod?: 'ai' | 'manual' | 'workflow';
   /** 入职考核页配置培训存档 */

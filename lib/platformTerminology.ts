@@ -73,7 +73,7 @@ export const NAV_TERMS = {
   hireWizard: '雇佣员工向导',
   employeeTraining: '员工培训',
   companyKb: '员工知识',
-  skillCenter: '数字员工技能',
+  skillCenter: '员工技能',
   employeeAbTest: '员工比拼',
   dataDashboard: '办公室',
   employeePerformance: '员工业绩',

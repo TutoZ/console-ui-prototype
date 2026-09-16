@@ -2210,7 +2210,7 @@ export const ComponentLibraryPage: React.FC = () => {
         <Section
           id="tpl-dual-tabs"
           source="SkillPage · OnlinePageHeader + 页内子 Tab"
-          desc="对齐「数字员工技能」：页头（标题 + 搜索 + 新建）下方再挂页内子 Tab（我的技能 / 技能市场）。激活为墨黑字 + 墨黑底条，不是顶栏渐变胶囊。"
+          desc="对齐「员工技能」：页头（标题 + 搜索 + 新建）下方再挂页内子 Tab（我的技能 / 技能市场）。激活为墨黑字 + 墨黑底条，不是顶栏渐变胶囊。"
           dos={[
             '页头与子 Tab 同在 shrink-0 顶区',
             '子 Tab：h-9 / 13px，底条 absolute left-3 right-3 h-0.5 bg-neutral-900',
@@ -2223,7 +2223,7 @@ export const ComponentLibraryPage: React.FC = () => {
         >
           <PageMock>
             <div className="px-5 pt-5">
-              <OnlinePageHeader title="数字员工技能">
+              <OnlinePageHeader title="员工技能">
                 <div className="relative w-full sm:w-64 shrink-0">
                   <Search
                     size={14}

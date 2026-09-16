@@ -292,7 +292,7 @@ interface BuildSkillModalProps {
   /** 首页已索引知识库名称 */
   initialSelectedKBs?: string[];
   onPublished?: (skill: Skill) => void;
-  /** 未进入多轮时的返回文案；默认“返回数字员工技能” */
+  /** 未进入多轮时的返回文案；默认“返回员工技能” */
   closeLabel?: string;
 }
 
