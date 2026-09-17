@@ -31,6 +31,10 @@ import { NavBackButton } from '../common/NavBackButton';
 import { CompanionAssistOpenButton } from '../common/CompanionAssistPanel';
 import { onlineTableClass } from '../common/OnlinePageLayout';
 import {
+  KnowledgeDocChunksModal,
+  type KnowledgeDocChunk,
+} from './KnowledgeDocChunksModal';
+import {
   BTN_INK,
   BTN_OUTLINE,
   BTN_SOFT,
@@ -42,11 +46,19 @@ import {
   MODAL_SHELL_FIXED,
   PANEL,
   SEARCH_FIELD,
+  SELECT_TRIGGER,
   badgeClass,
 } from '@/lib/ui';
 import { KB_PAGE_COPY, SEARCH_COPY } from '@/lib/platformTerminology';
 import { cn } from '@/lib/utils';
 import { pickMockLatencyMs } from '@/lib/mockLatency';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 type SettingsSection = 'basic' | 'parse' | 'recall';
 type DocStatus = 'done' | 'parsing' | 'pending';
@@ -67,6 +79,35 @@ interface RecallHit {
   title: string;
   snippet: string;
   score: number;
+}
+
+const SAMPLE_CHUNK_BODY = `数字员工7期需求
+
+1. 员工上岗前评测二期
+案例库作为单独模块维护，支持按业务场景创建不同类型案例库，用于员工上岗前评测。
+· 案例库共享：名称、描述、更新时间；操作含查看、删除、新建
+· 上限 500 条；删除进行中模板需拦截提示
+
+2. AI 帮写
+自动生成和润色数字员工提示词；同步与回滚逻辑保持一致。
+
+3. SaaS 环境设置
+公共模板库对试用租户可见；租户权限按组织隔离。`;
+
+function seedDocChunks(doc: KbDocument): KnowledgeDocChunk[] {
+  const count = Math.max(doc.segments, doc.status === 'done' ? 1 : 0);
+  if (count <= 0) return [];
+  return Array.from({ length: count }, (_, i) => {
+    const suffix =
+      i === 0
+        ? SAMPLE_CHUNK_BODY
+        : `${doc.name.replace(/\.[^.]+$/, '')} · 分片 ${i + 1}\n\n本段保留原文档坐标与语义边界，便于检索召回与追溯。可按业务主题继续拆分或合并。`;
+    return {
+      id: `${doc.id}_chunk_${i + 1}`,
+      index: i + 1,
+      body: suffix,
+    };
+  });
 }
 
 const SETTINGS_TABS: { id: SettingsSection; label: string; icon: typeof Sliders }[] = [
@@ -232,6 +273,8 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
   const [settingsTab, setSettingsTab] = useState<SettingsSection>('basic');
   const [documents, setDocuments] = useState<KbDocument[]>(() => seedDocuments(kb));
   const [docSearch, setDocSearch] = useState('');
+  const [detailDocId, setDetailDocId] = useState<string | null>(null);
+  const [docChunks, setDocChunks] = useState<KnowledgeDocChunk[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [openMenuDocId, setOpenMenuDocId] = useState<string | null>(null);
@@ -269,6 +312,8 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
     setDocuments(seeded);
     setSelectedIds(new Set());
     setOpenMenuDocId(null);
+    setDetailDocId(null);
+    setDocChunks([]);
     seeded.forEach((doc) => {
       if (doc.status === 'parsing') startParsing(doc.id);
     });
@@ -292,6 +337,32 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
     if (!q) return documents;
     return documents.filter((d) => d.name.toLowerCase().includes(q));
   }, [documents, docSearch]);
+
+  const detailDoc = useMemo(
+    () => (detailDocId ? documents.find((d) => d.id === detailDocId) ?? null : null),
+    [documents, detailDocId],
+  );
+
+  const openDocDetail = (doc: KbDocument) => {
+    setDetailDocId(doc.id);
+    setDocChunks(seedDocChunks(doc));
+    setOpenMenuDocId(null);
+  };
+
+  const closeDocDetail = () => {
+    setDetailDocId(null);
+    setDocChunks([]);
+  };
+
+  const handleDocChunksChange = (next: KnowledgeDocChunk[]) => {
+    setDocChunks(next);
+    if (!detailDocId) return;
+    setDocuments((prev) =>
+      prev.map((d) =>
+        d.id === detailDocId ? { ...d, segments: next.length, status: 'done' as DocStatus } : d,
+      ),
+    );
+  };
 
   const selectedCount = filteredDocs.filter((d) => selectedIds.has(d.id)).length;
   const allFilteredSelected =
@@ -525,21 +596,21 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
 
   const renderStatus = (doc: KbDocument) => {
     if (doc.status === 'parsing') {
-      return <span className={badgeClass('live')}>解析中</span>;
+      return <span className={cn(badgeClass('live'), 'whitespace-nowrap')}>解析中</span>;
     }
     if (doc.status === 'pending') {
       return (
         <button
           type="button"
           onClick={() => startParsing(doc.id)}
-          className="inline-flex items-center gap-1 text-[10px] text-neutral-500 hover:text-neutral-800 cursor-pointer"
+          className="inline-flex items-center gap-1 text-[10px] text-neutral-500 hover:text-neutral-800 cursor-pointer whitespace-nowrap"
         >
           <Play size={11} />
           未开始
         </button>
       );
     }
-    return <span className={badgeClass('success')}>已完成</span>;
+    return <span className={cn(badgeClass('success'), 'whitespace-nowrap')}>已完成</span>;
   };
 
   const isFullscreen = variant === 'fullscreen';
@@ -595,7 +666,10 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
       />
       <div className="flex items-center gap-2 shrink-0 min-w-0">
         <div className="relative hidden sm:block">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
+          />
           <input
             value={docSearch}
             onChange={(e) => setDocSearch(e.target.value)}
@@ -694,6 +768,17 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
       )}
 
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept=".pdf,.txt,.doc,.docx,.xlsx,.md"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleUpload(file);
+            e.target.value = '';
+          }}
+        />
         {contentHeader}
 
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
@@ -703,11 +788,15 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                 e.preventDefault();
                 setDragActive(true);
               }}
-              onDragOver={(e) => e.preventDefault()}
+              onDragOver={(e) => {
+                e.preventDefault();
+              }}
               onDragLeave={(e) => {
                 if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragActive(false);
               }}
-              onDrop={handleDocDrop}
+              onDrop={(e) => {
+                handleDocDrop(e);
+              }}
             >
               {dragActive && (
                 <div className="absolute inset-0 z-20 flex items-center justify-center bg-neutral-50/90 border-2 border-dashed border-neutral-300 rounded-[13px] m-3 pointer-events-none">
@@ -783,7 +872,18 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
               ) : (
                 <>
                 <div className={cn(onlineTableClass.wrap, 'overflow-x-auto')}>
-                  <table className={cn(onlineTableClass.table, isFullscreen ? 'min-w-[720px]' : 'min-w-[760px]')}>
+                  <table className={cn(onlineTableClass.table, 'min-w-[960px] table-fixed')}>
+                    <colgroup>
+                      <col className="w-10" />
+                      <col />
+                      <col className="w-[72px]" />
+                      <col className="w-[72px]" />
+                      <col className="w-[88px]" />
+                      <col className="w-16" />
+                      <col className="w-[132px]" />
+                      <col className="w-[88px]" />
+                      <col className="w-14" />
+                    </colgroup>
                     <thead>
                       <tr className={onlineTableClass.headRow}>
                         <th className={cn(onlineTableClass.thFirst, 'w-10')}>
@@ -796,12 +896,12 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                           />
                         </th>
                         <th className={onlineTableClass.th}>文件名</th>
-                        <th className={cn(onlineTableClass.th, 'w-20')}>大小</th>
-                        <th className={cn(onlineTableClass.th, 'w-20')}>分段数量</th>
-                        <th className={cn(onlineTableClass.th, 'w-24')}>解析器</th>
+                        <th className={cn(onlineTableClass.th, 'w-[72px]')}>大小</th>
+                        <th className={cn(onlineTableClass.th, 'w-[72px]')}>分段数量</th>
+                        <th className={cn(onlineTableClass.th, 'w-[88px]')}>解析器</th>
                         <th className={cn(onlineTableClass.th, 'w-16 text-center')}>启用</th>
-                        <th className={cn(onlineTableClass.th, 'w-36')}>上传时间</th>
-                        <th className={cn(onlineTableClass.th, 'w-28')}>状态</th>
+                        <th className={cn(onlineTableClass.th, 'w-[132px]')}>上传时间</th>
+                        <th className={cn(onlineTableClass.th, 'w-[88px]')}>状态</th>
                         <th className={cn(onlineTableClass.thLast, 'w-14')}>操作</th>
                       </tr>
                     </thead>
@@ -809,16 +909,36 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                       {filteredDocs.map((doc) => {
                         const ext = getFileExt(doc.name);
                         const isSelected = selectedIds.has(doc.id);
+                        const statusLabel =
+                          doc.status === 'parsing'
+                            ? '解析中'
+                            : doc.status === 'pending'
+                              ? '未开始'
+                              : '已完成';
                         return (
                           <tr
                             key={doc.id}
+                            role="link"
+                            tabIndex={0}
+                            onClick={() => openDocDetail(doc)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                openDocDetail(doc);
+                              }
+                            }}
                             className={cn(
                               onlineTableClass.row,
+                              'cursor-pointer',
                               isSelected && 'bg-neutral-50',
                               !doc.enabled && 'opacity-60',
                             )}
+                            aria-label={`查看「${doc.name}」分片详情`}
                           >
-                            <td className={onlineTableClass.tdFirst}>
+                            <td
+                              className={cn(onlineTableClass.tdFirst, 'align-middle whitespace-nowrap')}
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <input
                                 type="checkbox"
                                 checked={isSelected}
@@ -827,7 +947,7 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                                 aria-label={`选择 ${doc.name}`}
                               />
                             </td>
-                            <td className={onlineTableClass.td}>
+                            <td className={cn(onlineTableClass.td, 'align-middle whitespace-nowrap max-w-0')}>
                               <div className="flex items-center gap-2 min-w-0">
                                 <span
                                   className={cn(
@@ -838,21 +958,48 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                                   {ext}
                                 </span>
                                 <span
-                                  className="font-semibold text-neutral-900 truncate max-w-[220px]"
+                                  className="min-w-0 flex-1 font-semibold text-neutral-900 truncate"
                                   title={doc.name}
                                 >
                                   {doc.name}
                                 </span>
                               </div>
                             </td>
-                            <td className={cn(onlineTableClass.td, 'text-neutral-500 tabular-nums')}>
+                            <td
+                              className={cn(
+                                onlineTableClass.td,
+                                'align-middle whitespace-nowrap text-neutral-500 tabular-nums',
+                              )}
+                              title={doc.sizeLabel}
+                            >
                               {doc.sizeLabel}
                             </td>
-                            <td className={cn(onlineTableClass.td, 'text-neutral-500 tabular-nums')}>
+                            <td
+                              className={cn(
+                                onlineTableClass.td,
+                                'align-middle whitespace-nowrap text-neutral-500 tabular-nums',
+                              )}
+                              title={`分段 ${doc.segments}`}
+                            >
                               {doc.segments}
                             </td>
-                            <td className={cn(onlineTableClass.td, 'text-neutral-500')}>{doc.parser}</td>
-                            <td className={cn(onlineTableClass.td, 'text-center')}>
+                            <td
+                              className={cn(
+                                onlineTableClass.td,
+                                'align-middle whitespace-nowrap text-neutral-500 truncate',
+                              )}
+                              title={doc.parser}
+                            >
+                              {doc.parser}
+                            </td>
+                            <td
+                              className={cn(
+                                onlineTableClass.td,
+                                'align-middle whitespace-nowrap text-center',
+                              )}
+                              onClick={(e) => e.stopPropagation()}
+                              title={doc.enabled ? '已启用' : '已停用'}
+                            >
                               <DocEnableSwitch
                                 enabled={doc.enabled}
                                 label={doc.enabled ? '已启用' : '已停用'}
@@ -865,11 +1012,29 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                                 }
                               />
                             </td>
-                            <td className={cn(onlineTableClass.td, 'text-neutral-500 tabular-nums whitespace-nowrap')}>
+                            <td
+                              className={cn(
+                                onlineTableClass.td,
+                                'align-middle whitespace-nowrap text-neutral-500 tabular-nums',
+                              )}
+                              title={doc.uploadedAt}
+                            >
                               {doc.uploadedAt}
                             </td>
-                            <td className={onlineTableClass.td}>{renderStatus(doc)}</td>
-                            <td className={cn(onlineTableClass.tdLast, 'relative')}>
+                            <td
+                              className={cn(onlineTableClass.td, 'align-middle whitespace-nowrap')}
+                              onClick={(e) => e.stopPropagation()}
+                              title={statusLabel}
+                            >
+                              {renderStatus(doc)}
+                            </td>
+                            <td
+                              className={cn(
+                                onlineTableClass.tdLast,
+                                'relative align-middle whitespace-nowrap',
+                              )}
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <button
                                 type="button"
                                 onClick={() =>
@@ -889,6 +1054,14 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                                     onClick={() => setOpenMenuDocId(null)}
                                   />
                                   <div className="absolute right-0 top-full mt-1 z-30 w-36 bg-white border border-neutral-200 rounded-lg shadow-lg py-1 text-left">
+                                    <button
+                                      type="button"
+                                      onClick={() => openDocDetail(doc)}
+                                      className="w-full px-3 py-1.5 text-[11px] flex items-center gap-2 hover:bg-neutral-50 cursor-pointer"
+                                    >
+                                      <FileText size={12} />
+                                      查看分片
+                                    </button>
                                     <button
                                       type="button"
                                       onClick={() => openRename(doc)}
@@ -945,6 +1118,16 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
         </div>
       </div>
       </div>
+
+      <KnowledgeDocChunksModal
+        open={!!detailDoc}
+        onClose={closeDocDetail}
+        docName={detailDoc?.name ?? ''}
+        docStatus={detailDoc?.status}
+        chunks={docChunks}
+        onChunksChange={handleDocChunksChange}
+        showToast={showToast}
+      />
 
       {settingsOpen
         ? createPortal(
@@ -1195,29 +1378,55 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className={LABEL}>默认解析策略</label>
-                          <select
+                          <Select
                             value={chunkMethod}
-                            onChange={(e) => setChunkMethod(e.target.value)}
-                            className={FIELD}
+                            onValueChange={(v) => v && setChunkMethod(v)}
                           >
-                            <option value="general">通用解析</option>
-                            <option value="qa">问答解析</option>
-                            <option value="table">表格结构化</option>
-                          </select>
-                          <p className="text-[11px] text-neutral-500 mt-1.5 leading-relaxed">
-                            新上传文档将默认使用此解析器
-                          </p>
+                            <SelectTrigger
+                              className={cn(SELECT_TRIGGER, 'w-full justify-between')}
+                              aria-label="默认解析策略"
+                            >
+                              <SelectValue>
+                                {chunkMethod === 'qa'
+                                  ? '问答解析'
+                                  : chunkMethod === 'table'
+                                    ? '表格结构化'
+                                    : '通用解析'}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="general">通用解析</SelectItem>
+                              <SelectItem value="qa">问答解析</SelectItem>
+                              <SelectItem value="table">表格结构化</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div>
                           <label className={LABEL}>嵌入模型</label>
-                          <select
+                          <Select
                             value={embeddingModel}
-                            onChange={(e) => setEmbeddingModel(e.target.value)}
-                            className={FIELD}
+                            onValueChange={(v) => v && setEmbeddingModel(v)}
                           >
-                            <option value="Qwen3-Embedding-8B">Qwen3-Embedding-8B</option>
-                            <option value="bge-m3">BGE-M3</option>
-                          </select>
+                            <SelectTrigger
+                              className={cn(SELECT_TRIGGER, 'w-full justify-between')}
+                              aria-label="嵌入模型"
+                            >
+                              <SelectValue>
+                                {embeddingModel === 'bge-m3'
+                                  ? 'BGE-M3'
+                                  : embeddingModel === 'text-embedding-3-small'
+                                    ? 'text-embedding-3-small'
+                                    : 'Qwen3-Embedding-8B'}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Qwen3-Embedding-8B">Qwen3-Embedding-8B</SelectItem>
+                              <SelectItem value="text-embedding-3-small">
+                                text-embedding-3-small
+                              </SelectItem>
+                              <SelectItem value="bge-m3">BGE-M3</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
