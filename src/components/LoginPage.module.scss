@@ -71,12 +71,19 @@
 .certBrandLogoBtn {
   display: inline-flex;
   align-items: center;
-  padding: 0;
-  margin: 0;
+  padding: 4px;
+  margin: -4px;
   border: none;
   background: transparent;
   cursor: pointer;
   line-height: 0;
+  border-radius: 8px;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+
+  &:hover {
+    background-color: rgba(98, 105, 153, 0.08);
+    opacity: 0.9;
+  }
 }
 
 .certBrandLogo {
@@ -298,8 +305,19 @@
   cursor: pointer;
   border: none;
   background: transparent;
-  padding: 0;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  border-radius: 6px;
   flex-shrink: 0;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+
+  &:hover {
+    background-color: rgba(98, 105, 153, 0.08);
+  }
+
+  &:active {
+    background-color: rgba(98, 105, 153, 0.12);
+  }
 }
 
 .privateLoginText {
@@ -307,11 +325,21 @@
   font-weight: 400;
   font-size: 14px;
   line-height: 14px;
+  transition: color 0.15s ease;
+
+  .privateLogin:hover & {
+    color: #17171d;
+  }
 }
 
 .privateLoginIcon {
   width: 14px;
   height: 14px;
+  transition: opacity 0.15s ease;
+
+  .privateLogin:hover & {
+    opacity: 0.7;
+  }
 }
 
 .formMain {
@@ -383,6 +411,17 @@
   border: none;
   background: transparent;
   padding: 0;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tabNormal {
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.55);
+  }
+
+  &:hover .tabTextNormal {
+    color: #17171d;
+  }
 }
 
 .tabActive {
@@ -391,6 +430,13 @@
     0 2px 4px 0 rgba(0, 0, 0, 0.02),
     0 1px 6px -1px rgba(0, 0, 0, 0.02),
     0 1px 2px 0 rgba(0, 0, 0, 0.03);
+
+  &:hover {
+    box-shadow:
+      0 2px 6px 0 rgba(0, 0, 0, 0.04),
+      0 1px 8px -1px rgba(0, 0, 0, 0.04),
+      0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  }
 }
 
 .tabTextActive {
@@ -407,6 +453,7 @@
   font-size: 14px;
   line-height: 36px;
   white-space: nowrap;
+  transition: color 0.15s ease;
 }
 
 .inputArea {
@@ -427,6 +474,11 @@
   overflow: hidden;
   box-sizing: border-box;
   transition: border-color 0.2s, background-color 0.2s;
+
+  &:hover:not(:focus-within) {
+    background-color: rgba(98, 105, 153, 0.1);
+    border-color: rgba(17, 17, 17, 0.08);
+  }
 
   &:focus-within {
     border-color: #000;
@@ -486,6 +538,17 @@
   cursor: pointer;
   outline: none;
   flex-shrink: 0;
+  transition: color 0.15s ease, background-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    color: #1474f2;
+    background-color: rgba(20, 116, 242, 0.06);
+  }
+
+  &:active:not(:disabled) {
+    color: #0f5dc4;
+    background-color: rgba(20, 116, 242, 0.1);
+  }
 
   &:disabled {
     color: rgba(0, 0, 0, 0.35);
@@ -523,11 +586,22 @@
   align-items: center;
   justify-content: center;
   padding: 0;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover:not(.checkboxChecked) {
+    border-color: #1474f2;
+    box-shadow: 0 0 0 2px rgba(20, 116, 242, 0.12);
+  }
 }
 
 .checkboxChecked {
   background-color: #1474f2;
   border-color: #1474f2;
+
+  &:hover {
+    background-color: #0f5dc4;
+    border-color: #0f5dc4;
+  }
 }
 
 .agreementText {
@@ -556,6 +630,11 @@
   padding: 0;
   display: inline;
   vertical-align: baseline;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: #1474f2;
+  }
 }
 
 .submitBtn {
@@ -572,6 +651,17 @@
   justify-content: center;
   align-items: center;
   margin-bottom: 12px;
+  transition: background-color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background-color: #1a1a1a;
+    opacity: 0.92;
+  }
+
+  &:active:not(:disabled) {
+    background-color: #0a0a0a;
+    transform: scale(0.995);
+  }
 
   &:disabled {
     opacity: 0.6;
@@ -605,6 +695,12 @@
   border: none;
   background: transparent;
   padding: 0;
+  transition: color 0.15s ease, opacity 0.15s ease;
+
+  &:hover {
+    color: #0f5dc4;
+    opacity: 0.9;
+  }
 }
 
 .helpLinks {
@@ -634,10 +730,11 @@
   border: none;
   background: transparent;
   padding: 0;
-  transition: opacity 0.2s;
+  transition: color 0.15s ease, opacity 0.15s ease;
 
   &:hover {
-    opacity: 0.8;
+    color: #0f5dc4;
+    opacity: 0.9;
   }
 }
 
@@ -681,6 +778,13 @@
 .icpLink {
   color: inherit;
   cursor: pointer;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: #17171d;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
 }
 
 .qrcodeArea {
@@ -698,6 +802,12 @@
   box-shadow: 0 0 16px rgba(0, 0, 0, 0.08);
   overflow: hidden;
   margin-bottom: 24px;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
+  }
 }
 
 .qrcodeImg {
@@ -726,6 +836,14 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: rgba(98, 105, 153, 0.08);
+  }
 }
 
 .methodIcon {
@@ -763,6 +881,13 @@
   border: none;
   background: transparent;
   padding: 8px 0;
+  border-radius: 8px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+
+  &:hover {
+    color: #17171d;
+    background-color: rgba(98, 105, 153, 0.06);
+  }
 }
 
 .tenantList {
@@ -902,9 +1027,15 @@
   align-items: center;
   justify-content: center;
   margin-bottom: 10px;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
 
   &:hover {
+    background-color: #1a1a1a;
     opacity: 0.92;
+  }
+
+  &:active {
+    background-color: #0a0a0a;
   }
 }
 
@@ -919,9 +1050,11 @@
   font-size: 14px;
   line-height: 20px;
   cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 
   &:hover {
-    background-color: rgba(98, 105, 153, 0.12);
+    background-color: rgba(98, 105, 153, 0.14);
+    color: #000;
   }
 }
 
