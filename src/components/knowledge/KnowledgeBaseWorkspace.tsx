@@ -9,7 +9,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Check,
-  Cpu,
   Download,
   FileText,
   HelpCircle,
@@ -110,10 +109,10 @@ function seedDocChunks(doc: KbDocument): KnowledgeDocChunk[] {
   });
 }
 
-const SETTINGS_TABS: { id: SettingsSection; label: string; icon: typeof Sliders }[] = [
-  { id: 'basic', label: KB_PAGE_COPY.tabBasic, icon: Sliders },
-  { id: 'parse', label: KB_PAGE_COPY.tabParse, icon: Cpu },
-  { id: 'recall', label: KB_PAGE_COPY.tabRecall, icon: Search },
+const SETTINGS_TABS: { id: SettingsSection; label: string }[] = [
+  { id: 'basic', label: KB_PAGE_COPY.tabBasic },
+  { id: 'parse', label: KB_PAGE_COPY.tabParse },
+  { id: 'recall', label: KB_PAGE_COPY.tabRecall },
 ];
 
 const DOC_NAME_POOL = [
@@ -1161,23 +1160,34 @@ export const KnowledgeBaseWorkspace: React.FC<KnowledgeBaseWorkspaceProps> = ({
                   </button>
                 </div>
 
-                <nav className="shrink-0 flex items-center gap-0.5 px-5 border-b border-neutral-200">
-                  {SETTINGS_TABS.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setSettingsTab(item.id)}
-                      className={cn(
-                        'inline-flex items-center gap-1.5 h-9 px-3 text-[13px] whitespace-nowrap border-b-2 transition cursor-pointer',
-                        settingsTab === item.id
-                          ? 'border-neutral-900 text-neutral-900 font-medium'
-                          : 'border-transparent text-neutral-500 hover:text-neutral-800',
-                      )}
-                    >
-                      <item.icon size={14} className="shrink-0 text-neutral-500" />
-                      {item.label}
-                    </button>
-                  ))}
+                <nav
+                  className="shrink-0 flex items-center gap-1 px-5 border-b border-neutral-200"
+                  aria-label="知识库设置分类"
+                >
+                  {SETTINGS_TABS.map((item) => {
+                    const active = settingsTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setSettingsTab(item.id)}
+                        className={cn(
+                          'relative h-9 px-3 text-[13px] transition cursor-pointer shrink-0',
+                          active
+                            ? 'font-semibold text-neutral-900'
+                            : 'font-medium text-neutral-500 hover:text-neutral-800',
+                        )}
+                      >
+                        {item.label}
+                        {active ? (
+                          <span
+                            className="absolute left-3 right-3 bottom-0 h-0.5 rounded-full bg-neutral-900"
+                            aria-hidden
+                          />
+                        ) : null}
+                      </button>
+                    );
+                  })}
                 </nav>
 
                 <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
