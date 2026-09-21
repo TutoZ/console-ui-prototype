@@ -18,6 +18,8 @@ import { OutboundOpsViews, isOutboundMainTab } from './OutboundOpsViews';
 import { AgentScriptWorkspace } from './OutboundTrainingView';
 import { DomainNoAccessState } from './DomainNoAccessState';
 import { DomainAccessLeadModal } from './DomainAccessLeadModal';
+import { CallRecordsView } from '../modules/records/CallRecordsView';
+import { NumberManagementView } from '../modules/hotline/NumberManagementView';
 
 /** Demo：假定电话销售 / 电话催收域当前账号无权限，需留资开通 */
 const DOMAIN_ACCESS_LOCKED = new Set(['telesales', 'collection']);
@@ -169,86 +171,13 @@ export const DomainOpsPage: React.FC = () => {
 
         {domainOpsTab === 'calls' ? (
           <div className="space-y-4">
-            <OnlinePageHeader title="接待记录" />
-            <div className={cn(TABLE.wrap, 'min-w-[860px]')}>
-              <table className={TABLE.table}>
-                <thead>
-                  <tr className={TABLE.headRow}>
-                    <th className={TABLE.thFirst}>通话时间</th>
-                    <th className={TABLE.th}>主叫号码</th>
-                    <th className={TABLE.th}>接待智能体</th>
-                    <th className={TABLE.th}>时长</th>
-                    <th className={TABLE.thLast}>状态</th>
-                  </tr>
-                </thead>
-                <tbody className={TABLE.body}>
-                  {HOTLINE_CALL_ROWS.map((row) => (
-                    <tr key={row.id} className={TABLE.row}>
-                      <td className={cn(TABLE.tdFirst, 'font-mono text-[11px] text-neutral-600')}>{row.time}</td>
-                      <td className={cn(TABLE.td, 'font-mono')}>{row.caller}</td>
-                      <td className={TABLE.td}>{row.agent}</td>
-                      <td className={cn(TABLE.td, 'tabular-nums')}>{row.duration}</td>
-                      <td className={TABLE.tdLast}>
-                        <span
-                          className={cn(
-                            'text-[11px] font-medium',
-                            row.status === '已接通' ? 'text-neutral-800' : 'text-neutral-500',
-                          )}
-                        >
-                          {row.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <CallRecordsView embedded />
           </div>
         ) : null}
 
         {domainOpsTab === 'numbers' ? (
-          <div className="space-y-4 max-w-3xl">
-            <OnlinePageHeader title="号码管理">
-              <button
-                type="button"
-                className={cn(BTN_INK, 'gap-1.5 shrink-0')}
-                onClick={() => showToast('号码申请流程即将上线')}
-              >
-                <Plus size={14} />
-                申请号码
-              </button>
-            </OnlinePageHeader>
-            <div className={TABLE.wrap}>
-              <table className={TABLE.table}>
-                <thead>
-                  <tr className={TABLE.headRow}>
-                    <th className={TABLE.thFirst}>号码</th>
-                    <th className={TABLE.th}>标签</th>
-                    <th className={TABLE.th}>状态</th>
-                    <th className={TABLE.thLast}>绑定智能体</th>
-                  </tr>
-                </thead>
-                <tbody className={TABLE.body}>
-                  {HOTLINE_NUMBERS.map((row) => (
-                    <tr key={row.id} className={TABLE.row}>
-                      <td className={cn(TABLE.tdFirst, 'font-mono font-semibold text-neutral-900')}>{row.number}</td>
-                      <td className={TABLE.td}>{row.label}</td>
-                      <td className={TABLE.td}>
-                        <span
-                          className={cn(
-                            'text-[11px] font-medium',
-                            row.status === '使用中' ? 'text-neutral-800' : 'text-neutral-500',
-                          )}
-                        >
-                          {row.status}
-                        </span>
-                      </td>
-                      <td className={TABLE.tdLast}>{row.boundAgent}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="space-y-4">
+            <NumberManagementView embedded />
           </div>
         ) : null}
       </div>

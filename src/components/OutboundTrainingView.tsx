@@ -41,6 +41,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  OpeningModal,
+  TtsModal,
+  AsrModal,
+  FallbackModal,
+  DtmfModal,
+  SilenceModal,
+  BridgeModal,
+  DelayHangModal,
+  InterruptModal,
+  BgmModal,
+} from './training/TrainingFeatureModals';
 
 type ScriptStatus = 'unused' | 'in_use';
 
@@ -132,13 +144,11 @@ const CONFIG_GROUPS: ConfigGroup[] = [
     title: '对话交互体验',
     items: [
       { id: 'opening', label: '开场白', tip: '接通后首句话术与变量插值' },
+      { id: 'bridge', label: '衔接语', tip: '大模型思考等待时的垫话话术' },
       { id: 'fallback', label: '兜底答案', tip: '无法理解时的兜底回复' },
       { id: 'dtmf', label: '按键输入', tip: 'DTMF 按键采集与确认' },
       { id: 'silence', label: '静默响应', tip: '客户长时间静默时的追问策略' },
-      { id: 'secretary', label: '电话秘书', tip: '秘书代接场景的识别与话术' },
       { id: 'delayHang', label: '延时挂机', tip: '挂机前等待与告别语' },
-      { id: 'longHang', label: '超长挂机', tip: '超长通话强制结束策略' },
-      { id: 'virtual', label: '虚拟号识别', tip: '虚拟号拦截与提示' },
       { id: 'interrupt', label: '全局打断', tip: '允许用户随时打断播报' },
       { id: 'bgm', label: '通话背景音', tip: '通话过程中的环境音配置' },
     ],
@@ -161,7 +171,7 @@ const CONFIG_GROUPS: ConfigGroup[] = [
   },
 ];
 
-/** 智能外呼员工培训 · 右侧能力（对齐产品截图功能点） */
+/** 智能外呼员工培训 · 右侧能力（对齐产品截图功能点，已移除电话秘书、虚拟号、超长挂机） */
 const OUTBOUND_CONFIG_GROUPS: ConfigGroup[] = [
   {
     id: 'voice',
@@ -176,12 +186,11 @@ const OUTBOUND_CONFIG_GROUPS: ConfigGroup[] = [
     title: '对话交互体验',
     items: [
       { id: 'opening', label: '开场白', tip: '接通后首句话术与变量插值' },
-      { id: 'reject', label: '拒绝答案', tip: '用户明确拒绝时的收口话术' },
+      { id: 'bridge', label: '衔接语', tip: '大模型思考等待时的垫话话术' },
+      { id: 'fallback', label: '兜底答案', tip: '无法理解时的兜底回复' },
+      { id: 'dtmf', label: '按键输入', tip: 'DTMF 按键采集与确认' },
       { id: 'silence', label: '静默响应', tip: '客户长时间静默时的追问策略' },
-      { id: 'secretary', label: '电话秘书', tip: '秘书代接场景的识别与话术' },
       { id: 'delayHang', label: '延时挂机', tip: '挂机前等待与告别语' },
-      { id: 'longHang', label: '超长挂机', tip: '超长通话强制结束策略' },
-      { id: 'virtual', label: '虚拟号识别', tip: '虚拟号拦截与提示' },
       { id: 'interrupt', label: '全局打断', tip: '允许用户随时打断播报' },
       { id: 'bgm', label: '通话背景音', tip: '通话过程中的环境音配置' },
     ],
@@ -238,6 +247,88 @@ export const AgentScriptWorkspace: React.FC<{
   const [model, setModel] = useState(isOutbound ? 'qwen' : 'deepseek');
   const [editorTab, setEditorTab] = useState<(typeof EDITOR_TABS)[number]['id']>('main');
   const [openConfigId, setOpenConfigId] = useState<string | null>(null);
+  const [activeModalId, setActiveModalId] = useState<string | null>(null);
+
+  // 10 大功能配置持久化状态
+  const [featureConfigs, setFeatureConfigs] = useState({
+    opening: {
+      content: '您好，这里是京东金融客服助理小崔，请问有什么可以帮您',
+      noInterruptSec: 5.0,
+      silenceSec: 6.0,
+    },
+    tts: {
+      timbre: 'moses',
+      speed: 1.2,
+      volume: 5,
+      interval: 2,
+      pronounceRepair: false,
+      customTimbre: false,
+    },
+    asr: {
+      ignoreModalParticles: true,
+      pickupInterval: 0.5,
+      beepFilter: 0,
+      removeStagger: true,
+    },
+    fallback: '刚刚没听清，您方便再说一下吗？',
+    dtmf: {
+      enabled: true,
+      triggerCondition: '',
+      validationType: 'custom',
+      regex: '',
+      passCondition: '',
+      failPrompt: '',
+      maxFails: 3,
+      failJumpCondition: '',
+    },
+    silence: {
+      silenceDetectSec: 6,
+      enableSilenceHangup: true,
+      consecutiveCount: 3,
+      accumulateCount: 3,
+      answer: '不好意思，这边就先不打扰您了，再见。',
+    },
+    bridge: {
+      enabled: true,
+      waitTimeMs: 300,
+      phrases: [
+        { id: '1', text: '您好' },
+        { id: '2', text: '嗯' },
+        { id: '3', text: '明白' },
+        { id: '4', text: '嗯嗯' },
+      ],
+      frontRounds: 3,
+      frontProb: 100,
+      laterProb: 50,
+    },
+    delayHang: 2,
+    interrupt: {
+      allowInterrupt: true,
+      supportGrabRange: true,
+      grabRangeSec: 1.0,
+      supportNoInterrupt: true,
+      defaultNoInterruptSec: 2.0,
+      hangupAllowInterrupt: true,
+      minInterruptChars: 1,
+    },
+    bgm: {
+      name: '键盘打字',
+      enabled: false,
+    },
+  });
+
+  const supportedModalIds = new Set([
+    'opening',
+    'tts',
+    'asr',
+    'bridge',
+    'fallback',
+    'dtmf',
+    'silence',
+    'delayHang',
+    'interrupt',
+    'bgm',
+  ]);
 
   useEffect(() => {
     if (pendingOpsAction !== 'create-script') return;
@@ -710,20 +801,41 @@ export const AgentScriptWorkspace: React.FC<{
                   {group.title}
                 </div>
                 {group.items.map((item) => {
+                  const isModal = supportedModalIds.has(item.id);
                   const open = openConfigId === item.id;
+
+                  // 获取简短的配置摘要标签
+                  let statusTag: string | null = null;
+                  if (item.id === 'tts') statusTag = `${featureConfigs.tts.timbre === 'moses' ? '摩西' : '默认'} · ${featureConfigs.tts.speed}x`;
+                  else if (item.id === 'delayHang') statusTag = `${featureConfigs.delayHang}秒`;
+                  else if (item.id === 'silence') statusTag = `${featureConfigs.silence.silenceDetectSec}秒挂机`;
+                  else if (item.id === 'bridge') statusTag = `${featureConfigs.bridge.phrases.length}条 · ${featureConfigs.bridge.waitTimeMs}ms`;
+                  else if (item.id === 'bgm') statusTag = featureConfigs.bgm.name;
+
                   return (
                     <div key={item.id} className="bg-white/60">
                       <button
                         type="button"
-                        className="w-full h-9 px-3 flex items-center gap-1 text-left cursor-pointer hover:bg-white"
-                        onClick={() =>
-                          setOpenConfigId((id) => (id === item.id ? null : item.id))
-                        }
+                        className="w-full h-9 px-3 flex items-center gap-1.5 text-left cursor-pointer hover:bg-white transition-colors group"
+                        onClick={() => {
+                          if (isModal) {
+                            setActiveModalId(item.id);
+                          } else {
+                            setOpenConfigId((id) => (id === item.id ? null : item.id));
+                          }
+                        }}
                         aria-expanded={open}
                       >
-                        <span className="flex-1 min-w-0 text-[12px] font-medium text-neutral-800 truncate">
+                        <span className="flex-1 min-w-0 text-[12px] font-medium text-neutral-800 truncate group-hover:text-blue-600 transition-colors">
                           {item.label}
                         </span>
+
+                        {statusTag && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-500 max-w-[70px] truncate">
+                            {statusTag}
+                          </span>
+                        )}
+
                         <span
                           title={item.tip}
                           className="text-neutral-400 hover:text-neutral-600 shrink-0"
@@ -731,24 +843,33 @@ export const AgentScriptWorkspace: React.FC<{
                         >
                           <HelpCircle size={12} />
                         </span>
+
                         <span
-                          className="text-neutral-400 shrink-0 h-6 w-6 inline-flex items-center justify-center rounded hover:bg-neutral-100"
-                          title="添加配置"
+                          className="text-neutral-400 hover:text-blue-600 shrink-0 h-6 w-6 inline-flex items-center justify-center rounded hover:bg-neutral-100 cursor-pointer"
+                          title={isModal ? '编辑设置' : '添加配置'}
                           onClick={(e) => {
                             e.stopPropagation();
+                            if (isModal) {
+                              setActiveModalId(item.id);
+                            } else {
+                              setOpenConfigId((id) => (id === item.id ? null : item.id));
+                            }
                           }}
                         >
                           <Plus size={13} />
                         </span>
-                        <ChevronDown
-                          size={13}
-                          className={cn(
-                            'text-neutral-400 shrink-0 transition',
-                            open && 'rotate-180',
-                          )}
-                        />
+
+                        {!isModal && (
+                          <ChevronDown
+                            size={13}
+                            className={cn(
+                              'text-neutral-400 shrink-0 transition',
+                              open && 'rotate-180',
+                            )}
+                          />
+                        )}
                       </button>
-                      {open ? (
+                      {!isModal && open ? (
                         <div className="px-3 pb-3 space-y-2 bg-white border-t border-neutral-100">
                           <p className="pt-2 text-[11px] text-neutral-500 leading-relaxed flex gap-1.5">
                             <Info size={12} className="shrink-0 mt-0.5 text-neutral-400" />
@@ -799,6 +920,104 @@ export const AgentScriptWorkspace: React.FC<{
       onSubmit={(payload) => {
         createScript(payload);
         setCreateOpen(false);
+      }}
+    />
+
+    {/* 对应具体功能的 10 大设置弹窗 */}
+    <OpeningModal
+      open={activeModalId === 'opening'}
+      onClose={() => setActiveModalId(null)}
+      initialContent={featureConfigs.opening.content}
+      initialNoInterruptSec={featureConfigs.opening.noInterruptSec}
+      initialSilenceSec={featureConfigs.opening.silenceSec}
+      onSave={(data) => {
+        setFeatureConfigs((prev) => ({ ...prev, opening: data }));
+        onToast('已保存“开场白”配置');
+      }}
+    />
+
+    <TtsModal
+      open={activeModalId === 'tts'}
+      onClose={() => setActiveModalId(null)}
+      onSave={(data) => {
+        setFeatureConfigs((prev) => ({ ...prev, tts: data }));
+        onToast('已保存“语音播报设置”');
+      }}
+    />
+
+    <AsrModal
+      open={activeModalId === 'asr'}
+      onClose={() => setActiveModalId(null)}
+      onSave={(data) => {
+        setFeatureConfigs((prev) => ({ ...prev, asr: data }));
+        onToast('已保存“语音识别设置”');
+      }}
+    />
+
+    <FallbackModal
+      open={activeModalId === 'fallback' || activeModalId === 'reject'}
+      onClose={() => setActiveModalId(null)}
+      initialAnswer={featureConfigs.fallback}
+      onSave={(answer) => {
+        setFeatureConfigs((prev) => ({ ...prev, fallback: answer }));
+        onToast('已保存“兜底答案”配置');
+      }}
+    />
+
+    <DtmfModal
+      open={activeModalId === 'dtmf'}
+      onClose={() => setActiveModalId(null)}
+      onSave={(data) => {
+        setFeatureConfigs((prev) => ({ ...prev, dtmf: data }));
+        onToast('已保存“按键输入策略设置”');
+      }}
+    />
+
+    <SilenceModal
+      open={activeModalId === 'silence'}
+      onClose={() => setActiveModalId(null)}
+      onSave={(data) => {
+        setFeatureConfigs((prev) => ({ ...prev, silence: data }));
+        onToast('已保存“静默处理策略设置”');
+      }}
+    />
+
+    <BridgeModal
+      open={activeModalId === 'bridge'}
+      onClose={() => setActiveModalId(null)}
+      onSave={(data) => {
+        setFeatureConfigs((prev) => ({ ...prev, bridge: data }));
+        onToast('已更新“衔接语”配置');
+      }}
+    />
+
+    <DelayHangModal
+      open={activeModalId === 'delayHang'}
+      onClose={() => setActiveModalId(null)}
+      initialSec={featureConfigs.delayHang}
+      onSave={(sec) => {
+        setFeatureConfigs((prev) => ({ ...prev, delayHang: sec }));
+        onToast(`已保存延时挂机时长：${sec}秒`);
+      }}
+    />
+
+    <InterruptModal
+      open={activeModalId === 'interrupt'}
+      onClose={() => setActiveModalId(null)}
+      onSave={(data) => {
+        setFeatureConfigs((prev) => ({ ...prev, interrupt: data }));
+        onToast('已保存“全局打断/抢话设置”');
+      }}
+    />
+
+    <BgmModal
+      open={activeModalId === 'bgm'}
+      onClose={() => setActiveModalId(null)}
+      initialSelected={featureConfigs.bgm.name}
+      initialEnabled={featureConfigs.bgm.enabled}
+      onSave={(name, enabled) => {
+        setFeatureConfigs((prev) => ({ ...prev, bgm: { name, enabled } }));
+        onToast(`已保存通话背景音：${name} (${enabled ? '已开启' : '已关闭'})`);
       }}
     />
     </>

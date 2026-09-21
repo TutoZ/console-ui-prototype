@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
-import { useTheme } from 'next-themes';
+import { useTheme } from '@/src/components/theme-provider';
 import { Toaster as Sonner, type ToasterProps } from 'sonner';
 import { ToastLoadingIcon } from '@/src/components/common/ToastLoadingIcon';
 import { TOAST_ICON } from '@/lib/toastAssets';

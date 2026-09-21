@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { sessionAvatarUrl, sessionAvatarFallbackClass } from '@/src/lib/workspaceUi';
 import { ContentBusy } from './common/ContentBusy';
 import { useMockLatency } from '@/lib/useMockLatency';
+import { CallRecordsView } from '../modules/records/CallRecordsView';
 
 type TimeRange = 'today' | 'week' | 'month';
 type TriFilter = 'all' | 'true' | 'false';
@@ -173,6 +174,7 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
   caseLibraryOnly = false,
 }) => {
   const { sessions, hiredAgents, showToast, demoStep, setDemoStep, updateSession } = useApp();
+  const [receptionType, setReceptionType] = useState<'call' | 'chat'>('call');
 
   const initialRange = rangeFor('today');
   const [timeRange, setTimeRange] = useState<TimeRange>('today');
@@ -390,6 +392,50 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
     }
   };
 
+  if (!caseLibraryOnly && receptionType === 'call') {
+    return (
+      <div
+        className={cn(
+          embedded
+            ? 'flex-1 min-h-0 overflow-y-auto custom-scrollbar p-0 bg-white text-neutral-800 font-sans text-xs antialiased'
+            : ONLINE_PAGE,
+        )}
+      >
+        {!embedded && (
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-200/80">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setReceptionType('call')}
+                className={cn(
+                  'px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5',
+                  receptionType === 'call'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-50',
+                )}
+              >
+                热线呼叫记录
+              </button>
+              <button
+                type="button"
+                onClick={() => setReceptionType('chat')}
+                className={cn(
+                  'px-3.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5',
+                  receptionType === 'chat'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-50',
+                )}
+              >
+                在线会话记录
+              </button>
+            </div>
+          </div>
+        )}
+        <CallRecordsView embedded={embedded} />
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -398,6 +444,37 @@ export const SessionRecordsPage: React.FC<SessionRecordsPageProps> = ({
           : ONLINE_PAGE,
       )}
     >
+      {!embedded && !caseLibraryOnly && (
+        <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-200/80">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setReceptionType('call')}
+              className={cn(
+                'px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5',
+                receptionType === 'call'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-50',
+              )}
+            >
+              热线呼叫记录
+            </button>
+            <button
+              type="button"
+              onClick={() => setReceptionType('chat')}
+              className={cn(
+                'px-3.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5',
+                receptionType === 'chat'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-50',
+              )}
+            >
+              在线会话记录
+            </button>
+          </div>
+        </div>
+      )}
+
       {!embedded && demoStep === 'C1' && (
         <div className="mb-3 bg-neutral-800 text-white px-3 py-2 rounded-[13px] flex items-center justify-between text-[11px]">
           <span className="truncate">向下查看接待明细，点开单条会话复盘数字员工表现。</span>

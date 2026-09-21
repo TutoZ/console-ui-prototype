@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { ThemeProvider } from 'next-themes';
+import { ThemeProvider } from './components/theme-provider';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navigation } from './components/Navigation';
 import { PrimaryNavRail } from './components/PrimaryNavRail';
@@ -26,6 +26,7 @@ import { CustomerExperiencePage } from './components/CustomerExperiencePage';
 import { DashboardPage } from './components/DashboardPage';
 import { SessionRecordsPage } from './components/SessionRecordsPage';
 import { ResourcesPlaceholderPage } from './components/ResourcesPlaceholderPage';
+import { NumberManagementView } from './modules/hotline/NumberManagementView';
 import { AppToaster } from '@/components/ui/sonner';
 import { TaskCenterHost } from './components/TaskCenterHost';
 import { ToastPreviewPanel } from './components/common/ToastPreviewPanel';
@@ -151,10 +152,9 @@ const AppContent: React.FC<{ navLayout: NavLayoutVersion }> = ({ navLayout }) =>
         return <SessionRecordsPage caseLibraryOnly />;
       case 'phoneLines':
         return (
-          <ResourcesPlaceholderPage
-            title="电话线路"
-            description="电话线路资源配置页。"
-          />
+          <div className="flex-1 min-h-0 overflow-y-auto p-5 bg-white text-neutral-800 font-sans text-xs antialiased">
+            <NumberManagementView />
+          </div>
         );
       case 'smsResources':
         return (

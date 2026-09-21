@@ -8,21 +8,21 @@ import {
 
 import { 
   Role, ROLE_LABELS, DataSource, QualityTemplate, QualityCampaign, AuditTask, CoachingTask 
-} from "./quality/types";
+} from "./types";
 
 import { 
   initialDataSources, initialTemplates, initialCampaigns, initialAuditTasks, initialCoachingTasks 
-} from "./quality/mockData";
+} from "./mockData";
 
 
-import { DataSourcesView } from "./quality/DataSourcesView";
-import { RulesEngineView } from "./quality/RulesEngineView";
-import { CampaignsView } from "./quality/CampaignsView";
-import { WorklistInspectDesk } from "./quality/WorklistInspectDesk";
-import { ReinspectionDesk } from "./quality/ReinspectionDesk";
-import { CsrDashboard } from "./quality/CsrDashboard";
-import { WorkflowEditor } from "./quality/WorkflowEditor";
-import { OpsConsole } from "./quality/OpsConsole";
+import { DataSourcesView } from "./DataSourcesView";
+import { RulesEngineView } from "./RulesEngineView";
+import { CampaignsView } from "./CampaignsView";
+import { WorklistInspectDesk } from "./WorklistInspectDesk";
+import { ReinspectionDesk } from "./ReinspectionDesk";
+import { CsrDashboard } from "./CsrDashboard";
+import { WorkflowEditor } from "./WorkflowEditor";
+import { OpsConsole } from "./OpsConsole";
 import { qcNotify } from './qcNotify';
 
 export const QualityInspectionPage: React.FC = () => {
